@@ -156,14 +156,6 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const handleAddUnits = useCallback(async (habitId: string, count: number) => {
     const today = getTodayDate();
-    const todayUnits = logs
-      .filter((l) => l.date === today)
-      .reduce((sum, l) => sum + l.count, 0);
-
-    if (!isPro && todayUnits + count > FREE_LIMITS.MAX_UNITS_PER_DAY) {
-      return false;
-    }
-
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return false;
 
@@ -178,13 +170,6 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updated = [...logs, newLog];
     setLogs(updated);
     await saveLogs(updated);
-
-    setUndoAction({
-      type: "add_units",
-      logId: newLog.id,
-      habitId,
-      count: newLog.count,
-    });
 
     const newTotal = logs
       .filter((l) => l.habitId === habitId && l.date === today)

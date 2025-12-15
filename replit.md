@@ -81,11 +81,12 @@ server/
 - Removed all task-related functionality (purely habit tracker now)
 - Added GoalMeter component with animated glow effects (red below goal, gold when met)
 - Added AnimatedBlocks for 3D block visualization
-- **New: Simplified HabitRow** - Single tap adds 1 unit, color states (red/yellow/green)
-- **New: FallingBlocks** - Animated blocks falling into pile at bottom of Today screen
+- **New: Simplified HabitRow** - Single tap adds 1 unit, color states (red/yellow/green), chevron for navigation only
+- **New: FallingBlocks** - Animated blocks falling into pile, unlimited blocks with dynamic sizing
 - **New: Stats strip** - Shows Today's total and Best Day (previous record, excludes today)
 - **New: Remove units in detail** - HabitDetailScreen has -1/-5 buttons for removing units
 - **New: removeUnits function** - Ability to delete accidentally added units
+- **New: Unlimited units** - No daily unit limit, blocks shrink dynamically to fit all
 - **New: PieChart component** - Habit distribution visualization
 - **New: Enhanced StatsScreen** - Overview grid (Today, This Week, Daily Avg, Streak), bar charts, pie chart, habit progress cards
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import Animated, {
   useSharedValue,
@@ -11,9 +11,10 @@ import Animated, {
 } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const BLOCK_SIZE = 24;
-const PILE_HEIGHT = 100;
-const MAX_PILE_BLOCKS = 30;
+const PILE_HEIGHT = 120;
+const MIN_BLOCK_SIZE = 8;
+const MAX_BLOCK_SIZE = 24;
+const BLOCK_GAP = 2;
 
 interface Block {
   id: string;
@@ -38,35 +39,36 @@ interface FallingBlocksProps {
 
 function AnimatedFallingBlock({
   block,
+  blockSize,
   onComplete,
 }: {
   block: FallingBlock;
+  blockSize: number;
   onComplete: () => void;
 }) {
   const translateY = useSharedValue(block.startY);
   const scale = useSharedValue(1.2);
   const rotation = useSharedValue(0);
-  const opacity = useSharedValue(1);
 
   useEffect(() => {
     translateY.value = withTiming(block.endY, {
-      duration: 600,
+      duration: 500,
       easing: Easing.bezierFn(0.25, 0.1, 0.25, 1),
     });
     
     scale.value = withSequence(
-      withTiming(1.3, { duration: 100 }),
-      withSpring(1, { damping: 8, stiffness: 150 })
+      withTiming(1.2, { duration: 80 }),
+      withSpring(1, { damping: 10, stiffness: 180 })
     );
 
     rotation.value = withSequence(
-      withTiming(Math.random() * 20 - 10, { duration: 300 }),
+      withTiming(Math.random() * 15 - 7.5, { duration: 250 }),
       withSpring(0, { damping: 15 })
     );
 
     const timer = setTimeout(() => {
       runOnJS(onComplete)();
-    }, 650);
+    }, 550);
 
     return () => clearTimeout(timer);
   }, [block, translateY, scale, rotation, onComplete]);
@@ -77,7 +79,6 @@ function AnimatedFallingBlock({
       { scale: scale.value },
       { rotate: `${rotation.value}deg` },
     ],
-    opacity: opacity.value,
   }));
 
   return (
@@ -87,6 +88,9 @@ function AnimatedFallingBlock({
         animatedStyle,
         {
           left: block.x,
+          width: blockSize,
+          height: blockSize,
+          borderRadius: Math.max(4, blockSize / 4),
           backgroundColor: block.color,
           shadowColor: block.color,
         },
@@ -95,9 +99,9 @@ function AnimatedFallingBlock({
   );
 }
 
-function PileBlock({ block, index }: { block: Block; index: number }) {
+function PileBlock({ block, blockSize }: { block: Block; blockSize: number }) {
   const scale = useSharedValue(0);
-  const rotation = useSharedValue(Math.random() * 10 - 5);
+  const rotation = useSharedValue(Math.random() * 6 - 3);
 
   useEffect(() => {
     scale.value = withSpring(1, { damping: 12, stiffness: 200 });
@@ -118,6 +122,9 @@ function PileBlock({ block, index }: { block: Block; index: number }) {
         {
           left: block.x,
           bottom: block.finalY,
+          width: blockSize,
+          height: blockSize,
+          borderRadius: Math.max(3, blockSize / 4),
           backgroundColor: block.color,
           shadowColor: block.color,
         },
@@ -133,6 +140,15 @@ export function FallingBlocks({
 }: FallingBlocksProps) {
   const [animatingBlock, setAnimatingBlock] = useState<FallingBlock | null>(null);
 
+  const blockSize = useMemo(() => {
+    const count = blocks.length;
+    if (count <= 20) return MAX_BLOCK_SIZE;
+    if (count <= 50) return 18;
+    if (count <= 100) return 14;
+    if (count <= 200) return 10;
+    return MIN_BLOCK_SIZE;
+  }, [blocks.length]);
+
   useEffect(() => {
     if (newBlock) {
       setAnimatingBlock(newBlock);
@@ -144,19 +160,18 @@ export function FallingBlocks({
     onAnimationComplete?.();
   };
 
-  const visibleBlocks = blocks.slice(-MAX_PILE_BLOCKS);
-
   return (
     <View style={styles.container}>
       <View style={styles.pileContainer}>
-        {visibleBlocks.map((block, index) => (
-          <PileBlock key={block.id} block={block} index={index} />
+        {blocks.map((block) => (
+          <PileBlock key={block.id} block={block} blockSize={blockSize} />
         ))}
       </View>
       
       {animatingBlock ? (
         <AnimatedFallingBlock
           block={animatingBlock}
+          blockSize={blockSize}
           onComplete={handleAnimationComplete}
         />
       ) : null}
@@ -171,21 +186,39 @@ export function useFallingBlocks() {
   const [currentFallingBlock, setCurrentFallingBlock] = useState<FallingBlock | null>(null);
   const [blockCounter, setBlockCounter] = useState(0);
 
+  const getBlockSize = (count: number) => {
+    if (count <= 20) return MAX_BLOCK_SIZE;
+    if (count <= 50) return 18;
+    if (count <= 100) return 14;
+    if (count <= 200) return 10;
+    return MIN_BLOCK_SIZE;
+  };
+
+  const getColumnsForSize = (blockSize: number) => {
+    const availableWidth = SCREEN_WIDTH - 80;
+    return Math.floor(availableWidth / (blockSize + BLOCK_GAP));
+  };
+
   const dropBlock = (color: string) => {
     const id = `block-${Date.now()}-${blockCounter}`;
-    const x = Math.random() * (SCREEN_WIDTH - BLOCK_SIZE * 4) + BLOCK_SIZE;
+    const currentCount = pileBlocks.length;
+    const blockSize = getBlockSize(currentCount + 1);
+    const columns = getColumnsForSize(blockSize);
     
-    const row = Math.floor(pileBlocks.length / 8);
-    const col = pileBlocks.length % 8;
-    const finalY = row * (BLOCK_SIZE - 4) + 4;
-    const finalX = col * (BLOCK_SIZE + 4) + 20;
+    const col = currentCount % columns;
+    const row = Math.floor(currentCount / columns);
+    
+    const finalX = 16 + col * (blockSize + BLOCK_GAP);
+    const finalY = row * (blockSize + BLOCK_GAP) + 4;
+    
+    const x = Math.random() * (SCREEN_WIDTH - blockSize * 3) + blockSize;
 
     const fallingBlock: FallingBlock = {
       id,
       color,
       x,
-      startY: -100,
-      endY: PILE_HEIGHT - finalY - BLOCK_SIZE,
+      startY: -60,
+      endY: PILE_HEIGHT - finalY - blockSize - 8,
     };
 
     setCurrentFallingBlock(fallingBlock);
@@ -193,13 +226,35 @@ export function useFallingBlocks() {
 
     setTimeout(() => {
       setPileBlocks((prev) => {
-        const newBlocks = [...prev, { id, color, x: finalX, finalY }];
-        if (newBlocks.length > MAX_PILE_BLOCKS) {
-          return newBlocks.slice(-MAX_PILE_BLOCKS);
-        }
-        return newBlocks;
+        const newCount = prev.length + 1;
+        const newBlockSize = getBlockSize(newCount);
+        const newColumns = getColumnsForSize(newBlockSize);
+        
+        const newBlocks = prev.map((block, idx) => {
+          const newCol = idx % newColumns;
+          const newRow = Math.floor(idx / newColumns);
+          return {
+            ...block,
+            x: 16 + newCol * (newBlockSize + BLOCK_GAP),
+            finalY: newRow * (newBlockSize + BLOCK_GAP) + 4,
+          };
+        });
+        
+        const newBlockCol = newCount - 1;
+        const newBlockRow = Math.floor(newBlockCol / newColumns);
+        const newBlockColPos = newBlockCol % newColumns;
+        
+        return [
+          ...newBlocks,
+          {
+            id,
+            color,
+            x: 16 + newBlockColPos * (newBlockSize + BLOCK_GAP),
+            finalY: newBlockRow * (newBlockSize + BLOCK_GAP) + 4,
+          },
+        ];
       });
-    }, 600);
+    }, 500);
   };
 
   const removeBlock = (color: string) => {
@@ -207,7 +262,20 @@ export function useFallingBlocks() {
       const colorBlocks = prev.filter((b) => b.color === color);
       if (colorBlocks.length === 0) return prev;
       const lastBlock = colorBlocks[colorBlocks.length - 1];
-      return prev.filter((b) => b.id !== lastBlock.id);
+      const filtered = prev.filter((b) => b.id !== lastBlock.id);
+      
+      const blockSize = getBlockSize(filtered.length);
+      const columns = getColumnsForSize(blockSize);
+      
+      return filtered.map((block, idx) => {
+        const col = idx % columns;
+        const row = Math.floor(idx / columns);
+        return {
+          ...block,
+          x: 16 + col * (blockSize + BLOCK_GAP),
+          finalY: row * (blockSize + BLOCK_GAP) + 4,
+        };
+      });
     });
   };
 
@@ -227,7 +295,7 @@ export function useFallingBlocks() {
 
 const styles = StyleSheet.create({
   container: {
-    height: PILE_HEIGHT + 20,
+    height: PILE_HEIGHT,
     width: "100%",
     overflow: "hidden",
     position: "relative",
@@ -241,9 +309,6 @@ const styles = StyleSheet.create({
   },
   fallingBlock: {
     position: "absolute",
-    width: BLOCK_SIZE,
-    height: BLOCK_SIZE,
-    borderRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.4,
     shadowRadius: 4,
@@ -251,9 +316,6 @@ const styles = StyleSheet.create({
   },
   pileBlock: {
     position: "absolute",
-    width: BLOCK_SIZE,
-    height: BLOCK_SIZE,
-    borderRadius: 6,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 2,
@@ -264,7 +326,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 4,
+    height: 3,
     backgroundColor: "rgba(255,255,255,0.1)",
     borderRadius: 2,
   },

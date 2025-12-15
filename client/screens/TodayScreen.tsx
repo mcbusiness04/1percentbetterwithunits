@@ -12,7 +12,6 @@ import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { HabitRow } from "@/components/HabitRow";
 import { FallingBlocks, useFallingBlocks } from "@/components/FallingBlocks";
-import { UndoToast } from "@/components/UndoToast";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -80,7 +79,7 @@ export default function TodayScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + 200,
+            paddingBottom: tabBarHeight + 220,
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
@@ -130,7 +129,7 @@ export default function TodayScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.pileSection, { bottom: tabBarHeight }]}>
+      <View style={[styles.pileSection, { bottom: tabBarHeight + 8 }]}>
         <Animated.View 
           entering={FadeIn.delay(300)}
           style={[styles.statsStrip, { backgroundColor: theme.backgroundDefault }]}
@@ -168,7 +167,7 @@ export default function TodayScreen() {
           styles.fab,
           {
             backgroundColor: theme.accent,
-            bottom: tabBarHeight + 180,
+            bottom: tabBarHeight + 200,
             opacity: pressed ? 0.8 : 1,
             transform: [{ scale: pressed ? 0.95 : 1 }],
           },
@@ -176,8 +175,6 @@ export default function TodayScreen() {
       >
         <Feather name="plus" size={24} color="white" />
       </Pressable>
-
-      <UndoToast />
     </View>
   );
 }
@@ -233,9 +230,9 @@ const styles = StyleSheet.create({
   },
   pileSection: {
     position: "absolute",
-    left: Spacing.lg,
-    right: Spacing.lg,
-    height: 170,
+    left: Spacing.md,
+    right: Spacing.md,
+    height: 180,
   },
   statsStrip: {
     flexDirection: "row",

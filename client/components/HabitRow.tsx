@@ -71,29 +71,26 @@ export function HabitRow({ habit, onDropBlock }: HabitRowProps) {
   }));
 
   return (
-    <GestureDetector gesture={tapGesture}>
-      <Animated.View
-        style={[
-          styles.container,
-          animatedStyle,
-          {
-            backgroundColor: theme.backgroundDefault,
-            borderColor: statusColor + "50",
-            borderLeftColor: statusColor,
-            borderLeftWidth: 4,
-          },
-        ]}
-      >
-        <View style={styles.leftSection}>
+    <Animated.View
+      style={[
+        styles.container,
+        animatedStyle,
+        {
+          backgroundColor: theme.backgroundDefault,
+          borderColor: statusColor + "50",
+          borderLeftColor: statusColor,
+          borderLeftWidth: 4,
+        },
+      ]}
+    >
+      <GestureDetector gesture={tapGesture}>
+        <View style={styles.tappableArea}>
           <View style={[styles.iconContainer, { backgroundColor: habit.color + "20" }]}>
             <Feather name={habit.icon as any} size={20} color={habit.color} />
           </View>
           <ThemedText type="body" style={styles.habitName} numberOfLines={1}>
             {habit.name}
           </ThemedText>
-        </View>
-
-        <View style={styles.rightSection}>
           <View style={styles.countContainer}>
             <ThemedText type="h4" style={{ color: statusColor }}>
               {todayCount}
@@ -102,22 +99,23 @@ export function HabitRow({ habit, onDropBlock }: HabitRowProps) {
               /{habit.dailyGoal}
             </ThemedText>
           </View>
-          <Pressable
-            onPress={handleNavigate}
-            style={({ pressed }) => [
-              styles.chevronButton,
-              { 
-                opacity: pressed ? 0.6 : 1,
-                backgroundColor: theme.backgroundRoot,
-              },
-            ]}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Feather name="chevron-right" size={18} color={theme.textSecondary} />
-          </Pressable>
         </View>
-      </Animated.View>
-    </GestureDetector>
+      </GestureDetector>
+
+      <Pressable
+        onPress={handleNavigate}
+        style={({ pressed }) => [
+          styles.chevronButton,
+          { 
+            opacity: pressed ? 0.6 : 1,
+            backgroundColor: theme.backgroundRoot,
+          },
+        ]}
+        hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+      >
+        <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -126,18 +124,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingLeft: Spacing.sm,
+    paddingRight: Spacing.sm,
     borderRadius: 14,
     borderWidth: 1,
     marginBottom: Spacing.sm,
     minHeight: 60,
   },
-  leftSection: {
+  tappableArea: {
     flexDirection: "row",
     alignItems: "center",
     flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.sm,
   },
   iconContainer: {
     width: 36,
@@ -151,15 +150,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     flex: 1,
   },
-  rightSection: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
   countContainer: {
     flexDirection: "row",
     alignItems: "baseline",
     gap: 2,
+    marginRight: Spacing.sm,
   },
   chevronButton: {
     width: 32,
