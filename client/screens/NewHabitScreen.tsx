@@ -19,23 +19,29 @@ export default function NewHabitScreen() {
   const navigation = useNavigation();
   const { addHabit, habits, canAddHabit } = useUnits();
 
-  const [name, setName] = useState("");
   const [unitName, setUnitName] = useState("");
   const [dailyGoal, setDailyGoal] = useState("5");
+  const [tapIncrement, setTapIncrement] = useState("1");
   const [selectedIcon, setSelectedIcon] = useState(HABIT_ICONS[0]);
   const [selectedColor, setSelectedColor] = useState(HABIT_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isValid = name.trim().length > 0 && unitName.trim().length > 0;
+  const isValid = unitName.trim().length > 0;
+
+  const capitalizeFirst = (str: string) => {
+    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  };
 
   const handleCreate = useCallback(async () => {
     if (!isValid || isSubmitting) return;
 
+    const habitName = capitalizeFirst(unitName.trim());
+    
     const existingHabit = habits.find(
-      (h) => h.name.toLowerCase() === name.trim().toLowerCase()
+      (h) => h.name.toLowerCase() === habitName.toLowerCase()
     );
     if (existingHabit) {
-      Alert.alert("Duplicate Name", `You already have a habit named "${name.trim()}".`);
+      Alert.alert("Duplicate", `You already have a habit for "${habitName}".`);
       return;
     }
 
@@ -48,11 +54,12 @@ export default function NewHabitScreen() {
 
     try {
       await addHabit({
-        name: name.trim(),
+        name: habitName,
         icon: selectedIcon,
         color: selectedColor,
-        unitName: unitName.trim(),
+        unitName: unitName.trim().toLowerCase(),
         dailyGoal: parseInt(dailyGoal) || 5,
+        tapIncrement: parseInt(tapIncrement) || 1,
       });
 
       navigation.goBack();
@@ -65,9 +72,9 @@ export default function NewHabitScreen() {
     isValid,
     isSubmitting,
     habits,
-    name,
     unitName,
     dailyGoal,
+    tapIncrement,
     selectedIcon,
     selectedColor,
     addHabit,
@@ -114,12 +121,12 @@ export default function NewHabitScreen() {
     >
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          What habit are you tracking?
+          What are you counting?
         </ThemedText>
         <TextInput
-          value={name}
-          onChangeText={setName}
-          placeholder="e.g., Reading, Exercise, Meditation"
+          value={unitName}
+          onChangeText={setUnitName}
+          placeholder="e.g., push ups, pages, minutes, glasses of water"
           placeholderTextColor={theme.textSecondary}
           style={[
             styles.input,
@@ -129,25 +136,6 @@ export default function NewHabitScreen() {
             },
           ]}
           autoFocus
-        />
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          What are you counting?
-        </ThemedText>
-        <TextInput
-          value={unitName}
-          onChangeText={setUnitName}
-          placeholder="e.g., pages, minutes, reps"
-          placeholderTextColor={theme.textSecondary}
-          style={[
-            styles.input,
-            {
-              backgroundColor: theme.backgroundDefault,
-              color: theme.text,
-            },
-          ]}
         />
       </View>
 
@@ -188,9 +176,49 @@ export default function NewHabitScreen() {
 
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+          Add per tap
+        </ThemedText>
+        <View style={styles.goalRow}>
+          <Pressable
+            onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
+            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+          >
+            <Feather name="minus" size={20} color={theme.text} />
+          </Pressable>
+          <TextInput
+            value={tapIncrement}
+            onChangeText={setTapIncrement}
+            keyboardType="number-pad"
+            style={[
+              styles.goalInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                color: theme.text,
+              },
+            ]}
+          />
+          <Pressable
+            onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
+            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+          >
+            <Feather name="plus" size={20} color={theme.text} />
+          </Pressable>
+          <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+            {unitName || "units"} per tap
+          </ThemedText>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
           Pick an icon
         </ThemedText>
-        <View style={styles.iconGrid}>
+        <ScrollView 
+          horizontal={false} 
+          style={styles.iconScrollView}
+          contentContainerStyle={styles.iconGrid}
+          showsVerticalScrollIndicator={false}
+        >
           {HABIT_ICONS.map((icon) => (
             <Pressable
               key={icon}
@@ -206,7 +234,7 @@ export default function NewHabitScreen() {
               <Feather name={icon as any} size={22} color={selectedIcon === icon ? selectedColor : theme.textSecondary} />
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
       <View style={styles.inputGroup}>
@@ -238,10 +266,10 @@ export default function NewHabitScreen() {
           </View>
           <View style={styles.previewText}>
             <ThemedText type="body" style={{ fontWeight: "600" }}>
-              {name || "Your Habit"}
+              {capitalizeFirst(unitName) || "Your Habit"}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Goal: {dailyGoal} {unitName || "units"} per day
+              Goal: {dailyGoal} {unitName || "units"}/day | +{tapIncrement} per tap
             </ThemedText>
           </View>
         </View>
@@ -290,15 +318,18 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginHorizontal: Spacing.sm,
   },
+  iconScrollView: {
+    maxHeight: 200,
+  },
   iconGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: Spacing.sm,
   },
   iconOption: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
@@ -309,9 +340,9 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   colorOption: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   preview: {
     padding: Spacing.lg,

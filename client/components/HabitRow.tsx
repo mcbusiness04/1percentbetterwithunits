@@ -42,9 +42,11 @@ export function HabitRow({ habit }: HabitRowProps) {
     }
   }, [todayCount, habit.dailyGoal]);
 
+  const increment = habit.tapIncrement || 1;
+
   const handleTap = useCallback(async () => {
-    await addUnits(habit.id, 1);
-  }, [habit.id, addUnits]);
+    await addUnits(habit.id, increment);
+  }, [habit.id, increment, addUnits]);
 
   const handleNavigate = useCallback(() => {
     navigation.navigate("HabitDetail", { habitId: habit.id });
@@ -89,7 +91,7 @@ export function HabitRow({ habit }: HabitRowProps) {
               {habit.name}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {habit.unitName}
+              {habit.unitName} (+{increment})
             </ThemedText>
           </View>
           <View style={styles.countContainer}>
