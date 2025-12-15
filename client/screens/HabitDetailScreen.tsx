@@ -10,7 +10,6 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
-import { GoalMeter } from "@/components/GoalMeter";
 import { HabitWall } from "@/components/HabitWall";
 import { useUnits } from "@/lib/UnitsContext";
 import { TodayStackParamList } from "@/navigation/TodayStackNavigator";
@@ -32,13 +31,13 @@ export default function HabitDetailScreen() {
     habits,
     logs,
     addUnits,
+    removeUnits,
     deleteHabit,
     updateHabit,
     getTodayUnits,
     getWeekUnits,
     getMonthUnits,
     canAddUnits,
-    isPro,
   } = useUnits();
 
   const habit = useMemo(
@@ -66,6 +65,13 @@ export default function HabitDetailScreen() {
     return Math.round((total / 7) * 10) / 10;
   }, [habit, habitLogs]);
 
+  const statusColor = useMemo(() => {
+    if (!habit) return theme.textSecondary;
+    if (todayUnits === 0) return "#FF4444";
+    if (todayUnits < habit.dailyGoal) return "#FFB800";
+    return "#34C759";
+  }, [todayUnits, habit, theme.textSecondary]);
+
   const handleAddUnits = useCallback(
     async (count: number) => {
       if (!habit) return;
@@ -76,6 +82,18 @@ export default function HabitDetailScreen() {
       await addUnits(habit.id, count);
     },
     [habit, addUnits, canAddUnits, navigation]
+  );
+
+  const handleRemoveUnits = useCallback(
+    async (count: number) => {
+      if (!habit) return;
+      if (todayUnits === 0) {
+        Alert.alert("No Units", "You haven't logged any units today to remove.");
+        return;
+      }
+      await removeUnits(habit.id, count);
+    },
+    [habit, todayUnits, removeUnits]
   );
 
   const handleMenuPress = useCallback(() => {
@@ -166,7 +184,6 @@ export default function HabitDetailScreen() {
     );
   }
 
-  const progress = habit.dailyGoal > 0 ? todayUnits / habit.dailyGoal : 0;
   const isGoalMet = todayUnits >= habit.dailyGoal && habit.dailyGoal > 0;
 
   return (
@@ -198,33 +215,37 @@ export default function HabitDetailScreen() {
 
       <Animated.View 
         entering={FadeIn.delay(100)}
-        style={[styles.progressCard, { backgroundColor: habit.color + "15", borderColor: habit.color + "30" }]}
+        style={[styles.progressCard, { 
+          backgroundColor: theme.backgroundDefault, 
+          borderColor: statusColor + "40",
+          borderLeftColor: statusColor,
+          borderLeftWidth: 4,
+        }]}
       >
-        <View style={styles.progressContent}>
-          <GoalMeter current={todayUnits} goal={habit.dailyGoal} color={habit.color} size="large" />
-          <View style={styles.progressText}>
-            <ThemedText type="h1" style={{ color: habit.color }}>
+        <View style={styles.progressRow}>
+          <View style={styles.progressMain}>
+            <ThemedText type="h1" style={{ color: statusColor, fontSize: 48 }}>
               {todayUnits}
             </ThemedText>
             <ThemedText type="body" style={{ color: theme.textSecondary }}>
-              / {habit.dailyGoal} {habit.unitName} today
+              / {habit.dailyGoal} {habit.unitName}
             </ThemedText>
           </View>
+          {isGoalMet ? (
+            <View style={[styles.goalBadge, { backgroundColor: "#34C759" }]}>
+              <Feather name="check" size={16} color="#fff" />
+            </View>
+          ) : null}
         </View>
-        {isGoalMet ? (
-          <View style={[styles.goalBadge, { backgroundColor: "#FFD700" }]}>
-            <Feather name="award" size={14} color="#000" />
-            <ThemedText type="small" style={{ color: "#000", fontWeight: "600" }}>
-              Goal reached!
-            </ThemedText>
-          </View>
-        ) : null}
       </Animated.View>
 
-      <View style={styles.quickAddSection}>
+      <ThemedText type="h4" style={styles.sectionTitle}>
+        Add Units
+      </ThemedText>
+      <View style={styles.actionRow}>
         <Pressable
           onPress={() => handleAddUnits(1)}
-          style={[styles.quickAddButton, { backgroundColor: habit.color }]}
+          style={[styles.actionButton, { backgroundColor: habit.color }]}
         >
           <ThemedText type="body" style={{ color: "white", fontWeight: "600" }}>
             +1
@@ -232,7 +253,7 @@ export default function HabitDetailScreen() {
         </Pressable>
         <Pressable
           onPress={() => handleAddUnits(5)}
-          style={[styles.quickAddButton, { backgroundColor: habit.color + "CC" }]}
+          style={[styles.actionButton, { backgroundColor: habit.color + "CC" }]}
         >
           <ThemedText type="body" style={{ color: "white", fontWeight: "600" }}>
             +5
@@ -240,10 +261,44 @@ export default function HabitDetailScreen() {
         </Pressable>
         <Pressable
           onPress={() => navigation.navigate("QuickAdd", { habitId: habit.id })}
-          style={[styles.quickAddButton, { backgroundColor: theme.backgroundDefault }]}
+          style={[styles.actionButton, { backgroundColor: habit.color + "99" }]}
         >
-          <ThemedText type="body" style={{ fontWeight: "500" }}>
-            Add...
+          <ThemedText type="body" style={{ color: "white", fontWeight: "600" }}>
+            +...
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      <ThemedText type="h4" style={styles.sectionTitle}>
+        Remove Units
+      </ThemedText>
+      <View style={styles.actionRow}>
+        <Pressable
+          onPress={() => handleRemoveUnits(1)}
+          style={[styles.actionButton, styles.removeButton, { 
+            backgroundColor: todayUnits > 0 ? "#FF444420" : theme.backgroundDefault,
+            borderColor: todayUnits > 0 ? "#FF4444" : theme.border,
+          }]}
+        >
+          <ThemedText type="body" style={{ 
+            color: todayUnits > 0 ? "#FF4444" : theme.textSecondary, 
+            fontWeight: "600" 
+          }}>
+            -1
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          onPress={() => handleRemoveUnits(5)}
+          style={[styles.actionButton, styles.removeButton, { 
+            backgroundColor: todayUnits >= 5 ? "#FF444420" : theme.backgroundDefault,
+            borderColor: todayUnits >= 5 ? "#FF4444" : theme.border,
+          }]}
+        >
+          <ThemedText type="body" style={{ 
+            color: todayUnits >= 5 ? "#FF4444" : theme.textSecondary, 
+            fontWeight: "600" 
+          }}>
+            -5
           </ThemedText>
         </Pressable>
       </View>
@@ -324,39 +379,44 @@ const styles = StyleSheet.create({
   },
   progressCard: {
     padding: Spacing.xl,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     marginBottom: Spacing["2xl"],
   },
-  progressContent: {
+  progressRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.xl,
+    justifyContent: "space-between",
   },
-  progressText: {
-    flex: 1,
+  progressMain: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: Spacing.sm,
   },
   goalBadge: {
-    flexDirection: "row",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
-    alignSelf: "flex-start",
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 12,
-    gap: 4,
-    marginTop: Spacing.md,
+    justifyContent: "center",
   },
-  quickAddSection: {
+  sectionTitle: {
+    marginBottom: Spacing.md,
+  },
+  actionRow: {
     flexDirection: "row",
     gap: Spacing.sm,
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
   },
-  quickAddButton: {
+  actionButton: {
     flex: 1,
     height: 48,
     borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
+  },
+  removeButton: {
+    borderWidth: 1,
   },
   statsRow: {
     flexDirection: "row",
@@ -371,8 +431,5 @@ const styles = StyleSheet.create({
   },
   wallSection: {
     marginBottom: Spacing["2xl"],
-  },
-  sectionTitle: {
-    marginBottom: Spacing.md,
   },
 });

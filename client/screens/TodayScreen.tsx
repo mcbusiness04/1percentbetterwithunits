@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import { View, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -29,11 +29,11 @@ export default function TodayScreen() {
     habits,
     loading,
     canAddHabit,
-    isPro,
     getTodayTotalUnits,
+    getHighestDailyTotal,
   } = useUnits();
 
-  const { pileBlocks, currentFallingBlock, dropBlock, removeBlock } = useFallingBlocks();
+  const { pileBlocks, currentFallingBlock, dropBlock } = useFallingBlocks();
 
   const activeHabits = useMemo(
     () => habits.filter((h) => !h.isArchived),
@@ -41,6 +41,7 @@ export default function TodayScreen() {
   );
 
   const todayTotal = getTodayTotalUnits();
+  const highestTotal = getHighestDailyTotal();
 
   const handleAddPress = useCallback(() => {
     if (canAddHabit()) {
@@ -61,10 +62,6 @@ export default function TodayScreen() {
     dropBlock(color);
   }, [dropBlock]);
 
-  const handleRemoveBlock = useCallback((color: string) => {
-    removeBlock(color);
-  }, [removeBlock]);
-
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
@@ -83,38 +80,16 @@ export default function TodayScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + 160,
+            paddingBottom: tabBarHeight + 200,
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
       >
-        <Animated.View 
-          entering={FadeIn.delay(100)}
-          style={[styles.summaryCard, { backgroundColor: theme.accent + "15" }]}
-        >
-          <View style={styles.summaryContent}>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Today's Progress
-            </ThemedText>
-            <View style={styles.summaryRow}>
-              <ThemedText type="h1" style={[styles.summaryNumber, { color: theme.accent }]}>
-                {todayTotal}
-              </ThemedText>
-              <ThemedText type="body" style={{ color: theme.textSecondary, marginLeft: Spacing.sm }}>
-                units logged
-              </ThemedText>
-            </View>
-          </View>
-          <View style={[styles.summaryIcon, { backgroundColor: theme.accent + "20" }]}>
-            <Feather name="zap" size={28} color={theme.accent} />
-          </View>
-        </Animated.View>
-
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText type="h4">My Habits</ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Tap to add units
+              Tap to add
             </ThemedText>
           </View>
 
@@ -148,7 +123,6 @@ export default function TodayScreen() {
                 <HabitRow 
                   habit={habit} 
                   onDropBlock={handleDropBlock}
-                  onRemoveBlock={handleRemoveBlock}
                 />
               </Animated.View>
             ))
@@ -156,8 +130,31 @@ export default function TodayScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.blockPileContainer, { bottom: tabBarHeight }]}>
-        <View style={[styles.pileBackground, { backgroundColor: theme.backgroundDefault }]}>
+      <View style={[styles.pileSection, { bottom: tabBarHeight }]}>
+        <Animated.View 
+          entering={FadeIn.delay(300)}
+          style={[styles.statsStrip, { backgroundColor: theme.backgroundDefault }]}
+        >
+          <View style={styles.statItem}>
+            <ThemedText type="h3" style={{ color: theme.accent }}>
+              {todayTotal}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Today
+            </ThemedText>
+          </View>
+          <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+          <View style={styles.statItem}>
+            <ThemedText type="h3" style={{ color: theme.text }}>
+              {highestTotal}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Best Day
+            </ThemedText>
+          </View>
+        </Animated.View>
+
+        <View style={[styles.pileContainer, { backgroundColor: theme.backgroundDefault }]}>
           <FallingBlocks 
             blocks={pileBlocks} 
             newBlock={currentFallingBlock}
@@ -171,7 +168,7 @@ export default function TodayScreen() {
           styles.fab,
           {
             backgroundColor: theme.accent,
-            bottom: tabBarHeight + 140,
+            bottom: tabBarHeight + 180,
             opacity: pressed ? 0.8 : 1,
             transform: [{ scale: pressed ? 0.95 : 1 }],
           },
@@ -200,35 +197,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  summaryCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: Spacing.lg,
-    borderRadius: 20,
-    marginBottom: Spacing.xl,
-  },
-  summaryContent: {
-    flex: 1,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    marginTop: 4,
-  },
-  summaryNumber: {
-    fontSize: 42,
-    fontWeight: "700",
-  },
-  summaryIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   section: {
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -261,16 +231,33 @@ const styles = StyleSheet.create({
   emptyButton: {
     minWidth: 180,
   },
-  blockPileContainer: {
+  pileSection: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    height: 130,
+    left: Spacing.lg,
+    right: Spacing.lg,
+    height: 170,
   },
-  pileBackground: {
+  statsStrip: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xl,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    gap: Spacing.xl,
+  },
+  statItem: {
+    alignItems: "center",
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+  },
+  pileContainer: {
     flex: 1,
-    marginHorizontal: Spacing.lg,
-    borderRadius: 20,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
     overflow: "hidden",
   },
   fab: {

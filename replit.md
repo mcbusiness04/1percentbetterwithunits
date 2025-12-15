@@ -7,8 +7,11 @@ Units is a local-first mobile effort tracker built with Expo React Native. Users
 The app is fully functional with the following features:
 - 3-tab navigation (Today, Stats, Settings)
 - Habit creation with custom icons, colors, and unit definitions
-- Action menu for adding/removing units (Add 1, Add 5, Remove 1)
+- Single-tap to add units (tap habit = +1 unit)
+- Color-coded habit rows: red (0 units), yellow (in progress), green (goal met)
 - Falling blocks animation with pile visualization at bottom of Today screen
+- Stats strip showing Today's total and Best Day (previous record)
+- Remove units available in habit detail screen (-1, -5 buttons)
 - Local-first data persistence with AsyncStorage
 - Freemium model with Pro tier for unlimited access
 - iOS 26 liquid glass design aesthetic
@@ -78,8 +81,10 @@ server/
 - Removed all task-related functionality (purely habit tracker now)
 - Added GoalMeter component with animated glow effects (red below goal, gold when met)
 - Added AnimatedBlocks for 3D block visualization
-- **New: HabitActionMenu** - Modal with Add 1, Add 5, Remove 1 options
+- **New: Simplified HabitRow** - Single tap adds 1 unit, color states (red/yellow/green)
 - **New: FallingBlocks** - Animated blocks falling into pile at bottom of Today screen
+- **New: Stats strip** - Shows Today's total and Best Day (previous record, excludes today)
+- **New: Remove units in detail** - HabitDetailScreen has -1/-5 buttons for removing units
 - **New: removeUnits function** - Ability to delete accidentally added units
 - **New: PieChart component** - Habit distribution visualization
 - **New: Enhanced StatsScreen** - Overview grid (Today, This Week, Daily Avg, Streak), bar charts, pie chart, habit progress cards

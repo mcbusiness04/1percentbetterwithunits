@@ -55,6 +55,7 @@ interface UnitsContextType {
   getWeekTotalUnits: () => number;
   getMonthUnits: (habitId: string) => number;
   getLogsForDate: (date: string) => UnitLog[];
+  getHighestDailyTotal: () => number;
   
   canAddHabit: () => boolean;
   canAddUnits: (count: number) => boolean;
@@ -304,6 +305,18 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return logs.filter((l) => l.date === date);
   }, [logs]);
 
+  const getHighestDailyTotal = useCallback(() => {
+    const today = getTodayDate();
+    const dailyTotals: Record<string, number> = {};
+    logs.forEach((log) => {
+      if (log.date !== today) {
+        dailyTotals[log.date] = (dailyTotals[log.date] || 0) + log.count;
+      }
+    });
+    const totals = Object.values(dailyTotals);
+    return totals.length > 0 ? Math.max(...totals) : 0;
+  }, [logs]);
+
   const canAddHabit = useCallback(() => {
     if (isPro) return true;
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -347,6 +360,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getTodayTotalUnits,
         getWeekTotalUnits,
         getLogsForDate,
+        getHighestDailyTotal,
         canAddHabit,
         canAddUnits,
         refreshData,
