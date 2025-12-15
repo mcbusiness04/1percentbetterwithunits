@@ -129,7 +129,7 @@ export default function TodayScreen() {
         </View>
       </ScrollView>
 
-      <View style={[styles.pileSection, { bottom: tabBarHeight + 8 }]}>
+      <View style={[styles.pileSection, { bottom: tabBarHeight + 16 }]}>
         <Animated.View 
           entering={FadeIn.delay(300)}
           style={[styles.statsStrip, { backgroundColor: theme.backgroundDefault }]}
@@ -167,7 +167,7 @@ export default function TodayScreen() {
           styles.fab,
           {
             backgroundColor: theme.accent,
-            bottom: tabBarHeight + 200,
+            bottom: tabBarHeight + 230,
             opacity: pressed ? 0.8 : 1,
             transform: [{ scale: pressed ? 0.95 : 1 }],
           },
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: Spacing.md,
     right: Spacing.md,
-    height: 180,
+    height: 200,
   },
   statsStrip: {
     flexDirection: "row",

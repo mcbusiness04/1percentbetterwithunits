@@ -88,9 +88,14 @@ export function HabitRow({ habit, onDropBlock }: HabitRowProps) {
           <View style={[styles.iconContainer, { backgroundColor: habit.color + "20" }]}>
             <Feather name={habit.icon as any} size={20} color={habit.color} />
           </View>
-          <ThemedText type="body" style={styles.habitName} numberOfLines={1}>
-            {habit.name}
-          </ThemedText>
+          <View style={styles.textContainer}>
+            <ThemedText type="body" style={styles.habitName} numberOfLines={1}>
+              {habit.name}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {habit.unitName}
+            </ThemedText>
+          </View>
           <View style={styles.countContainer}>
             <ThemedText type="h4" style={{ color: statusColor }}>
               {todayCount}
@@ -146,9 +151,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginRight: Spacing.sm,
   },
+  textContainer: {
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
   habitName: {
     fontWeight: "600",
-    flex: 1,
   },
   countContainer: {
     flexDirection: "row",

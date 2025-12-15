@@ -11,7 +11,7 @@ import Animated, {
 } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PILE_HEIGHT = 120;
+const PILE_HEIGHT = 140;
 const MIN_BLOCK_SIZE = 8;
 const MAX_BLOCK_SIZE = 24;
 const BLOCK_GAP = 2;
