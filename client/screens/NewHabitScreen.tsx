@@ -10,7 +10,7 @@ import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useUnits } from "@/lib/UnitsContext";
-import { HABIT_COLORS, HABIT_ICONS, HabitType } from "@/lib/storage";
+import { HABIT_COLORS, HABIT_ICONS, HabitType, suggestIconAndColor } from "@/lib/storage";
 
 export default function NewHabitScreen() {
   const insets = useSafeAreaInsets();
@@ -26,6 +26,31 @@ export default function NewHabitScreen() {
   const [selectedIcon, setSelectedIcon] = useState<string>(HABIT_ICONS[0]);
   const [selectedColor, setSelectedColor] = useState<string>(HABIT_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasManuallySetIcon, setHasManuallySetIcon] = useState(false);
+  const [hasManuallySetColor, setHasManuallySetColor] = useState(false);
+
+  const handleUnitNameChange = useCallback((text: string) => {
+    setUnitName(text);
+    if (text.trim().length > 0) {
+      const suggestion = suggestIconAndColor(text);
+      if (!hasManuallySetIcon) {
+        setSelectedIcon(suggestion.icon);
+      }
+      if (!hasManuallySetColor) {
+        setSelectedColor(suggestion.color);
+      }
+    }
+  }, [hasManuallySetIcon, hasManuallySetColor]);
+
+  const handleIconSelect = useCallback((icon: string) => {
+    setSelectedIcon(icon);
+    setHasManuallySetIcon(true);
+  }, []);
+
+  const handleColorSelect = useCallback((color: string) => {
+    setSelectedColor(color);
+    setHasManuallySetColor(true);
+  }, []);
 
   const isValid = unitName.trim().length > 0;
 
@@ -173,7 +198,7 @@ export default function NewHabitScreen() {
         </ThemedText>
         <TextInput
           value={unitName}
-          onChangeText={setUnitName}
+          onChangeText={handleUnitNameChange}
           placeholder={habitType === "time" ? "e.g., reading, meditation, exercise" : "e.g., push ups, pages, glasses of water"}
           placeholderTextColor={theme.textSecondary}
           style={[
@@ -275,7 +300,7 @@ export default function NewHabitScreen() {
           {HABIT_ICONS.map((icon) => (
             <Pressable
               key={icon}
-              onPress={() => setSelectedIcon(icon)}
+              onPress={() => handleIconSelect(icon)}
               style={[
                 styles.iconOption,
                 {
@@ -298,7 +323,7 @@ export default function NewHabitScreen() {
           {HABIT_COLORS.map((color) => (
             <Pressable
               key={color}
-              onPress={() => setSelectedColor(color)}
+              onPress={() => handleColorSelect(color)}
               style={[
                 styles.colorOption,
                 {

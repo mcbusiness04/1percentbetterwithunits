@@ -304,6 +304,36 @@ export default function HabitDetailScreen() {
       </View>
 
       <ThemedText type="h4" style={styles.sectionTitle}>
+        Daily Goal
+      </ThemedText>
+      <View style={styles.incrementRow}>
+        <Pressable
+          onPress={() => {
+            const newGoal = Math.max(1, habit.dailyGoal - 1);
+            updateHabit(habit.id, { dailyGoal: newGoal });
+          }}
+          style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
+        >
+          <Feather name="minus" size={20} color={theme.text} />
+        </Pressable>
+        <View style={[styles.incrementDisplay, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="h4">{habit.dailyGoal}</ThemedText>
+        </View>
+        <Pressable
+          onPress={() => {
+            const newGoal = habit.dailyGoal + 1;
+            updateHabit(habit.id, { dailyGoal: newGoal });
+          }}
+          style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
+        >
+          <Feather name="plus" size={20} color={theme.text} />
+        </Pressable>
+        <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+          {habit.habitType === "time" ? "min" : habit.unitName} per day
+        </ThemedText>
+      </View>
+
+      <ThemedText type="h4" style={styles.sectionTitle}>
         Tap Increment
       </ThemedText>
       <View style={styles.incrementRow}>
