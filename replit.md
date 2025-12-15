@@ -65,7 +65,7 @@ server/
 4. **Freemium limits**: Free tier has 3 habits, 50 units/day, 7-day history
 
 ### Data Models
-- **Habit**: id, name, icon, color, unitName, dailyGoal, createdAt, isArchived
+- **Habit**: id, name, icon, color, unitName, dailyGoal, tapIncrement, createdAt, isArchived
 - **UnitLog**: id, habitId, count, date, createdAt
 
 ## Recent Changes
@@ -89,6 +89,10 @@ server/
 - **New: Unlimited units** - No daily unit limit, blocks shrink dynamically to fit all
 - **New: PieChart component** - Habit distribution visualization
 - **New: Enhanced StatsScreen** - Overview grid (Today, This Week, Daily Avg, Streak), bar charts, pie chart, habit progress cards
+- **New: Simplified habit creation** - Single field "What are you counting?" with auto-generated title-cased habit name
+- **New: Custom tap increment** - Users can set how many units each tap adds (e.g., +3, +5)
+- **New: Expanded customization** - 100+ icons and 27 colors to choose from
+- **New: Data migration** - Legacy habits automatically get tapIncrement: 1 on load
 
 ## User Preferences
 - No emojis in the UI
