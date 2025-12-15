@@ -98,6 +98,8 @@ server/
 - **New: Per-block glow** - Time-based habit blocks have gold border glow in FallingBlocks animation
 - **New: Tap increment editor** - HabitDetailScreen allows editing tap increment for count habits post-creation
 - **New: Curated icons** - Self-improvement focused icons (exercise, mindfulness, productivity, nutrition, sleep)
+- **New: Time habit custom increments** - Time habits now support custom minute increments (e.g., +5 min, +10 min per tap)
+- **New: Edit button in HabitRow** - Pencil icon on each habit row for quick access to habit settings
 
 ## User Preferences
 - No emojis in the UI

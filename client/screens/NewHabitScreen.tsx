@@ -63,7 +63,7 @@ export default function NewHabitScreen() {
         color: selectedColor,
         unitName: unitName.trim(),
         dailyGoal: parseInt(dailyGoal) || 5,
-        tapIncrement: habitType === "time" ? 1 : parseInt(tapIncrement) || 1,
+        tapIncrement: parseInt(tapIncrement) || 1,
         habitType,
       });
 
@@ -227,42 +227,40 @@ export default function NewHabitScreen() {
         </View>
       </View>
 
-      {habitType === "count" ? (
-        <View style={styles.inputGroup}>
-          <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-            Add per tap
+      <View style={styles.inputGroup}>
+        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+          Add per tap
+        </ThemedText>
+        <View style={styles.goalRow}>
+          <Pressable
+            onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
+            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+          >
+            <Feather name="minus" size={20} color={theme.text} />
+          </Pressable>
+          <TextInput
+            value={tapIncrement}
+            onChangeText={setTapIncrement}
+            keyboardType="number-pad"
+            style={[
+              styles.goalInput,
+              {
+                backgroundColor: theme.backgroundDefault,
+                color: theme.text,
+              },
+            ]}
+          />
+          <Pressable
+            onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
+            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+          >
+            <Feather name="plus" size={20} color={theme.text} />
+          </Pressable>
+          <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+            {habitType === "time" ? "min" : unitName || "units"} per tap
           </ThemedText>
-          <View style={styles.goalRow}>
-            <Pressable
-              onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
-              style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-            >
-              <Feather name="minus" size={20} color={theme.text} />
-            </Pressable>
-            <TextInput
-              value={tapIncrement}
-              onChangeText={setTapIncrement}
-              keyboardType="number-pad"
-              style={[
-                styles.goalInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  color: theme.text,
-                },
-              ]}
-            />
-            <Pressable
-              onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
-              style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-            >
-              <Feather name="plus" size={20} color={theme.text} />
-            </Pressable>
-            <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-              {unitName || "units"} per tap
-            </ThemedText>
-          </View>
         </View>
-      ) : null}
+      </View>
 
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
@@ -324,7 +322,7 @@ export default function NewHabitScreen() {
               {capitalizeWords(unitName) || "Your Habit"}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Goal: {dailyGoal} {habitType === "time" ? "min" : unitName || "units"}/day{habitType === "count" ? ` | +${tapIncrement} per tap` : ""}
+              Goal: {dailyGoal} {habitType === "time" ? "min" : unitName || "units"}/day | +{tapIncrement} {habitType === "time" ? "min" : unitName || "units"} per tap
             </ThemedText>
           </View>
         </View>

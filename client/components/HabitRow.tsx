@@ -91,7 +91,7 @@ export function HabitRow({ habit }: HabitRowProps) {
               {habit.name}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {habit.habitType === "time" ? `${habit.unitName} (min)` : `${habit.unitName} (+${increment})`}
+              {habit.unitName} (+{increment}{habit.habitType === "time" ? " min" : ""})
             </ThemedText>
           </View>
           <View style={styles.countContainer}>
@@ -108,7 +108,7 @@ export function HabitRow({ habit }: HabitRowProps) {
       <Pressable
         onPress={handleNavigate}
         style={({ pressed }) => [
-          styles.chevronButton,
+          styles.editButton,
           { 
             opacity: pressed ? 0.6 : 1,
             backgroundColor: theme.backgroundRoot,
@@ -116,7 +116,7 @@ export function HabitRow({ habit }: HabitRowProps) {
         ]}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
       >
-        <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+        <Feather name="edit-3" size={16} color={theme.textSecondary} />
       </Pressable>
     </Animated.View>
   );
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     gap: 2,
     marginRight: Spacing.sm,
   },
-  chevronButton: {
+  editButton: {
     width: 32,
     height: 32,
     borderRadius: 8,
