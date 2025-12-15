@@ -18,6 +18,7 @@ const CONTAINER_PADDING = 8;
 interface BlockData {
   id: string;
   color: string;
+  isTimeBlock?: boolean;
 }
 
 interface FallingBlocksProps {
@@ -50,13 +51,15 @@ function PileBlock({
   y, 
   size, 
   color, 
-  isNew 
+  isNew,
+  glowing 
 }: { 
   x: number; 
   y: number; 
   size: number; 
   color: string;
   isNew: boolean;
+  glowing?: boolean;
 }) {
   const scale = useSharedValue(isNew ? 0 : 1);
   const translateY = useSharedValue(isNew ? -50 : 0);
@@ -75,6 +78,12 @@ function PileBlock({
     ],
   }));
 
+  const glowingStyle = glowing ? {
+    borderWidth: 1,
+    borderColor: "#FFD700",
+    backgroundColor: `${color}`,
+  } : undefined;
+
   return (
     <Animated.View
       style={[
@@ -88,8 +97,22 @@ function PileBlock({
           borderRadius: Math.max(2, size / 5),
           backgroundColor: color,
         },
+        glowingStyle,
       ]}
-    />
+    >
+      {glowing ? (
+        <View style={{
+          position: "absolute",
+          top: -1,
+          left: -1,
+          right: -1,
+          bottom: -1,
+          borderRadius: Math.max(2, size / 5) + 1,
+          borderWidth: 2,
+          borderColor: "#FFD70090",
+        }} />
+      ) : null}
+    </Animated.View>
   );
 }
 
@@ -143,6 +166,7 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
           size={blockSize}
           color={block.color}
           isNew={newBlockIds.has(block.id)}
+          glowing={block.isTimeBlock}
         />
       ))}
     </View>

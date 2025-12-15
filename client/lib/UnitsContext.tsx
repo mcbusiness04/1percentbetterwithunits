@@ -90,9 +90,10 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       const normalizedHabits = loadedHabits.map((h) => ({
         ...h,
         tapIncrement: h.tapIncrement ?? 1,
+        habitType: h.habitType ?? "count",
       }));
       
-      const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined);
+      const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
       if (needsMigration) {
         await saveHabits(normalizedHabits);
       }

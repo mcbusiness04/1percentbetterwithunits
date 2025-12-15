@@ -205,7 +205,7 @@ export default function HabitDetailScreen() {
         <View style={styles.headerText}>
           <ThemedText type="h3">{habit.name}</ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Goal: {habit.dailyGoal} {habit.unitName} per day
+            Goal: {habit.dailyGoal} {habit.habitType === "time" ? `min of ${habit.unitName}` : habit.unitName} per day
           </ThemedText>
         </View>
         <Pressable onPress={handleMenuPress} style={styles.menuButton}>
@@ -228,7 +228,7 @@ export default function HabitDetailScreen() {
               {todayUnits}
             </ThemedText>
             <ThemedText type="body" style={{ color: theme.textSecondary }}>
-              / {habit.dailyGoal} {habit.unitName}
+              / {habit.dailyGoal} {habit.habitType === "time" ? "min" : habit.unitName}
             </ThemedText>
           </View>
           {isGoalMet ? (
@@ -302,6 +302,40 @@ export default function HabitDetailScreen() {
           </ThemedText>
         </Pressable>
       </View>
+
+      {habit.habitType !== "time" ? (
+        <>
+          <ThemedText type="h4" style={styles.sectionTitle}>
+            Tap Increment
+          </ThemedText>
+          <View style={styles.incrementRow}>
+            <Pressable
+              onPress={() => {
+                const newIncrement = Math.max(1, (habit.tapIncrement || 1) - 1);
+                updateHabit(habit.id, { tapIncrement: newIncrement });
+              }}
+              style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <Feather name="minus" size={20} color={theme.text} />
+            </Pressable>
+            <View style={[styles.incrementDisplay, { backgroundColor: theme.backgroundDefault }]}>
+              <ThemedText type="h4">+{habit.tapIncrement || 1}</ThemedText>
+            </View>
+            <Pressable
+              onPress={() => {
+                const newIncrement = (habit.tapIncrement || 1) + 1;
+                updateHabit(habit.id, { tapIncrement: newIncrement });
+              }}
+              style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <Feather name="plus" size={20} color={theme.text} />
+            </Pressable>
+            <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+              {habit.unitName} per tap
+            </ThemedText>
+          </View>
+        </>
+      ) : null}
 
       <View style={styles.statsRow}>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
@@ -417,6 +451,26 @@ const styles = StyleSheet.create({
   },
   removeButton: {
     borderWidth: 1,
+  },
+  incrementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.xl,
+  },
+  incrementButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  incrementDisplay: {
+    width: 60,
+    height: 44,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: Spacing.sm,
   },
   statsRow: {
     flexDirection: "row",

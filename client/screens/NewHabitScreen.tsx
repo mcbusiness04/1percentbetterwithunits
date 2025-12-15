@@ -10,7 +10,7 @@ import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useUnits } from "@/lib/UnitsContext";
-import { HABIT_COLORS, HABIT_ICONS } from "@/lib/storage";
+import { HABIT_COLORS, HABIT_ICONS, HabitType } from "@/lib/storage";
 
 export default function NewHabitScreen() {
   const insets = useSafeAreaInsets();
@@ -22,6 +22,7 @@ export default function NewHabitScreen() {
   const [unitName, setUnitName] = useState("");
   const [dailyGoal, setDailyGoal] = useState("5");
   const [tapIncrement, setTapIncrement] = useState("1");
+  const [habitType, setHabitType] = useState<HabitType>("count");
   const [selectedIcon, setSelectedIcon] = useState<string>(HABIT_ICONS[0]);
   const [selectedColor, setSelectedColor] = useState<string>(HABIT_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,7 +63,8 @@ export default function NewHabitScreen() {
         color: selectedColor,
         unitName: unitName.trim(),
         dailyGoal: parseInt(dailyGoal) || 5,
-        tapIncrement: parseInt(tapIncrement) || 1,
+        tapIncrement: habitType === "time" ? 1 : parseInt(tapIncrement) || 1,
+        habitType,
       });
 
       navigation.goBack();
@@ -78,6 +80,7 @@ export default function NewHabitScreen() {
     unitName,
     dailyGoal,
     tapIncrement,
+    habitType,
     selectedIcon,
     selectedColor,
     addHabit,
@@ -124,12 +127,54 @@ export default function NewHabitScreen() {
     >
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          What are you counting?
+          Tracking type
+        </ThemedText>
+        <View style={styles.typeToggle}>
+          <Pressable
+            onPress={() => setHabitType("count")}
+            style={[
+              styles.typeButton,
+              {
+                backgroundColor: habitType === "count" ? theme.link : theme.backgroundDefault,
+              },
+            ]}
+          >
+            <Feather name="hash" size={18} color={habitType === "count" ? "#fff" : theme.text} />
+            <ThemedText
+              type="body"
+              style={{ color: habitType === "count" ? "#fff" : theme.text, marginLeft: Spacing.xs }}
+            >
+              Count
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => setHabitType("time")}
+            style={[
+              styles.typeButton,
+              {
+                backgroundColor: habitType === "time" ? theme.link : theme.backgroundDefault,
+              },
+            ]}
+          >
+            <Feather name="clock" size={18} color={habitType === "time" ? "#fff" : theme.text} />
+            <ThemedText
+              type="body"
+              style={{ color: habitType === "time" ? "#fff" : theme.text, marginLeft: Spacing.xs }}
+            >
+              Time
+            </ThemedText>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.inputGroup}>
+        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+          {habitType === "time" ? "What are you timing?" : "What are you counting?"}
         </ThemedText>
         <TextInput
           value={unitName}
           onChangeText={setUnitName}
-          placeholder="e.g., push ups, pages, minutes, glasses of water"
+          placeholder={habitType === "time" ? "e.g., reading, meditation, exercise" : "e.g., push ups, pages, glasses of water"}
           placeholderTextColor={theme.textSecondary}
           style={[
             styles.input,
@@ -140,6 +185,11 @@ export default function NewHabitScreen() {
           ]}
           autoFocus
         />
+        {habitType === "time" ? (
+          <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+            Time habits track minutes and glow brighter
+          </ThemedText>
+        ) : null}
       </View>
 
       <View style={styles.inputGroup}>
@@ -172,45 +222,47 @@ export default function NewHabitScreen() {
             <Feather name="plus" size={20} color={theme.text} />
           </Pressable>
           <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-            {unitName || "units"} per day
+            {habitType === "time" ? "minutes" : unitName || "units"} per day
           </ThemedText>
         </View>
       </View>
 
-      <View style={styles.inputGroup}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Add per tap
-        </ThemedText>
-        <View style={styles.goalRow}>
-          <Pressable
-            onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
-            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-          >
-            <Feather name="minus" size={20} color={theme.text} />
-          </Pressable>
-          <TextInput
-            value={tapIncrement}
-            onChangeText={setTapIncrement}
-            keyboardType="number-pad"
-            style={[
-              styles.goalInput,
-              {
-                backgroundColor: theme.backgroundDefault,
-                color: theme.text,
-              },
-            ]}
-          />
-          <Pressable
-            onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
-            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-          >
-            <Feather name="plus" size={20} color={theme.text} />
-          </Pressable>
-          <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-            {unitName || "units"} per tap
+      {habitType === "count" ? (
+        <View style={styles.inputGroup}>
+          <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+            Add per tap
           </ThemedText>
+          <View style={styles.goalRow}>
+            <Pressable
+              onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
+              style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <Feather name="minus" size={20} color={theme.text} />
+            </Pressable>
+            <TextInput
+              value={tapIncrement}
+              onChangeText={setTapIncrement}
+              keyboardType="number-pad"
+              style={[
+                styles.goalInput,
+                {
+                  backgroundColor: theme.backgroundDefault,
+                  color: theme.text,
+                },
+              ]}
+            />
+            <Pressable
+              onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
+              style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <Feather name="plus" size={20} color={theme.text} />
+            </Pressable>
+            <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+              {unitName || "units"} per tap
+            </ThemedText>
+          </View>
         </View>
-      </View>
+      ) : null}
 
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
@@ -272,7 +324,7 @@ export default function NewHabitScreen() {
               {capitalizeWords(unitName) || "Your Habit"}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Goal: {dailyGoal} {unitName || "units"}/day | +{tapIncrement} per tap
+              Goal: {dailyGoal} {habitType === "time" ? "min" : unitName || "units"}/day{habitType === "count" ? ` | +${tapIncrement} per tap` : ""}
             </ThemedText>
           </View>
         </View>
@@ -294,6 +346,18 @@ const styles = StyleSheet.create({
   label: {
     marginBottom: Spacing.sm,
     fontWeight: "500",
+  },
+  typeToggle: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+  },
+  typeButton: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    height: 48,
+    borderRadius: 12,
   },
   input: {
     height: 52,

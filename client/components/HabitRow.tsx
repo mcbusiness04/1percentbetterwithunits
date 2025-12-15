@@ -91,7 +91,7 @@ export function HabitRow({ habit }: HabitRowProps) {
               {habit.name}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {habit.unitName} (+{increment})
+              {habit.habitType === "time" ? `${habit.unitName} (min)` : `${habit.unitName} (+${increment})`}
             </ThemedText>
           </View>
           <View style={styles.countContainer}>

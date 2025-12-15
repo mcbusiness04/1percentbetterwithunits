@@ -45,15 +45,17 @@ export default function TodayScreen() {
   const todayBlocks = useMemo(() => {
     const today = getTodayDate();
     const todayLogs = logs.filter((l) => l.date === today);
-    const blocks: { id: string; color: string }[] = [];
+    const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
     
     todayLogs.forEach((log) => {
       const habit = habits.find((h) => h.id === log.habitId);
       if (habit) {
+        const isTimeBlock = habit.habitType === "time";
         for (let i = 0; i < log.count; i++) {
           blocks.push({
             id: `${log.id}-${i}`,
             color: habit.color,
+            isTimeBlock,
           });
         }
       }
