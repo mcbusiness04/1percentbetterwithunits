@@ -54,14 +54,13 @@ server/
 
 ### Key Design Decisions
 1. **Local-first**: All data stored in AsyncStorage, no authentication required
-2. **Zero guilt approach**: Soft floors (weekly goals) instead of streaks
-3. **Yellow warnings only**: No red/failure colors to reduce pressure
-4. **Freemium limits**: Free tier has 2 habits, 20 units/day, 3 tasks, 7-day history
+2. **Zero guilt approach**: Daily goals with visual feedback, no streaks
+3. **Goal visualization**: Red glow when under daily goal, gold glow when goal is met
+4. **Freemium limits**: Free tier has 3 habits, 50 units/day, 7-day history
 
 ### Data Models
-- **Habit**: name, icon, color, unitVersions[], softFloorPerWeek
-- **UnitLog**: habitId, count, date, timestamp (for undo)
-- **Task**: title, unitEstimate, linkedHabitId, isCompleted
+- **Habit**: id, name, icon, color, unitName, dailyGoal, createdAt, isArchived
+- **UnitLog**: id, habitId, count, date, createdAt
 
 ## Recent Changes
 - December 2025: Initial implementation with full feature set
@@ -72,6 +71,11 @@ server/
 - Added onboarding flow with starter habit templates
 - Added sound effects (haptic feedback) for unit logging
 - Added navigation from HabitRow to HabitDetail screen
+- Simplified data model: removed unitVersions/softFloorPerWeek, added unitName and dailyGoal
+- Removed all task-related functionality (purely habit tracker now)
+- Added GoalMeter component with animated glow effects (red below goal, gold when met)
+- Added AnimatedBlocks for 3D block visualization
+- Redesigned StatsScreen to focus on charts only
 
 ## User Preferences
 - No emojis in the UI
