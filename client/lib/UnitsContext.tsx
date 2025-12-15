@@ -86,7 +86,18 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getIsPro(),
         isOnboardingComplete(),
       ]);
-      setHabits(loadedHabits);
+      
+      const normalizedHabits = loadedHabits.map((h) => ({
+        ...h,
+        tapIncrement: h.tapIncrement ?? 1,
+      }));
+      
+      const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined);
+      if (needsMigration) {
+        await saveHabits(normalizedHabits);
+      }
+      
+      setHabits(normalizedHabits);
       setLogs(loadedLogs);
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);

@@ -22,20 +22,23 @@ export default function NewHabitScreen() {
   const [unitName, setUnitName] = useState("");
   const [dailyGoal, setDailyGoal] = useState("5");
   const [tapIncrement, setTapIncrement] = useState("1");
-  const [selectedIcon, setSelectedIcon] = useState(HABIT_ICONS[0]);
-  const [selectedColor, setSelectedColor] = useState(HABIT_COLORS[0]);
+  const [selectedIcon, setSelectedIcon] = useState<string>(HABIT_ICONS[0]);
+  const [selectedColor, setSelectedColor] = useState<string>(HABIT_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isValid = unitName.trim().length > 0;
 
-  const capitalizeFirst = (str: string) => {
-    return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+  const capitalizeWords = (str: string) => {
+    return str
+      .split(" ")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   };
 
   const handleCreate = useCallback(async () => {
     if (!isValid || isSubmitting) return;
 
-    const habitName = capitalizeFirst(unitName.trim());
+    const habitName = capitalizeWords(unitName.trim());
     
     const existingHabit = habits.find(
       (h) => h.name.toLowerCase() === habitName.toLowerCase()
@@ -57,7 +60,7 @@ export default function NewHabitScreen() {
         name: habitName,
         icon: selectedIcon,
         color: selectedColor,
-        unitName: unitName.trim().toLowerCase(),
+        unitName: unitName.trim(),
         dailyGoal: parseInt(dailyGoal) || 5,
         tapIncrement: parseInt(tapIncrement) || 1,
       });
@@ -266,7 +269,7 @@ export default function NewHabitScreen() {
           </View>
           <View style={styles.previewText}>
             <ThemedText type="body" style={{ fontWeight: "600" }}>
-              {capitalizeFirst(unitName) || "Your Habit"}
+              {capitalizeWords(unitName) || "Your Habit"}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Goal: {dailyGoal} {unitName || "units"}/day | +{tapIncrement} per tap
