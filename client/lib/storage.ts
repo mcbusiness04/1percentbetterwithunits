@@ -6,6 +6,8 @@ const KEYS = {
   SETTINGS: "@units/settings",
   IS_PRO: "@units/is_pro",
   ONBOARDING_COMPLETE: "@units/onboarding_complete",
+  BAD_HABITS: "@units/bad_habits",
+  BAD_HABIT_LOGS: "@units/bad_habit_logs",
 } as const;
 
 export type HabitType = "count" | "time";
@@ -34,6 +36,21 @@ export interface UnitLog {
 export interface AppSettings {
   soundEnabled: boolean;
   hapticsEnabled: boolean;
+}
+
+export interface BadHabit {
+  id: string;
+  name: string;
+  createdAt: string;
+  isArchived: boolean;
+}
+
+export interface BadHabitLog {
+  id: string;
+  badHabitId: string;
+  count: number;
+  date: string;
+  createdAt: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -122,6 +139,32 @@ export async function setOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(KEYS.ONBOARDING_COMPLETE, "true");
 }
 
+export async function getBadHabits(): Promise<BadHabit[]> {
+  try {
+    const data = await AsyncStorage.getItem(KEYS.BAD_HABITS);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveBadHabits(badHabits: BadHabit[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.BAD_HABITS, JSON.stringify(badHabits));
+}
+
+export async function getBadHabitLogs(): Promise<BadHabitLog[]> {
+  try {
+    const data = await AsyncStorage.getItem(KEYS.BAD_HABIT_LOGS);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function saveBadHabitLogs(logs: BadHabitLog[]): Promise<void> {
+  await AsyncStorage.setItem(KEYS.BAD_HABIT_LOGS, JSON.stringify(logs));
+}
+
 export async function clearAllData(): Promise<void> {
   await AsyncStorage.multiRemove([
     KEYS.HABITS,
@@ -129,7 +172,102 @@ export async function clearAllData(): Promise<void> {
     KEYS.SETTINGS,
     KEYS.IS_PRO,
     KEYS.ONBOARDING_COMPLETE,
+    KEYS.BAD_HABITS,
+    KEYS.BAD_HABIT_LOGS,
   ]);
+}
+
+export type IconColorSuggestion = { icon: string; color: string };
+
+const HABIT_SUGGESTIONS: Record<string, IconColorSuggestion> = {
+  water: { icon: "droplet", color: "#45B7D1" },
+  drink: { icon: "droplet", color: "#45B7D1" },
+  hydrate: { icon: "droplet", color: "#45B7D1" },
+  exercise: { icon: "activity", color: "#06D6A0" },
+  workout: { icon: "activity", color: "#06D6A0" },
+  gym: { icon: "activity", color: "#06D6A0" },
+  fitness: { icon: "activity", color: "#06D6A0" },
+  run: { icon: "zap", color: "#FF6B6B" },
+  running: { icon: "zap", color: "#FF6B6B" },
+  jog: { icon: "zap", color: "#FF6B6B" },
+  walk: { icon: "navigation", color: "#4ECDC4" },
+  walking: { icon: "navigation", color: "#4ECDC4" },
+  steps: { icon: "navigation", color: "#4ECDC4" },
+  read: { icon: "book-open", color: "#7B68EE" },
+  reading: { icon: "book-open", color: "#7B68EE" },
+  book: { icon: "book", color: "#7B68EE" },
+  meditate: { icon: "sun", color: "#FFD166" },
+  meditation: { icon: "sun", color: "#FFD166" },
+  mindful: { icon: "sun", color: "#FFD166" },
+  sleep: { icon: "moon", color: "#073B4C" },
+  rest: { icon: "moon", color: "#073B4C" },
+  nap: { icon: "moon", color: "#073B4C" },
+  coffee: { icon: "coffee", color: "#795548" },
+  tea: { icon: "coffee", color: "#4CAF50" },
+  write: { icon: "edit-3", color: "#BB8FCE" },
+  writing: { icon: "edit-3", color: "#BB8FCE" },
+  journal: { icon: "feather", color: "#DDA0DD" },
+  code: { icon: "code", color: "#3F51B5" },
+  coding: { icon: "code", color: "#3F51B5" },
+  program: { icon: "terminal", color: "#607D8B" },
+  study: { icon: "book", color: "#2196F3" },
+  learn: { icon: "bookmark", color: "#00BCD4" },
+  practice: { icon: "target", color: "#E91E63" },
+  stretch: { icon: "activity", color: "#8BC34A" },
+  yoga: { icon: "heart", color: "#FF69B4" },
+  push: { icon: "trending-up", color: "#FF5722" },
+  pushup: { icon: "trending-up", color: "#FF5722" },
+  situp: { icon: "award", color: "#FF8C42" },
+  plank: { icon: "clock", color: "#009688" },
+  squat: { icon: "zap", color: "#9C27B0" },
+  music: { icon: "music", color: "#673AB7" },
+  piano: { icon: "music", color: "#9E9E9E" },
+  guitar: { icon: "music", color: "#795548" },
+  sing: { icon: "mic", color: "#FF69B4" },
+  call: { icon: "phone", color: "#4CAF50" },
+  email: { icon: "mail", color: "#2196F3" },
+  work: { icon: "briefcase", color: "#607D8B" },
+  focus: { icon: "target", color: "#FF6B6B" },
+  money: { icon: "dollar-sign", color: "#4CAF50" },
+  save: { icon: "dollar-sign", color: "#06D6A0" },
+  clean: { icon: "home", color: "#45B7D1" },
+  cook: { icon: "thermometer", color: "#FF8C42" },
+  eat: { icon: "coffee", color: "#CDDC39" },
+  fruit: { icon: "sun", color: "#FF9800" },
+  vegetable: { icon: "sun", color: "#4CAF50" },
+  vitamin: { icon: "heart", color: "#E91E63" },
+  medicine: { icon: "heart", color: "#FF6B6B" },
+  breathe: { icon: "wind", color: "#4ECDC4" },
+  breathing: { icon: "wind", color: "#4ECDC4" },
+  gratitude: { icon: "heart", color: "#FFD166" },
+  affirmation: { icon: "star", color: "#FFC107" },
+  positive: { icon: "smile", color: "#FFD166" },
+  social: { icon: "users", color: "#118AB2" },
+  friend: { icon: "users", color: "#7B68EE" },
+  language: { icon: "globe", color: "#00BCD4" },
+  spanish: { icon: "globe", color: "#FF5722" },
+  french: { icon: "globe", color: "#3F51B5" },
+  draw: { icon: "pen-tool", color: "#9C27B0" },
+  drawing: { icon: "pen-tool", color: "#9C27B0" },
+  art: { icon: "layers", color: "#E91E63" },
+  photo: { icon: "camera", color: "#607D8B" },
+  floss: { icon: "check-circle", color: "#4ECDC4" },
+  teeth: { icon: "smile", color: "#45B7D1" },
+  skincare: { icon: "droplet", color: "#DDA0DD" },
+  screen: { icon: "monitor", color: "#607D8B" },
+  phone: { icon: "smartphone", color: "#9E9E9E" },
+};
+
+export function suggestIconAndColor(habitName: string): IconColorSuggestion {
+  const normalized = habitName.toLowerCase().trim();
+  for (const [keyword, suggestion] of Object.entries(HABIT_SUGGESTIONS)) {
+    if (normalized.includes(keyword)) {
+      return suggestion;
+    }
+  }
+  const randomIcon = HABIT_ICONS[Math.floor(Math.random() * 20)];
+  const randomColor = HABIT_COLORS[Math.floor(Math.random() * HABIT_COLORS.length)];
+  return { icon: randomIcon, color: randomColor };
 }
 
 export const FREE_LIMITS = {

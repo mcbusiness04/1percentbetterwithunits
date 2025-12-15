@@ -4,6 +4,8 @@ import {
   Habit,
   UnitLog,
   AppSettings,
+  BadHabit,
+  BadHabitLog,
   getHabits,
   saveHabits,
   getLogs,
@@ -12,6 +14,10 @@ import {
   saveSettings,
   getIsPro,
   setIsPro as saveIsPro,
+  getBadHabits,
+  saveBadHabits,
+  getBadHabitLogs,
+  saveBadHabitLogs,
   generateId,
   getTodayDate,
   getStartOfWeek,
@@ -35,6 +41,8 @@ interface UnitsContextType {
   loading: boolean;
   undoAction: UndoAction | null;
   hasCompletedOnboarding: boolean;
+  badHabits: BadHabit[];
+  badHabitLogs: BadHabitLog[];
   
   addHabit: (habit: Omit<Habit, "id" | "createdAt" | "isArchived">) => Promise<boolean>;
   updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>;
@@ -44,6 +52,13 @@ interface UnitsContextType {
   removeUnits: (habitId: string, count: number) => Promise<boolean>;
   undoLastAdd: () => Promise<void>;
   clearUndo: () => void;
+  
+  addBadHabit: (name: string) => Promise<boolean>;
+  deleteBadHabit: (id: string) => Promise<void>;
+  tapBadHabit: (badHabitId: string) => Promise<void>;
+  getTodayBadHabitTaps: (badHabitId: string) => number;
+  getTodayTotalPenalty: () => number;
+  getDailyProgress: () => { percentage: number; allGoalsMet: boolean; hasBadHabits: boolean };
   
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   setIsPro: (isPro: boolean) => Promise<void>;
@@ -76,15 +91,19 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
+  const [badHabits, setBadHabits] = useState<BadHabit[]>([]);
+  const [badHabitLogs, setBadHabitLogs] = useState<BadHabitLog[]>([]);
 
   const refreshData = useCallback(async () => {
     try {
-      const [loadedHabits, loadedLogs, loadedSettings, loadedIsPro, loadedOnboarding] = await Promise.all([
+      const [loadedHabits, loadedLogs, loadedSettings, loadedIsPro, loadedOnboarding, loadedBadHabits, loadedBadHabitLogs] = await Promise.all([
         getHabits(),
         getLogs(),
         getSettings(),
         getIsPro(),
         isOnboardingComplete(),
+        getBadHabits(),
+        getBadHabitLogs(),
       ]);
       
       const normalizedHabits = loadedHabits.map((h) => ({
@@ -103,6 +122,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
       setHasCompletedOnboarding(loadedOnboarding);
+      setBadHabits(loadedBadHabits);
+      setBadHabitLogs(loadedBadHabitLogs);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -329,6 +350,98 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     setHasCompletedOnboarding(true);
   }, []);
 
+  const handleAddBadHabit = useCallback(async (name: string) => {
+    const newBadHabit: BadHabit = {
+      id: generateId(),
+      name,
+      createdAt: new Date().toISOString(),
+      isArchived: false,
+    };
+    const updated = [...badHabits, newBadHabit];
+    setBadHabits(updated);
+    await saveBadHabits(updated);
+    triggerHaptic("medium");
+    return true;
+  }, [badHabits, triggerHaptic]);
+
+  const handleDeleteBadHabit = useCallback(async (id: string) => {
+    const updated = badHabits.filter((h) => h.id !== id);
+    setBadHabits(updated);
+    await saveBadHabits(updated);
+    const updatedLogs = badHabitLogs.filter((l) => l.badHabitId !== id);
+    setBadHabitLogs(updatedLogs);
+    await saveBadHabitLogs(updatedLogs);
+  }, [badHabits, badHabitLogs]);
+
+  const handleTapBadHabit = useCallback(async (badHabitId: string) => {
+    const today = getTodayDate();
+    const newLog: BadHabitLog = {
+      id: generateId(),
+      badHabitId,
+      count: 1,
+      date: today,
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...badHabitLogs, newLog];
+    setBadHabitLogs(updated);
+    await saveBadHabitLogs(updated);
+    if (settings.hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
+  }, [badHabitLogs, settings.hapticsEnabled]);
+
+  const getTodayBadHabitTaps = useCallback((badHabitId: string) => {
+    const today = getTodayDate();
+    return badHabitLogs
+      .filter((l) => l.badHabitId === badHabitId && l.date === today)
+      .reduce((sum, l) => sum + l.count, 0);
+  }, [badHabitLogs]);
+
+  const getTodayTotalPenalty = useCallback(() => {
+    const today = getTodayDate();
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === today)
+      .reduce((sum, l) => sum + l.count, 0);
+    return totalBadTaps * 5;
+  }, [badHabitLogs]);
+
+  const getDailyProgress = useCallback(() => {
+    const activeHabits = habits.filter((h) => !h.isArchived);
+    if (activeHabits.length === 0) {
+      return { percentage: 100, allGoalsMet: true, hasBadHabits: false };
+    }
+    
+    const today = getTodayDate();
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === today)
+      .reduce((sum, l) => sum + l.count, 0);
+    const hasBadHabits = totalBadTaps > 0;
+    const penaltyPercent = totalBadTaps * 5;
+    
+    let totalProgress = 0;
+    let allGoalsMet = true;
+    
+    for (const habit of activeHabits) {
+      const todayUnits = logs
+        .filter((l) => l.habitId === habit.id && l.date === today)
+        .reduce((sum, l) => sum + l.count, 0);
+      const progress = Math.min(todayUnits / habit.dailyGoal, 1);
+      totalProgress += progress;
+      if (todayUnits < habit.dailyGoal) {
+        allGoalsMet = false;
+      }
+    }
+    
+    const basePercent = (totalProgress / activeHabits.length) * 100;
+    const finalPercent = Math.max(0, basePercent - penaltyPercent);
+    
+    return { 
+      percentage: Math.round(finalPercent), 
+      allGoalsMet: allGoalsMet && !hasBadHabits, 
+      hasBadHabits 
+    };
+  }, [habits, logs, badHabitLogs]);
+
   return (
     <UnitsContext.Provider
       value={{
@@ -339,6 +452,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         loading,
         undoAction,
         hasCompletedOnboarding,
+        badHabits,
+        badHabitLogs,
         addHabit: handleAddHabit,
         updateHabit: handleUpdateHabit,
         deleteHabit: handleDeleteHabit,
@@ -346,6 +461,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         removeUnits: handleRemoveUnits,
         undoLastAdd: handleUndoLastAdd,
         clearUndo,
+        addBadHabit: handleAddBadHabit,
+        deleteBadHabit: handleDeleteBadHabit,
+        tapBadHabit: handleTapBadHabit,
+        getTodayBadHabitTaps,
+        getTodayTotalPenalty,
+        getDailyProgress,
         updateSettings: handleUpdateSettings,
         setIsPro: handleSetIsPro,
         completeOnboarding: handleCompleteOnboarding,
