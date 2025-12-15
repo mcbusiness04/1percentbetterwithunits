@@ -309,10 +309,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [habits, isPro]);
 
   const canAddUnits = useCallback((count: number) => {
-    if (isPro) return true;
-    const todayTotal = getTodayTotalUnits();
-    return todayTotal + count <= FREE_LIMITS.MAX_UNITS_PER_DAY;
-  }, [isPro, getTodayTotalUnits]);
+    return true;
+  }, []);
 
   const handleCompleteOnboarding = useCallback(async () => {
     await setOnboardingComplete();

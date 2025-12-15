@@ -18,14 +18,13 @@ import { Spacing } from "@/constants/theme";
 
 interface HabitRowProps {
   habit: Habit;
-  onDropBlock?: (color: string) => void;
 }
 
 type RootStackParamList = {
   HabitDetail: { habitId: string };
 };
 
-export function HabitRow({ habit, onDropBlock }: HabitRowProps) {
+export function HabitRow({ habit }: HabitRowProps) {
   const { theme } = useTheme();
   const { getTodayUnits, addUnits } = useUnits();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -44,11 +43,8 @@ export function HabitRow({ habit, onDropBlock }: HabitRowProps) {
   }, [todayCount, habit.dailyGoal]);
 
   const handleTap = useCallback(async () => {
-    const success = await addUnits(habit.id, 1);
-    if (success && onDropBlock) {
-      onDropBlock(habit.color);
-    }
-  }, [habit.id, habit.color, addUnits, onDropBlock]);
+    await addUnits(habit.id, 1);
+  }, [habit.id, addUnits]);
 
   const handleNavigate = useCallback(() => {
     navigation.navigate("HabitDetail", { habitId: habit.id });

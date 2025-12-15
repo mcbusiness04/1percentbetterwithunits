@@ -11,10 +11,11 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { HabitRow } from "@/components/HabitRow";
-import { FallingBlocks, useFallingBlocks } from "@/components/FallingBlocks";
+import { FallingBlocks } from "@/components/FallingBlocks";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { getTodayDate } from "@/lib/storage";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -26,13 +27,12 @@ export default function TodayScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {
     habits,
+    logs,
     loading,
     canAddHabit,
     getTodayTotalUnits,
     getHighestDailyTotal,
   } = useUnits();
-
-  const { pileBlocks, currentFallingBlock, dropBlock } = useFallingBlocks();
 
   const activeHabits = useMemo(
     () => habits.filter((h) => !h.isArchived),
@@ -41,6 +41,26 @@ export default function TodayScreen() {
 
   const todayTotal = getTodayTotalUnits();
   const highestTotal = getHighestDailyTotal();
+
+  const todayBlocks = useMemo(() => {
+    const today = getTodayDate();
+    const todayLogs = logs.filter((l) => l.date === today);
+    const blocks: { id: string; color: string }[] = [];
+    
+    todayLogs.forEach((log) => {
+      const habit = habits.find((h) => h.id === log.habitId);
+      if (habit) {
+        for (let i = 0; i < log.count; i++) {
+          blocks.push({
+            id: `${log.id}-${i}`,
+            color: habit.color,
+          });
+        }
+      }
+    });
+    
+    return blocks;
+  }, [logs, habits]);
 
   const handleAddPress = useCallback(() => {
     if (canAddHabit()) {
@@ -56,10 +76,6 @@ export default function TodayScreen() {
       );
     }
   }, [canAddHabit, navigation]);
-
-  const handleDropBlock = useCallback((color: string) => {
-    dropBlock(color);
-  }, [dropBlock]);
 
   if (loading) {
     return (
@@ -119,10 +135,7 @@ export default function TodayScreen() {
           ) : (
             activeHabits.map((habit, index) => (
               <Animated.View key={habit.id} entering={FadeInDown.delay(100 + index * 50)}>
-                <HabitRow 
-                  habit={habit} 
-                  onDropBlock={handleDropBlock}
-                />
+                <HabitRow habit={habit} />
               </Animated.View>
             ))
           )}
@@ -154,10 +167,7 @@ export default function TodayScreen() {
         </Animated.View>
 
         <View style={[styles.pileContainer, { backgroundColor: theme.backgroundDefault }]}>
-          <FallingBlocks 
-            blocks={pileBlocks} 
-            newBlock={currentFallingBlock}
-          />
+          <FallingBlocks blocks={todayBlocks} />
         </View>
       </View>
 
@@ -167,7 +177,7 @@ export default function TodayScreen() {
           styles.fab,
           {
             backgroundColor: theme.accent,
-            bottom: tabBarHeight + 230,
+            bottom: tabBarHeight + 210,
             opacity: pressed ? 0.8 : 1,
             transform: [{ scale: pressed ? 0.95 : 1 }],
           },
@@ -232,7 +242,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: Spacing.md,
     right: Spacing.md,
-    height: 200,
+    height: 190,
   },
   statsStrip: {
     flexDirection: "row",
