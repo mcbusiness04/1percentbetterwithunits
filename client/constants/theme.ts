@@ -47,14 +47,16 @@ export const Colors = {
 };
 
 export const HabitColors = [
-  "#5B7FE1",
-  "#E15B5B",
-  "#5BE1A3",
-  "#E1A35B",
-  "#A35BE1",
-  "#5BE1E1",
-  "#E15BA3",
-  "#7FE15B",
+  "#FF6B6B",
+  "#4ECDC4",
+  "#45B7D1",
+  "#96CEB4",
+  "#FFEAA7",
+  "#DDA0DD",
+  "#98D8C8",
+  "#F7DC6F",
+  "#BB8FCE",
+  "#85C1E9",
 ];
 
 export const Spacing = {
@@ -71,7 +73,7 @@ export const Spacing = {
   buttonHeight: 52,
 };
 
-export const BorderRadius = {
+export const Radius = {
   xs: 8,
   sm: 12,
   md: 18,
@@ -81,6 +83,8 @@ export const BorderRadius = {
   "3xl": 50,
   full: 9999,
 };
+
+export const BorderRadius = Radius;
 
 export const Typography = {
   h1: {
@@ -114,10 +118,8 @@ export const Typography = {
 };
 
 export const FREE_LIMITS = {
-  MAX_HABITS: 2,
-  MAX_UNITS_PER_DAY: 20,
-  MAX_TASKS: 3,
-  WALL_HISTORY_DAYS: 7,
+  MAX_HABITS: 3,
+  MAX_UNITS_PER_DAY: 50,
 } as const;
 
 export const HABIT_ICONS = [
@@ -128,15 +130,11 @@ export const HABIT_ICONS = [
   "music",
   "coffee",
   "sun",
-  "moon",
   "heart",
   "star",
   "zap",
   "target",
-  "compass",
   "award",
-  "feather",
-  "globe",
 ] as const;
 
 export const Fonts = Platform.select({

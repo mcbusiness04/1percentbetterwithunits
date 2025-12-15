@@ -1,118 +1,112 @@
-import React from "react";
-import { StyleSheet, View, Pressable } from "react-native";
+import React, { useCallback } from "react";
+import { View, Pressable, StyleSheet } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import Animated, {
   useAnimatedStyle,
-  useSharedValue,
   withSpring,
-  WithSpringConfig,
+  useSharedValue,
+  runOnJS,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { ThemedText } from "@/components/ThemedText";
-import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
-import { Habit } from "@/lib/storage";
+import { GoalMeter } from "@/components/GoalMeter";
+import { AnimatedBlocks } from "@/components/AnimatedBlocks";
 import { useUnits } from "@/lib/UnitsContext";
+import { Habit } from "@/lib/storage";
+import { useTheme } from "@/hooks/useTheme";
+import { Spacing } from "@/constants/theme";
 
 interface HabitRowProps {
   habit: Habit;
-  onPress: () => void;
-  onLongPress: () => void;
-  onDetailPress?: () => void;
 }
 
-const springConfig: WithSpringConfig = {
-  damping: 15,
-  mass: 0.3,
-  stiffness: 150,
-  overshootClamping: true,
+type RootStackParamList = {
+  HabitDetail: { habitId: string };
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
-export function HabitRow({ habit, onPress, onLongPress, onDetailPress }: HabitRowProps) {
+export function HabitRow({ habit }: HabitRowProps) {
   const { theme } = useTheme();
-  const { getTodayUnits, getWeekUnits, getLifetimeUnits, isUnderPace } = useUnits();
+  const { getTodayUnits, addUnits } = useUnits();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const todayCount = getTodayUnits(habit.id);
   const scale = useSharedValue(1);
 
-  const todayUnits = getTodayUnits(habit.id);
-  const weekUnits = getWeekUnits(habit.id);
-  const lifetimeUnits = getLifetimeUnits(habit.id);
-  const underPace = isUnderPace(habit);
+  const handleTap = useCallback(async () => {
+    await addUnits(habit.id, 1);
+  }, [habit.id, addUnits]);
 
-  const currentUnitVersion = habit.unitVersions[habit.unitVersions.length - 1];
-  const unitName = currentUnitVersion?.unitName || "unit";
+  const handleNavigate = useCallback(() => {
+    navigation.navigate("HabitDetail", { habitId: habit.id });
+  }, [navigation, habit.id]);
+
+  const tapGesture = Gesture.Tap()
+    .onBegin(() => {
+      scale.value = withSpring(0.97, { damping: 15 });
+    })
+    .onEnd(() => {
+      scale.value = withSpring(1, { damping: 15 });
+      runOnJS(handleTap)();
+    })
+    .onFinalize(() => {
+      scale.value = withSpring(1, { damping: 15 });
+    });
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
 
-  const handlePressIn = () => {
-    scale.value = withSpring(0.98, springConfig);
-  };
-
-  const handlePressOut = () => {
-    scale.value = withSpring(1, springConfig);
-  };
-
-  const colorWithAlpha = habit.color + "15";
-
   return (
-    <AnimatedPressable
-      onPress={onPress}
-      onLongPress={onLongPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      delayLongPress={300}
-      style={[
-        styles.container,
-        {
-          backgroundColor: theme.cardBackground,
-          borderLeftColor: habit.color,
-        },
-        animatedStyle,
-      ]}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: colorWithAlpha }]}>
-        <Feather name={habit.icon as any} size={20} color={habit.color} />
-      </View>
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <ThemedText type="body" style={styles.habitName}>
-            {habit.name}
-          </ThemedText>
-          {underPace ? (
-            <View style={[styles.paceIndicator, { backgroundColor: theme.warningLight }]}>
-              <View style={[styles.paceDot, { backgroundColor: theme.warning }]} />
-              <ThemedText type="small" style={{ color: theme.warning }}>
-                Under pace
+    <GestureDetector gesture={tapGesture}>
+      <Animated.View
+        style={[
+          styles.container,
+          animatedStyle,
+          {
+            backgroundColor: habit.color + "20",
+            borderColor: habit.color + "40",
+          },
+        ]}
+      >
+        <View style={styles.leftSection}>
+          <View style={[styles.iconContainer, { backgroundColor: habit.color + "30" }]}>
+            <Feather name={habit.icon as any} size={22} color={habit.color} />
+          </View>
+          <View style={styles.textContainer}>
+            <ThemedText type="body" style={styles.habitName}>
+              {habit.name}
+            </ThemedText>
+            <View style={styles.blocksRow}>
+              <AnimatedBlocks count={todayCount} color={habit.color} maxBlocks={8} />
+              <ThemedText type="small" style={{ color: theme.textSecondary, marginLeft: 8 }}>
+                {todayCount} {habit.unitName}
               </ThemedText>
             </View>
-          ) : null}
+          </View>
         </View>
-        <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          {unitName}
-        </ThemedText>
-      </View>
-      <View style={styles.rightSection}>
-        <View style={styles.stats}>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Today {todayUnits} • Week {weekUnits}
-          </ThemedText>
-          <ThemedText type="small" style={{ color: theme.textSecondary, opacity: 0.6, fontSize: 11 }}>
-            Lifetime {lifetimeUnits}
-          </ThemedText>
-        </View>
-        {onDetailPress ? (
-          <Pressable 
-            onPress={onDetailPress} 
-            hitSlop={12}
-            style={styles.chevronButton}
+
+        <View style={styles.rightSection}>
+          <GoalMeter
+            current={todayCount}
+            goal={habit.dailyGoal}
+            color={habit.color}
+            size="small"
+          />
+          <Pressable
+            onPress={handleNavigate}
+            style={({ pressed }) => [
+              styles.chevronButton,
+              { opacity: pressed ? 0.6 : 1 },
+            ]}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+            <Feather name="chevron-right" size={20} color={theme.textSecondary} />
           </Pressable>
-        ) : null}
-      </View>
-    </AnimatedPressable>
+        </View>
+      </Animated.View>
+    </GestureDetector>
   );
 }
 
@@ -120,52 +114,42 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    justifyContent: "space-between",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: 16,
+    borderWidth: 1,
     marginBottom: Spacing.sm,
-    borderLeftWidth: 4,
-    minHeight: 72,
+    minHeight: 80,
+  },
+  leftSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
   },
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: BorderRadius.sm,
-    alignItems: "center",
+    borderRadius: 12,
     justifyContent: "center",
+    alignItems: "center",
     marginRight: Spacing.md,
   },
-  content: {
+  textContainer: {
     flex: 1,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    marginBottom: 2,
   },
   habitName: {
     fontWeight: "600",
+    marginBottom: 4,
   },
-  paceIndicator: {
+  blocksRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.full,
-    gap: 4,
-  },
-  paceDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   rightSection: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-  },
-  stats: {
-    alignItems: "flex-end",
   },
   chevronButton: {
     padding: 4,

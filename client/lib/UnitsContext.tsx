@@ -3,20 +3,15 @@ import * as Haptics from "expo-haptics";
 import {
   Habit,
   UnitLog,
-  Task,
   AppSettings,
   getHabits,
   saveHabits,
   getLogs,
   saveLogs,
-  getTasks,
-  saveTasks,
   getSettings,
   saveSettings,
   getIsPro,
   setIsPro as saveIsPro,
-  addLog,
-  removeLog,
   generateId,
   getTodayDate,
   getStartOfWeek,
@@ -35,7 +30,6 @@ interface UndoAction {
 interface UnitsContextType {
   habits: Habit[];
   logs: UnitLog[];
-  tasks: Task[];
   settings: AppSettings;
   isPro: boolean;
   loading: boolean;
@@ -50,25 +44,18 @@ interface UnitsContextType {
   undoLastAdd: () => Promise<void>;
   clearUndo: () => void;
   
-  addTask: (task: Omit<Task, "id" | "createdAt" | "isCompleted">) => Promise<boolean>;
-  completeTask: (id: string) => Promise<void>;
-  deleteTask: (id: string) => Promise<void>;
-  
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   setIsPro: (isPro: boolean) => Promise<void>;
   completeOnboarding: () => Promise<void>;
   
   getTodayUnits: (habitId: string) => number;
   getWeekUnits: (habitId: string) => number;
-  getLifetimeUnits: (habitId: string) => number;
   getTodayTotalUnits: () => number;
   getWeekTotalUnits: () => number;
-  getLifetimeTotalUnits: () => number;
+  getMonthUnits: (habitId: string) => number;
   getLogsForDate: (date: string) => UnitLog[];
-  isUnderPace: (habit: Habit) => boolean;
   
   canAddHabit: () => boolean;
-  canAddTask: () => boolean;
   canAddUnits: (count: number) => boolean;
   
   refreshData: () => Promise<void>;
@@ -79,11 +66,9 @@ const UnitsContext = createContext<UnitsContextType | undefined>(undefined);
 export function UnitsProvider({ children }: { children: ReactNode }) {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<UnitLog[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
     soundEnabled: true,
     hapticsEnabled: true,
-    showGeneralEffort: false,
   });
   const [isPro, setIsProState] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -92,17 +77,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(async () => {
     try {
-      const [loadedHabits, loadedLogs, loadedTasks, loadedSettings, loadedIsPro, loadedOnboarding] = await Promise.all([
+      const [loadedHabits, loadedLogs, loadedSettings, loadedIsPro, loadedOnboarding] = await Promise.all([
         getHabits(),
         getLogs(),
-        getTasks(),
         getSettings(),
         getIsPro(),
         isOnboardingComplete(),
       ]);
       setHabits(loadedHabits);
       setLogs(loadedLogs);
-      setTasks(loadedTasks);
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
       setHasCompletedOnboarding(loadedOnboarding);
@@ -117,31 +100,22 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     refreshData();
   }, [refreshData]);
 
-  const triggerHaptic = useCallback(() => {
+  const triggerHaptic = useCallback((style: "light" | "medium" | "heavy" = "light") => {
     if (settings.hapticsEnabled) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const feedbackStyle = {
+        light: Haptics.ImpactFeedbackStyle.Light,
+        medium: Haptics.ImpactFeedbackStyle.Medium,
+        heavy: Haptics.ImpactFeedbackStyle.Heavy,
+      }[style];
+      Haptics.impactAsync(feedbackStyle);
     }
   }, [settings.hapticsEnabled]);
 
-  const playFeedback = useCallback((type: "add" | "complete" | "undo") => {
-    if (!settings.soundEnabled) return;
-    
-    try {
-      switch (type) {
-        case "add":
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          break;
-        case "complete":
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          break;
-        case "undo":
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-          break;
-      }
-    } catch (error) {
-      // Haptics not supported
+  const triggerSuccess = useCallback(() => {
+    if (settings.hapticsEnabled) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [settings.soundEnabled]);
+  }, [settings.hapticsEnabled]);
 
   const handleAddHabit = useCallback(async (habit: Omit<Habit, "id" | "createdAt" | "isArchived">) => {
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -158,9 +132,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updated = [...habits, newHabit];
     setHabits(updated);
     await saveHabits(updated);
-    triggerHaptic();
+    triggerSuccess();
     return true;
-  }, [habits, isPro, triggerHaptic]);
+  }, [habits, isPro, triggerSuccess]);
 
   const handleUpdateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
     const updated = habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
@@ -176,13 +150,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updatedLogs = logs.filter((l) => l.habitId !== id);
     setLogs(updatedLogs);
     await saveLogs(updatedLogs);
-    
-    const updatedTasks = tasks.map((t) =>
-      t.linkedHabitId === id ? { ...t, linkedHabitId: undefined } : t
-    );
-    setTasks(updatedTasks);
-    await saveTasks(updatedTasks);
-  }, [habits, logs, tasks]);
+  }, [habits, logs]);
 
   const handleAddUnits = useCallback(async (habitId: string, count: number) => {
     const today = getTodayDate();
@@ -197,11 +165,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return false;
 
-    const currentVersion = habit.unitVersions[habit.unitVersions.length - 1];
     const newLog: UnitLog = {
       id: generateId(),
       habitId,
-      unitVersionId: currentVersion.id,
       count: Math.min(count, 999),
       date: today,
       createdAt: new Date().toISOString(),
@@ -218,10 +184,18 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       count: newLog.count,
     });
 
-    triggerHaptic();
-    playFeedback("add");
+    const newTotal = logs
+      .filter((l) => l.habitId === habitId && l.date === today)
+      .reduce((sum, l) => sum + l.count, 0) + count;
+    
+    if (newTotal >= habit.dailyGoal && newTotal - count < habit.dailyGoal) {
+      triggerSuccess();
+    } else {
+      triggerHaptic("medium");
+    }
+
     return true;
-  }, [habits, logs, isPro, triggerHaptic, playFeedback]);
+  }, [habits, logs, isPro, triggerHaptic, triggerSuccess]);
 
   const handleUndoLastAdd = useCallback(async () => {
     if (!undoAction) return;
@@ -230,55 +204,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     setLogs(updated);
     await saveLogs(updated);
     setUndoAction(null);
-    triggerHaptic();
-    playFeedback("undo");
-  }, [undoAction, logs, triggerHaptic, playFeedback]);
+    triggerHaptic("light");
+  }, [undoAction, logs, triggerHaptic]);
 
   const clearUndo = useCallback(() => {
     setUndoAction(null);
   }, []);
-
-  const handleAddTask = useCallback(async (task: Omit<Task, "id" | "createdAt" | "isCompleted">) => {
-    const incompleteTasks = tasks.filter((t) => !t.isCompleted);
-    if (!isPro && incompleteTasks.length >= FREE_LIMITS.MAX_TASKS) {
-      return false;
-    }
-
-    const newTask: Task = {
-      ...task,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-      isCompleted: false,
-    };
-    const updated = [...tasks, newTask];
-    setTasks(updated);
-    await saveTasks(updated);
-    triggerHaptic();
-    return true;
-  }, [tasks, isPro, triggerHaptic]);
-
-  const handleCompleteTask = useCallback(async (id: string) => {
-    const task = tasks.find((t) => t.id === id);
-    if (!task) return;
-
-    const updated = tasks.map((t) =>
-      t.id === id ? { ...t, isCompleted: true, completedAt: new Date().toISOString() } : t
-    );
-    setTasks(updated);
-    await saveTasks(updated);
-
-    if (task.linkedHabitId) {
-      await handleAddUnits(task.linkedHabitId, task.unitEstimate);
-    }
-    triggerHaptic();
-    playFeedback("complete");
-  }, [tasks, handleAddUnits, triggerHaptic, playFeedback]);
-
-  const handleDeleteTask = useCallback(async (id: string) => {
-    const updated = tasks.filter((t) => t.id !== id);
-    setTasks(updated);
-    await saveTasks(updated);
-  }, [tasks]);
 
   const handleUpdateSettings = useCallback(async (updates: Partial<AppSettings>) => {
     const updated = { ...settings, ...updates };
@@ -305,9 +236,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs]);
 
-  const getLifetimeUnits = useCallback((habitId: string) => {
+  const getMonthUnits = useCallback((habitId: string) => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
     return logs
-      .filter((l) => l.habitId === habitId)
+      .filter((l) => l.habitId === habitId && l.date >= startOfMonth)
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs]);
 
@@ -321,35 +254,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return logs.filter((l) => l.date >= startOfWeek).reduce((sum, l) => sum + l.count, 0);
   }, [logs]);
 
-  const getLifetimeTotalUnits = useCallback(() => {
-    return logs.reduce((sum, l) => sum + l.count, 0);
-  }, [logs]);
-
   const getLogsForDate = useCallback((date: string) => {
     return logs.filter((l) => l.date === date);
   }, [logs]);
-
-  const isUnderPace = useCallback((habit: Habit) => {
-    if (habit.softFloorPerWeek === 0) return false;
-    const weekUnits = getWeekUnits(habit.id);
-    const now = new Date();
-    const dayOfWeek = now.getDay();
-    const daysIntoWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
-    const expectedPace = (habit.softFloorPerWeek / 7) * daysIntoWeek;
-    return weekUnits < expectedPace;
-  }, [getWeekUnits]);
 
   const canAddHabit = useCallback(() => {
     if (isPro) return true;
     const activeHabits = habits.filter((h) => !h.isArchived);
     return activeHabits.length < FREE_LIMITS.MAX_HABITS;
   }, [habits, isPro]);
-
-  const canAddTask = useCallback(() => {
-    if (isPro) return true;
-    const incompleteTasks = tasks.filter((t) => !t.isCompleted);
-    return incompleteTasks.length < FREE_LIMITS.MAX_TASKS;
-  }, [tasks, isPro]);
 
   const canAddUnits = useCallback((count: number) => {
     if (isPro) return true;
@@ -367,7 +280,6 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       value={{
         habits,
         logs,
-        tasks,
         settings,
         isPro,
         loading,
@@ -379,22 +291,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         addUnits: handleAddUnits,
         undoLastAdd: handleUndoLastAdd,
         clearUndo,
-        addTask: handleAddTask,
-        completeTask: handleCompleteTask,
-        deleteTask: handleDeleteTask,
         updateSettings: handleUpdateSettings,
         setIsPro: handleSetIsPro,
         completeOnboarding: handleCompleteOnboarding,
         getTodayUnits,
         getWeekUnits,
-        getLifetimeUnits,
+        getMonthUnits,
         getTodayTotalUnits,
         getWeekTotalUnits,
-        getLifetimeTotalUnits,
         getLogsForDate,
-        isUnderPace,
         canAddHabit,
-        canAddTask,
         canAddUnits,
         refreshData,
       }}

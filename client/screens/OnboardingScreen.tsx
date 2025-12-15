@@ -4,13 +4,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
-import { SoftFloorStepper } from "@/components/SoftFloorStepper";
 import { useUnits } from "@/lib/UnitsContext";
-import { generateId } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -21,9 +20,7 @@ interface StarterHabit {
   icon: string;
   color: string;
   unitName: string;
-  unitSize: number;
-  unitDescriptor?: string;
-  suggestedFloor: number;
+  dailyGoal: number;
 }
 
 const STARTER_HABITS: StarterHabit[] = [
@@ -32,57 +29,48 @@ const STARTER_HABITS: StarterHabit[] = [
     name: "Reading",
     icon: "book-open",
     color: "#5856D6",
-    unitName: "page",
-    unitSize: 10,
-    unitDescriptor: "pages",
-    suggestedFloor: 7,
+    unitName: "pages",
+    dailyGoal: 10,
   },
   {
     id: "exercise",
     name: "Exercise",
     icon: "activity",
     color: "#FF9500",
-    unitName: "session",
-    unitSize: 1,
-    suggestedFloor: 5,
+    unitName: "minutes",
+    dailyGoal: 30,
   },
   {
     id: "meditation",
     name: "Meditation",
     icon: "sun",
     color: "#34C759",
-    unitName: "minute",
-    unitSize: 5,
-    unitDescriptor: "minutes",
-    suggestedFloor: 7,
+    unitName: "minutes",
+    dailyGoal: 10,
   },
   {
     id: "water",
-    name: "Water",
+    name: "Hydration",
     icon: "droplet",
     color: "#007AFF",
-    unitName: "glass",
-    unitSize: 1,
-    suggestedFloor: 14,
+    unitName: "glasses",
+    dailyGoal: 8,
   },
   {
     id: "writing",
     name: "Writing",
     icon: "edit-3",
     color: "#AF52DE",
-    unitName: "word",
-    unitSize: 100,
-    unitDescriptor: "words",
-    suggestedFloor: 5,
+    unitName: "words",
+    dailyGoal: 500,
   },
   {
     id: "learning",
     name: "Learning",
     icon: "book",
     color: "#FF2D55",
-    unitName: "lesson",
-    unitSize: 1,
-    suggestedFloor: 5,
+    unitName: "lessons",
+    dailyGoal: 1,
   },
 ];
 
@@ -92,15 +80,15 @@ export default function OnboardingScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { addHabit, completeOnboarding } = useUnits();
 
-  const [step, setStep] = useState<"welcome" | "select" | "floor">("welcome");
+  const [step, setStep] = useState<"welcome" | "select" | "goal">("welcome");
   const [selectedHabit, setSelectedHabit] = useState<StarterHabit | null>(null);
-  const [softFloor, setSoftFloor] = useState(5);
+  const [dailyGoal, setDailyGoal] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSelectHabit = useCallback((habit: StarterHabit) => {
     setSelectedHabit(habit);
-    setSoftFloor(habit.suggestedFloor);
-    setStep("floor");
+    setDailyGoal(habit.dailyGoal);
+    setStep("goal");
   }, []);
 
   const handleCreateHabit = useCallback(async () => {
@@ -109,24 +97,16 @@ export default function OnboardingScreen() {
     setIsSubmitting(true);
 
     try {
-      const unitVersion = {
-        id: generateId(),
-        unitName: selectedHabit.unitName,
-        unitSize: selectedHabit.unitSize,
-        unitDescriptor: selectedHabit.unitDescriptor,
-        effectiveStartDate: new Date().toISOString().split("T")[0],
-      };
-
       const success = await addHabit({
         name: selectedHabit.name,
         icon: selectedHabit.icon,
         color: selectedHabit.color,
-        softFloorPerWeek: softFloor,
-        unitVersions: [unitVersion],
+        unitName: selectedHabit.unitName,
+        dailyGoal: dailyGoal,
       });
 
       if (!success) {
-        console.warn("Failed to add habit - quota may be exceeded");
+        console.warn("Failed to add habit");
       }
 
       await completeOnboarding();
@@ -135,7 +115,7 @@ export default function OnboardingScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedHabit, softFloor, addHabit, completeOnboarding, isSubmitting]);
+  }, [selectedHabit, dailyGoal, addHabit, completeOnboarding, isSubmitting]);
 
   const handleSkip = useCallback(async () => {
     await completeOnboarding();
@@ -160,8 +140,8 @@ export default function OnboardingScreen() {
           },
         ]}
       >
-        <View style={styles.welcomeContent}>
-          <View style={[styles.iconContainer, { backgroundColor: theme.accentLight }]}>
+        <Animated.View entering={FadeIn} style={styles.welcomeContent}>
+          <View style={[styles.iconContainer, { backgroundColor: theme.accent + "20" }]}>
             <Feather name="layers" size={56} color={theme.accent} />
           </View>
           <ThemedText type="h1" style={styles.welcomeTitle}>
@@ -171,9 +151,9 @@ export default function OnboardingScreen() {
             type="body"
             style={[styles.welcomeSubtitle, { color: theme.textSecondary }]}
           >
-            Track your effort, not perfection. Every unit counts.
+            Track your habits. See your progress. Every unit counts.
           </ThemedText>
-        </View>
+        </Animated.View>
 
         <View style={styles.footer}>
           <Button onPress={() => setStep("select")}>Get Started</Button>
@@ -195,12 +175,12 @@ export default function OnboardingScreen() {
         ]}
       >
         <View style={styles.header}>
-          <ThemedText type="h3">Start with one habit</ThemedText>
+          <ThemedText type="h3">Pick a habit to start</ThemedText>
           <ThemedText
             type="body"
             style={[styles.subtitle, { color: theme.textSecondary }]}
           >
-            Pick something you want to track. You can always add more later.
+            You can add more later. Pick one to get started.
           </ThemedText>
         </View>
 
@@ -209,29 +189,31 @@ export default function OnboardingScreen() {
           contentContainerStyle={styles.habitGrid}
           showsVerticalScrollIndicator={false}
         >
-          {STARTER_HABITS.map((habit) => (
-            <Pressable
-              key={habit.id}
-              onPress={() => handleSelectHabit(habit)}
-              style={({ pressed }) => [
-                styles.habitCard,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  opacity: pressed ? 0.8 : 1,
-                },
-              ]}
-            >
-              <View style={[styles.habitIcon, { backgroundColor: habit.color + "20" }]}>
-                <Feather name={habit.icon as any} size={24} color={habit.color} />
-              </View>
-              <ThemedText type="body" style={{ fontWeight: "500" }}>
-                {habit.name}
-              </ThemedText>
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {habit.unitSize} {habit.unitName}
-                {habit.unitDescriptor ? ` = ${habit.unitSize} ${habit.unitDescriptor}` : ""}
-              </ThemedText>
-            </Pressable>
+          {STARTER_HABITS.map((habit, index) => (
+            <Animated.View key={habit.id} entering={FadeInDown.delay(index * 50)}>
+              <Pressable
+                onPress={() => handleSelectHabit(habit)}
+                style={({ pressed }) => [
+                  styles.habitCard,
+                  {
+                    backgroundColor: habit.color + "20",
+                    borderColor: habit.color + "40",
+                    opacity: pressed ? 0.8 : 1,
+                    transform: [{ scale: pressed ? 0.98 : 1 }],
+                  },
+                ]}
+              >
+                <View style={[styles.habitIcon, { backgroundColor: habit.color + "30" }]}>
+                  <Feather name={habit.icon as any} size={24} color={habit.color} />
+                </View>
+                <ThemedText type="body" style={{ fontWeight: "600" }}>
+                  {habit.name}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Track {habit.unitName}
+                </ThemedText>
+              </Pressable>
+            </Animated.View>
           ))}
         </ScrollView>
 
@@ -251,7 +233,7 @@ export default function OnboardingScreen() {
     );
   }
 
-  if (step === "floor" && selectedHabit) {
+  if (step === "goal" && selectedHabit) {
     return (
       <View
         style={[
@@ -268,41 +250,49 @@ export default function OnboardingScreen() {
             onPress={() => setStep("select")}
             style={styles.backButton}
           >
-            <Feather name="arrow-left" size={24} color={theme.text} />
+            <Feather name="chevron-left" size={24} color={theme.text} />
           </Pressable>
-          <ThemedText type="h3">Set a soft floor</ThemedText>
+          <ThemedText type="h3">Set your daily goal</ThemedText>
           <ThemedText
             type="body"
             style={[styles.subtitle, { color: theme.textSecondary }]}
           >
-            A soft floor is your minimum weekly pace. No pressure, just a gentle reminder.
+            How many {selectedHabit.unitName} do you want to track per day?
           </ThemedText>
         </View>
 
-        <View style={styles.floorContent}>
-          <View style={[styles.selectedHabit, { backgroundColor: theme.backgroundDefault }]}>
-            <View style={[styles.habitIcon, { backgroundColor: selectedHabit.color + "20" }]}>
-              <Feather name={selectedHabit.icon as any} size={24} color={selectedHabit.color} />
-            </View>
-            <View>
-              <ThemedText type="body" style={{ fontWeight: "600" }}>
-                {selectedHabit.name}
+        <Animated.View 
+          entering={FadeIn}
+          style={[styles.goalCard, { backgroundColor: selectedHabit.color + "15" }]}
+        >
+          <View style={[styles.selectedHabitIcon, { backgroundColor: selectedHabit.color + "30" }]}>
+            <Feather name={selectedHabit.icon as any} size={32} color={selectedHabit.color} />
+          </View>
+          <ThemedText type="h4">{selectedHabit.name}</ThemedText>
+
+          <View style={styles.goalStepper}>
+            <Pressable
+              onPress={() => setDailyGoal(Math.max(1, dailyGoal - 1))}
+              style={[styles.stepperButton, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <Feather name="minus" size={24} color={theme.text} />
+            </Pressable>
+            <View style={styles.goalDisplay}>
+              <ThemedText type="h1" style={{ color: selectedHabit.color }}>
+                {dailyGoal}
               </ThemedText>
               <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {selectedHabit.unitName}
+                {selectedHabit.unitName} per day
               </ThemedText>
             </View>
+            <Pressable
+              onPress={() => setDailyGoal(dailyGoal + 1)}
+              style={[styles.stepperButton, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <Feather name="plus" size={24} color={theme.text} />
+            </Pressable>
           </View>
-
-          <SoftFloorStepper value={softFloor} onChange={setSoftFloor} />
-
-          <View style={[styles.floorExplanation, { backgroundColor: theme.backgroundDefault }]}>
-            <Feather name="info" size={16} color={theme.textSecondary} />
-            <ThemedText type="small" style={{ color: theme.textSecondary, flex: 1 }}>
-              If you fall below {softFloor} units/week, you will see a gentle yellow indicator. No red, no guilt.
-            </ThemedText>
-          </View>
-        </View>
+        </Animated.View>
 
         <View style={styles.footer}>
           <Button onPress={handleCreateHabit} disabled={isSubmitting}>
@@ -323,13 +313,13 @@ const styles = StyleSheet.create({
   },
   welcomeContent: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
   iconContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 100,
+    height: 100,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: Spacing["2xl"],
@@ -340,68 +330,83 @@ const styles = StyleSheet.create({
   },
   welcomeSubtitle: {
     textAlign: "center",
-    maxWidth: 280,
+    paddingHorizontal: Spacing.xl,
+    lineHeight: 24,
   },
   header: {
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
   },
   backButton: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   subtitle: {
     marginTop: Spacing.sm,
+    lineHeight: 22,
   },
   scrollView: {
     flex: 1,
   },
   habitGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: Spacing.md,
-    paddingBottom: Spacing.lg,
+    gap: Spacing.sm,
+    paddingBottom: Spacing.xl,
   },
   habitCard: {
-    width: "47%",
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.lg,
+    flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.sm,
+    padding: Spacing.lg,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: Spacing.md,
   },
   habitIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: BorderRadius.md,
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
-  floorContent: {
+  goalCard: {
     flex: 1,
-    gap: Spacing["2xl"],
+    alignItems: "center",
+    justifyContent: "center",
+    padding: Spacing["2xl"],
+    borderRadius: 24,
+    marginTop: Spacing.xl,
   },
-  selectedHabit: {
+  selectedHabitIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
+  },
+  goalStepper: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+    marginTop: Spacing["2xl"],
+    gap: Spacing.xl,
   },
-  floorExplanation: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: Spacing.sm,
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
+  stepperButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  goalDisplay: {
+    alignItems: "center",
+    minWidth: 100,
   },
   footer: {
     paddingTop: Spacing.lg,
     gap: Spacing.md,
+    alignItems: "center",
   },
   customButton: {
-    alignItems: "center",
-    paddingVertical: Spacing.md,
+    padding: Spacing.md,
   },
   skipButton: {
-    alignItems: "center",
-    paddingVertical: Spacing.sm,
+    padding: Spacing.sm,
   },
 });

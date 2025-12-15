@@ -20,9 +20,8 @@ const FEATURES = [
 ];
 
 const REASON_MESSAGES: Record<string, string> = {
-  habits: "Free allows 2 habits. Pro unlocks unlimited.",
-  tasks: "Free allows 3 tasks. Pro unlocks unlimited.",
-  units: "Free allows 20 units/day. Pro unlocks unlimited.",
+  habits: "Free allows 3 habits. Pro unlocks unlimited.",
+  units: "Free allows 50 units/day. Pro unlocks unlimited.",
   history: "Free shows 7 days of history. Pro shows all time.",
   export: "Export is a Pro feature.",
   sync: "iCloud sync is a Pro feature.",

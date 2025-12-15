@@ -1,28 +1,22 @@
 import React, { useCallback, useMemo } from "react";
-import { View, ScrollView, StyleSheet, Pressable, ActionSheetIOS, Platform, Alert } from "react-native";
+import { View, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { CompositeNavigationProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
-import { PileTray } from "@/components/PileTray";
 import { HabitRow } from "@/components/HabitRow";
-import { TaskRow } from "@/components/TaskRow";
 import { UndoToast } from "@/components/UndoToast";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { TodayStackParamList } from "@/navigation/TodayStackNavigator";
 
-type NavigationProp = CompositeNavigationProp<
-  NativeStackNavigationProp<TodayStackParamList>,
-  NativeStackNavigationProp<RootStackParamList>
->;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
@@ -32,15 +26,10 @@ export default function TodayScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {
     habits,
-    tasks,
     loading,
-    addUnits,
-    completeTask,
-    deleteTask,
     canAddHabit,
-    canAddTask,
-    canAddUnits,
     isPro,
+    getTodayTotalUnits,
   } = useUnits();
 
   const activeHabits = useMemo(
@@ -48,111 +37,22 @@ export default function TodayScreen() {
     [habits]
   );
 
-  const pendingTasks = useMemo(
-    () => tasks.filter((t) => !t.isCompleted),
-    [tasks]
-  );
-
-  const completedTasks = useMemo(
-    () => tasks.filter((t) => t.isCompleted),
-    [tasks]
-  );
+  const todayTotal = getTodayTotalUnits();
 
   const handleAddPress = useCallback(() => {
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ["Cancel", "New Habit", "New Task"],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            if (canAddHabit()) {
-              navigation.navigate("NewHabit");
-            } else {
-              navigation.navigate("Paywall", { reason: "habits" });
-            }
-          } else if (buttonIndex === 2) {
-            if (canAddTask()) {
-              navigation.navigate("NewTask");
-            } else {
-              navigation.navigate("Paywall", { reason: "tasks" });
-            }
-          }
-        }
-      );
+    if (canAddHabit()) {
+      navigation.navigate("NewHabit");
     } else {
-      Alert.alert("Add", "What would you like to add?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "New Habit",
-          onPress: () => {
-            if (canAddHabit()) {
-              navigation.navigate("NewHabit");
-            } else {
-              navigation.navigate("Paywall", { reason: "habits" });
-            }
-          },
-        },
-        {
-          text: "New Task",
-          onPress: () => {
-            if (canAddTask()) {
-              navigation.navigate("NewTask");
-            } else {
-              navigation.navigate("Paywall", { reason: "tasks" });
-            }
-          },
-        },
-      ]);
+      Alert.alert(
+        "Limit Reached",
+        "Free tier allows 3 habits. Upgrade to Pro for unlimited habits.",
+        [
+          { text: "Not Now", style: "cancel" },
+          { text: "Upgrade", onPress: () => navigation.navigate("Paywall", { reason: "habits" }) },
+        ]
+      );
     }
-  }, [canAddHabit, canAddTask, navigation]);
-
-  const handleHabitPress = useCallback(
-    async (habitId: string) => {
-      if (!canAddUnits(1)) {
-        navigation.navigate("Paywall", { reason: "units" });
-        return;
-      }
-      await addUnits(habitId, 1);
-    },
-    [addUnits, canAddUnits, navigation]
-  );
-
-  const handleHabitLongPress = useCallback(
-    (habitId: string) => {
-      navigation.navigate("QuickAdd", { habitId });
-    },
-    [navigation]
-  );
-
-  const handleHabitDetailPress = useCallback(
-    (habitId: string) => {
-      navigation.navigate("HabitDetail", { habitId });
-    },
-    [navigation]
-  );
-
-  const handleTaskComplete = useCallback(
-    async (taskId: string) => {
-      await completeTask(taskId);
-    },
-    [completeTask]
-  );
-
-  const handleTaskDelete = useCallback(
-    (taskId: string) => {
-      Alert.alert("Delete Task", "Are you sure you want to delete this task?", [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: () => deleteTask(taskId),
-        },
-      ]);
-    },
-    [deleteTask]
-  );
+  }, [canAddHabit, navigation]);
 
   if (loading) {
     return (
@@ -171,117 +71,74 @@ export default function TodayScreen() {
         contentContainerStyle={[
           styles.content,
           {
-            paddingTop: headerHeight + Spacing.xl,
+            paddingTop: headerHeight + Spacing.lg,
             paddingBottom: tabBarHeight + Spacing["4xl"],
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
       >
-        <PileTray />
+        <Animated.View 
+          entering={FadeIn.delay(100)}
+          style={[styles.summaryCard, { backgroundColor: theme.accent + "15" }]}
+        >
+          <View style={styles.summaryContent}>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Today's Progress
+            </ThemedText>
+            <View style={styles.summaryRow}>
+              <ThemedText type="h1" style={[styles.summaryNumber, { color: theme.accent }]}>
+                {todayTotal}
+              </ThemedText>
+              <ThemedText type="body" style={{ color: theme.textSecondary, marginLeft: Spacing.sm }}>
+                units logged
+              </ThemedText>
+            </View>
+          </View>
+          <View style={[styles.summaryIcon, { backgroundColor: theme.accent + "20" }]}>
+            <Feather name="zap" size={28} color={theme.accent} />
+          </View>
+        </Animated.View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <ThemedText type="h4">Habits</ThemedText>
-            {!isPro && activeHabits.length >= 2 ? (
+            <ThemedText type="h4">My Habits</ThemedText>
+            {!isPro ? (
               <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {activeHabits.length}/2
+                {activeHabits.length}/3
               </ThemedText>
             ) : null}
           </View>
 
           {activeHabits.length === 0 ? (
-            <View style={[styles.emptyState, { backgroundColor: theme.backgroundDefault }]}>
+            <Animated.View 
+              entering={FadeInDown.delay(200)}
+              style={[styles.emptyState, { backgroundColor: theme.backgroundDefault }]}
+            >
+              <View style={[styles.emptyIcon, { backgroundColor: theme.accent + "15" }]}>
+                <Feather name="target" size={32} color={theme.accent} />
+              </View>
               <ThemedText type="h4" style={styles.emptyTitle}>
-                Start with one unit.
+                Ready to build a habit?
               </ThemedText>
               <ThemedText
                 type="body"
                 style={[styles.emptySubtitle, { color: theme.textSecondary }]}
               >
-                Add your first habit to begin tracking your effort.
+                Tap below to add your first habit and start tracking your progress.
               </ThemedText>
               <Button
-                onPress={() => navigation.navigate("NewHabit")}
+                onPress={handleAddPress}
                 style={styles.emptyButton}
               >
-                Add a habit
+                Add your first habit
               </Button>
-            </View>
+            </Animated.View>
           ) : (
-            activeHabits.map((habit) => (
-              <HabitRow
-                key={habit.id}
-                habit={habit}
-                onPress={() => handleHabitPress(habit.id)}
-                onLongPress={() => handleHabitLongPress(habit.id)}
-                onDetailPress={() => handleHabitDetailPress(habit.id)}
-              />
+            activeHabits.map((habit, index) => (
+              <Animated.View key={habit.id} entering={FadeInDown.delay(100 + index * 50)}>
+                <HabitRow habit={habit} />
+              </Animated.View>
             ))
-          )}
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <ThemedText type="h4">Tasks</ThemedText>
-            {!isPro && pendingTasks.length >= 3 ? (
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {pendingTasks.length}/3
-              </ThemedText>
-            ) : null}
-          </View>
-
-          {pendingTasks.length === 0 && completedTasks.length === 0 ? (
-            <View style={[styles.emptyState, { backgroundColor: theme.backgroundDefault }]}>
-              <ThemedText
-                type="body"
-                style={[styles.emptySubtitle, { color: theme.textSecondary }]}
-              >
-                Tasks are optional. Keep it light.
-              </ThemedText>
-              <Button
-                onPress={() => {
-                  if (canAddTask()) {
-                    navigation.navigate("NewTask");
-                  } else {
-                    navigation.navigate("Paywall", { reason: "tasks" });
-                  }
-                }}
-                style={styles.emptyButton}
-              >
-                Add a task
-              </Button>
-            </View>
-          ) : (
-            <>
-              {pendingTasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  linkedHabit={habits.find((h) => h.id === task.linkedHabitId)}
-                  onComplete={() => handleTaskComplete(task.id)}
-                  onDelete={() => handleTaskDelete(task.id)}
-                />
-              ))}
-              {completedTasks.length > 0 ? (
-                <View style={styles.completedSection}>
-                  <ThemedText
-                    type="small"
-                    style={{ color: theme.textSecondary, marginBottom: Spacing.sm }}
-                  >
-                    Completed ({completedTasks.length})
-                  </ThemedText>
-                  {completedTasks.slice(0, 3).map((task) => (
-                    <TaskRow
-                      key={task.id}
-                      task={task}
-                      linkedHabit={habits.find((h) => h.id === task.linkedHabitId)}
-                      onComplete={() => {}}
-                      onDelete={() => handleTaskDelete(task.id)}
-                    />
-                  ))}
-                </View>
-              ) : null}
-            </>
           )}
         </View>
       </ScrollView>
@@ -294,6 +151,7 @@ export default function TodayScreen() {
             backgroundColor: theme.accent,
             bottom: tabBarHeight + Spacing.xl,
             opacity: pressed ? 0.8 : 1,
+            transform: [{ scale: pressed ? 0.95 : 1 }],
           },
         ]}
       >
@@ -320,6 +178,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  summaryCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: Spacing.lg,
+    borderRadius: 20,
+    marginBottom: Spacing.xl,
+  },
+  summaryContent: {
+    flex: 1,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: 4,
+  },
+  summaryNumber: {
+    fontSize: 42,
+    fontWeight: "700",
+  },
+  summaryIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   section: {
     marginBottom: Spacing["2xl"],
   },
@@ -331,8 +216,16 @@ const styles = StyleSheet.create({
   },
   emptyState: {
     padding: Spacing["2xl"],
-    borderRadius: BorderRadius.lg,
+    borderRadius: 20,
     alignItems: "center",
+  },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.lg,
   },
   emptyTitle: {
     marginBottom: Spacing.sm,
@@ -340,14 +233,11 @@ const styles = StyleSheet.create({
   },
   emptySubtitle: {
     textAlign: "center",
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.xl,
+    lineHeight: 22,
   },
   emptyButton: {
-    minWidth: 160,
-  },
-  completedSection: {
-    marginTop: Spacing.md,
-    opacity: 0.7,
+    minWidth: 180,
   },
   fab: {
     position: "absolute",
@@ -358,9 +248,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 8,
   },
 });

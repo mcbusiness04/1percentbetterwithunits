@@ -1,20 +1,19 @@
 # Units App - Design Guidelines
 
 ## Authentication
-**No authentication required** - Units is a local-first app with no account system in MVP.
+**No authentication required** - Local-first app with no account system.
 
-**Settings Screen Required:**
-- No user profile/avatar (app is local-only)
-- App preferences: Sound effects toggle, Haptics toggle, Show General Effort habit toggle
-- Data management: "Erase All Data", "Export Data (Pro)", "iCloud Sync (Pro)"
-- Subscription: "Upgrade to Units Pro", "Restore Purchases", "Manage Subscription"
+**Settings Screen:**
+- App preferences: Sound effects, Haptics, Dark mode (Auto/Light/Dark)
+- Data management: Export Data (Pro), iCloud Sync (Pro), Erase All Data
+- Subscription: Upgrade to Pro, Restore Purchases, Manage Subscription
 - Legal: Privacy Policy, Terms, Contact Support
 
 ## Navigation Architecture
-**Tab Bar Navigation (3 tabs):**
-1. **Today** - Main screen with pile visualization, habit list, and tasks
-2. **Stats** - Weekly/lifetime statistics and rolling averages
-3. **Settings** - Preferences and subscription management
+**Tab Bar (3 tabs):**
+1. **Today** - Animated pile, habit list, tasks
+2. **Stats** - Visualizations and rolling averages
+3. **Settings** - Preferences and subscription
 
 **Modal Screens:**
 - New Habit (modal form)
@@ -23,186 +22,231 @@
 - Paywall (modal)
 
 ## Design Principles
-1. **One-handed, one-tap logging** - Primary interaction must be instant
-2. **Zero guilt** - No streaks, no red warnings, no shame
-3. **Physical feedback** - Every interaction feels tangible (blocks + haptics)
-4. **Minimal text** - No quotes, no badges, clean interface
-5. **Fast launch** - App must open instantly to Today screen
+1. **One-tap logging** - Instant gratification with animated feedback
+2. **Zero guilt, high celebration** - No streaks/shame, big rewards for wins
+3. **Physical + magical** - 3D blocks feel tangible but delightfully animated
+4. **Vibrant minimalism** - Clean interface with bold, playful accents
+5. **Fast launch** - Immediate access to animated Today view
 
 ## Screen Specifications
 
 ### Today (Home)
 **Header:**
-- Left: "Units" title
-- Right: "+" button (opens action sheet: "New Habit" / "New Task")
 - Transparent background
+- Left: "Units" title with subtle gradient
+- Right: "+" button (opens action sheet: New Habit/New Task)
+- Top safe area: headerHeight + Spacing.xl
 
-**Pile Module (top, fixed):**
-- Header: "Today"
-- Subheader: "Total Units: {N}"
-- Pile tray visualization (fixed height container)
-- Small toggle icon for sound/haptics settings
-- Safe area: top inset = headerHeight + Spacing.xl
+**Pile Visualization (fixed top module):**
+- 3D animated container showing stacked blocks
+- Header: "Today" with glow effect
+- Subheader: "Total Units: {N}" with animated count-up
+- Blocks drop with spring physics, scale in, settle with bounce
+- Glow intensity increases as pile grows
+- Each block uses habit's gradient color
+- Tap pile → satisfying wobble animation
 
 **Habit List (scrollable):**
-- Each row (≥44pt tap target):
-  - Icon (left) + Habit name
-  - Secondary line: unit name (e.g., "page")
-  - Right side: "Today {x} • Week {y}"
-  - Small text below: "Lifetime {z}"
-  - Row tint based on habit color
-  - Soft floor indicator: small yellow dot + "Under pace" if below weekly minimum
-- Tap gesture: +1 unit instantly
-- Long-press: opens Quick Add bottom sheet
+- Card-style rows with gradient backgrounds (habit color)
+- Each row (≥56pt height):
+  - Icon (SF Symbol) with glow ring
+  - Habit name (bold, white text)
+  - Unit name subtitle (semi-transparent white)
+  - Right side: Progress meter (circular or linear)
+    - Below soft floor: red glow
+    - Above soft floor: gold glow + shimmer
+  - Stats row: "Today {x} • Week {y}" with subtle icons
+- Tap: +1 with burst particle effect + haptic
+- Long-press: Quick Add sheet with spring animation
+- Bottom safe area: tabBarHeight + Spacing.xl
 
 **Tasks Section:**
-- Header: "Tasks"
-- Checkbox rows with title, unit estimate, optional linked habit tag
-- Completed tasks collapse into "Completed (n)" accordion
-- Safe area: bottom inset = tabBarHeight + Spacing.xl
-
-**Empty States:**
-- No habits: Title "Start with one unit." + "Add a habit" button
-- No tasks: "Tasks are optional. Keep it light." + "Add a task" button
+- Card-style with subtle gradient border
+- Checkbox (animated check with spring)
+- Task title, unit estimate badge, optional habit tag (tinted)
+- Completed: collapse into accordion with celebration confetti on complete
+- Empty state: "Keep it light." with ghost card illustration
 
 ### Habit Detail (push screen)
 **Header:**
-- Habit name (title)
-- Transparent background
-- Right: three-dot menu (Edit/Change unit/Archive/Delete)
+- Gradient title bar (habit color)
+- Habit name + current streak icon (if exists)
+- Right: menu (Edit/Archive/Delete)
+- Top safe area: headerHeight + Spacing.xl
 
 **Content (scrollable):**
-- Top safe area: headerHeight + Spacing.xl
-- Quick add buttons: "+1", "+5" (Pro only), "Add…"
-- Stats chips: "Today {x}", "Week {y}", "Lifetime {z}", "Avg 7d {a}"
-- Wall visualization (horizontal scroll):
-  - Default 14-day view
-  - Columns = days, rows = stacked unit blocks
-  - Weekly separators (subtle vertical lines)
-  - Tap day column → popover showing "Dec 14: 8 units" + "Remove…"
-  - After 50 blocks/day: compress to bundles (×5 per visual block)
+- Quick Add section:
+  - Large gradient buttons: "+1", "+5" (Pro), "Add…"
+  - Tap triggers 3D block animation + glow pulse
+- Goal meter (large circular progress):
+  - Red glow when below soft floor
+  - Gold glow + animated rays when surpassed
+  - Center shows today's count with scale animation
+- Stats chips (gradient cards):
+  - Today, Week, Lifetime, 7-day avg
+  - Tap for micro-celebration (confetti if record broken)
+- Wall Visualization:
+  - Horizontal scroll (14 days default)
+  - Each day: vertical stack of 3D blocks
+  - Gradient backgrounds per habit
+  - Tap day → popover with glow outline
+  - Weekly separators with subtle shimmer
 - Bottom safe area: tabBarHeight + Spacing.xl
 
 ### New Habit Modal
-**Form fields:**
-- "Habit name" text input
-- "Unit" section: unit name + unit size (numeric + optional descriptor)
-- "Soft floor" stepper with helper text: "Yellow when under pace. No streaks."
-- Icon picker (SF Symbols grid)
-- Color picker (system palette)
+**Form (gradient overlay background):**
+- Habit name input (large, with focus glow)
+- Unit section: name + size with picker
+- Soft floor stepper (animated ±)
+- Icon picker (SF Symbols grid with preview glow)
+- Color picker (gradient swatches)
+- Header: Cancel (left), Create (right, gradient button when valid)
 
-**Buttons:**
-- Header: "Cancel" (left), "Create" (right, disabled until name + unit filled)
-
-### Quick Add Bottom Sheet
-**Layout:**
-- Large "+/–" buttons
-- Current count display (center)
-- Keypad toggle for 1–99 input
-- "Add" button (primary)
-- Caps at 999 per add
+### Quick Add Sheet
+**Bottom sheet with backdrop blur:**
+- Large "+/–" buttons (gradient, glow on press)
+- Center display (3D number with scale animation)
+- Numeric keypad (optional, animated slide-in)
+- Primary "Add" button (full-width gradient)
+- Shadow specs:
+  - shadowOffset: {width: 0, height: -2}
+  - shadowOpacity: 0.15
+  - shadowRadius: 12
 
 ### Stats Tab
-**Sections (scrollable):**
-- "This week" card: Units this week, Avg/day, Top habit
-- "Rolling averages": 7/30/90 day (30/90 blurred in Free tier)
-- "All time": Lifetime units, Total active habits
-- Safe area: top = headerHeight + Spacing.xl, bottom = tabBarHeight + Spacing.xl
+**Scrollable sections with gradient cards:**
+- "This Week" hero card (large, animated count-ups)
+- Rolling averages: 7/30/90 day (blur lock for Free)
+- All-time stats with trophy icons + glow
+- Visual charts with gradient fills
+- Safe areas: top = headerHeight + Spacing.xl, bottom = tabBarHeight + Spacing.xl
 
 ### Paywall Modal
-**Layout:**
+**Gradient background with animated features:**
 - Title: "Make Units unlimited."
-- Bullet points: Unlimited habits/history, Widgets + share cards, Rolling averages, Export + iCloud sync
-- Primary button: "Start Pro"
-- Secondary button: "Not now"
-- Footer: Auto-renew disclaimer + Terms/Privacy/Restore links
+- Feature bullets with animated icons + glow
+- Primary button: gradient "Start Pro" with shimmer
+- Secondary: "Not now" (text-only)
+- Footer: Terms/Privacy/Restore
 
 ## Visual Design System
 
 ### Color Palette
-- System palette for habit colors (user-selectable)
-- Yellow indicator for "under pace" (no red warnings)
-- Subtle tints for habit rows based on selected color
+**Vibrant gradients for habit themes:**
+- Fire: Red (#FF3B30) → Orange (#FF9500)
+- Ocean: Blue (#007AFF) → Cyan (#5AC8FA)
+- Forest: Green (#34C759) → Teal (#30D158)
+- Sunset: Purple (#AF52DE) → Pink (#FF2D55)
+- Gold: Yellow (#FFCC00) → Orange (#FF9500)
+- User selects gradient from 8-12 presets
+
+**System colors:**
+- Under pace glow: Red (#FF3B30) with 40% opacity
+- Goal surpassed glow: Gold (#FFCC00) with 60% opacity
+- Celebration: Multi-color particle effects
+
+**Dark Mode:**
+- Dark backgrounds (#1C1C1E, #2C2C2E)
+- Glowing accents more prominent (60% opacity)
+- Gradients slightly desaturated but vibrant
+- White text with subtle glow
 
 ### Typography
-- Clear hierarchy: Habit names prominent, stats secondary
-- Dynamic Type support (rows expand vertically)
-- No decorative quotes or badges
+- System font (SF Pro) with Dynamic Type
+- Habit names: Bold, 17-20pt
+- Stats: Medium, 15pt with tabular numbers
+- Subtle glow effect on white text in dark mode
 
 ### Iconography
-- SF Symbols for habit icons (user-selectable subset)
-- Standard system icons for navigation and actions
-- NO emojis
+- SF Symbols for all icons
+- Habit icons render with glow ring in habit color
+- Tab bar: house.fill, chart.bar.fill, gearshape.fill
+- Action icons with press-state glow
 
-### Interaction Design
+### Animation & Interaction
+
+**3D Block Physics:**
+- Blocks drop from top with spring (damping: 0.6, stiffness: 200)
+- Scale in (0.8 → 1.0) with slight rotation
+- Settle bounce on landing
+- Stack with subtle offset for depth
+- Glow increases with pile height
+
+**Goal Meters:**
+- Circular or linear progress bars
+- Smooth fill animation (duration: 0.8s, easing: easeInOutCubic)
+- Below target: pulsing red glow (1.5s cycle)
+- Above target: gold shimmer sweep (2s cycle)
+- Milestone hit: burst effect + scale pulse
+
+**Celebration Effects:**
+- Goal met: confetti particles (12-16) with physics
+- Record broken: radial burst + haptic (medium impact)
+- Undo toast: slide up from bottom with spring
+
 **Haptics:**
-- Subtle haptic on unit drop
+- Light impact: +1 add
+- Medium impact: goal milestone
+- Heavy impact: big celebration
 - Toggleable in Settings
 
 **Sound:**
-- Optional satisfying sound on unit add
+- Satisfying "pop" on block drop
+- Chime on goal surpass
 - Toggleable in Settings
 
-**Animations:**
-- Block drop physics (simple, fast)
-- Pile height updates smoothly
-- Quick burst for multi-add (visually capped)
-
 **Feedback:**
-- 5-second undo toast: "Added 1 unit • Undo"
-- Immediate visual update (pile + counters)
-- Soft floor indicator appears/disappears based on weekly pace
+- Undo toast (5s): "Added 1 unit • Undo" with gradient background
+- Immediate visual: pile animates, counters scale-update
+- Button press: scale down (0.95) + glow increase
 
-**Shadows:**
-- Minimal use - only for floating Quick Add sheet
-- Exact specs for bottom sheet shadow:
-  - shadowOffset: {width: 0, height: -2}
-  - shadowOpacity: 0.10
-  - shadowRadius: 8
+### Component Specifications
 
-### Component Behavior
-**Habit Row:**
-- Tap: instant +1 with haptic/sound
-- Long-press: opens Quick Add sheet
-- Visual feedback: subtle press state (no heavy shadow)
+**Habit Row Card:**
+- Height: 72pt minimum (expands with Dynamic Type)
+- Gradient background (habit color, 45° angle)
+- Corner radius: 16pt
+- No shadow (gradient provides depth)
+- Press state: scale 0.98, brightness +10%
 
-**Pile Tray:**
-- Fixed height container at top of Today
-- Blocks stack with simple physics
-- Scrolls independently if pile grows tall
+**3D Block:**
+- Base: 24×24pt square
+- Depth illusion: subtle gradient + inner shadow
+- Drop animation: 0.6s spring from y: -100
+- Max visible: 20 blocks, then compress to bundles
 
-**Wall Visualization:**
-- Horizontal scroll (swipe left/right for time)
-- Default shows 14 days (Free limited to 7)
-- Tap day column → info popover
+**Glow Effect:**
+- Blur radius: 8-12pt depending on intensity
+- Color: habit color at 40-60% opacity
+- Pulsing glow: opacity 40% ↔ 60%, 1.5s cycle
+
+**Progress Meter:**
+- Circular: 48pt diameter, 6pt stroke
+- Linear: full-width, 8pt height, rounded caps
+- Background: white 20% opacity
+- Fill: gradient matching habit color
 
 ## Accessibility
-- All tap targets ≥44×44pt
-- VoiceOver labels:
-  - Habit row: "Reading. Tap to add one unit. Today 3. This week 11."
-  - Task row: "Finish outline. 2 units. Linked to Writing."
-- Dynamic Type support with vertical row expansion
-- Pile tray fixed height (scrolls below if needed)
+- All tap targets ≥56×56pt (larger than standard for playful feel)
+- VoiceOver: "Reading habit. Tap to add one unit. Today 3 units. This week 11 units. Above goal."
+- Reduce motion: disable physics, use fade transitions
+- Glow effects respect Increase Contrast setting (reduce opacity)
+- Dynamic Type with vertical expansion
+- Color contrast: gradients ensure 4.5:1 minimum on text
 
 ## Critical Assets
-**Generated Assets:**
-- None required for MVP - use SF Symbols for all habit icons
-- Pile visualization is code-based (simple rectangles with physics)
-- Wall grid is code-based (stacked blocks)
+**None required** - All visuals are code-based:
+- 3D blocks: gradient rectangles with shadow/highlight layers
+- Pile visualization: spring physics animations
+- Glow effects: blur + opacity animations
+- Particle systems: native animation framework
+- SF Symbols for all icons (curated subset: book.fill, dumbbell, pencil, figure.run, chevron.left.forwardslash.chevron.right, etc.)
 
-**System Icons:**
-- SF Symbols for habit icons (provide curated subset: book, dumbbell, pencil, running figure, code brackets, etc.)
-- Tab bar icons: house.fill (Today), chart.bar.fill (Stats), gearshape.fill (Settings)
-- Plus icon for adding habits/tasks
-
-## Free vs Paid UI Differences
-**Visual Indicators:**
-- Free limits shown contextually: "Free allows 2 habits. Pro unlocks unlimited."
-- Blurred content for locked features (30/90 averages, wall beyond 7 days)
-- "+5" quick add button hidden in Free (show only +1)
-- Pro badge in Settings near upgrade option
-
-**Limit Enforcement:**
-- When limit hit, show inline message + upgrade CTA
-- No blocking modals until user attempts action
-- Downgraded users see archived habits grayed out with lock icon
+## Free vs Pro UI
+**Visual differentiation:**
+- Free limits: inline message with gradient "Upgrade" button
+- Locked features: blur effect + lock icon overlay
+- Pro badge: subtle gold shimmer in Settings
+- "+5" quick add hidden in Free
+- 30/90 day averages blurred with glow outline
+- Wall beyond 7 days: gradient fade + lock icon

@@ -7,7 +7,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { HeaderButton } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
@@ -93,8 +93,6 @@ export default function QuickAddScreen() {
     );
   }
 
-  const currentUnitVersion = habit.unitVersions[habit.unitVersions.length - 1];
-
   return (
     <View
       style={[
@@ -134,8 +132,7 @@ export default function QuickAddScreen() {
               {count}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {currentUnitVersion.unitName}
-              {count !== 1 ? "s" : ""}
+              {habit.unitName}
             </ThemedText>
           </View>
 
@@ -183,7 +180,7 @@ export default function QuickAddScreen() {
         disabled={count === 0 || isSubmitting}
         style={[styles.addButton, { backgroundColor: habit.color }]}
       >
-        Add {count} unit{count !== 1 ? "s" : ""}
+        Add {count} {habit.unitName}
       </Button>
     </View>
   );
@@ -204,7 +201,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: Spacing.sm,
     padding: Spacing.md,
-    borderRadius: BorderRadius.full,
+    borderRadius: 9999,
     alignSelf: "center",
     marginBottom: Spacing["3xl"],
   },
@@ -217,7 +214,7 @@ const styles = StyleSheet.create({
   controlButton: {
     width: 72,
     height: 72,
-    borderRadius: BorderRadius.lg,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -236,7 +233,7 @@ const styles = StyleSheet.create({
   quickButton: {
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: 18,
   },
   addButton: {
     marginTop: Spacing.lg,

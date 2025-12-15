@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback, useState } from "react";
+import React, { useMemo, useCallback } from "react";
 import { View, ScrollView, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -6,11 +6,12 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing, BorderRadius } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { GoalMeter } from "@/components/GoalMeter";
 import { HabitWall } from "@/components/HabitWall";
-import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { TodayStackParamList } from "@/navigation/TodayStackNavigator";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -35,7 +36,7 @@ export default function HabitDetailScreen() {
     updateHabit,
     getTodayUnits,
     getWeekUnits,
-    getLifetimeUnits,
+    getMonthUnits,
     canAddUnits,
     isPro,
   } = useUnits();
@@ -52,7 +53,7 @@ export default function HabitDetailScreen() {
 
   const todayUnits = habit ? getTodayUnits(habit.id) : 0;
   const weekUnits = habit ? getWeekUnits(habit.id) : 0;
-  const lifetimeUnits = habit ? getLifetimeUnits(habit.id) : 0;
+  const monthUnits = habit ? getMonthUnits(habit.id) : 0;
 
   const avg7d = useMemo(() => {
     if (!habit) return 0;
@@ -165,7 +166,8 @@ export default function HabitDetailScreen() {
     );
   }
 
-  const currentUnitVersion = habit.unitVersions[habit.unitVersions.length - 1];
+  const progress = habit.dailyGoal > 0 ? todayUnits / habit.dailyGoal : 0;
+  const isGoalMet = todayUnits >= habit.dailyGoal && habit.dailyGoal > 0;
 
   return (
     <ScrollView
@@ -179,23 +181,45 @@ export default function HabitDetailScreen() {
       ]}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
-      <View style={styles.header}>
+      <Animated.View entering={FadeIn} style={styles.header}>
         <View style={[styles.iconContainer, { backgroundColor: habit.color + "20" }]}>
           <Feather name={habit.icon as any} size={32} color={habit.color} />
         </View>
         <View style={styles.headerText}>
           <ThemedText type="h3">{habit.name}</ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            {currentUnitVersion.unitName}
-            {currentUnitVersion.unitDescriptor
-              ? ` (${currentUnitVersion.unitSize} ${currentUnitVersion.unitDescriptor})`
-              : ""}
+            Goal: {habit.dailyGoal} {habit.unitName} per day
           </ThemedText>
         </View>
         <Pressable onPress={handleMenuPress} style={styles.menuButton}>
           <Feather name="more-vertical" size={24} color={theme.text} />
         </Pressable>
-      </View>
+      </Animated.View>
+
+      <Animated.View 
+        entering={FadeIn.delay(100)}
+        style={[styles.progressCard, { backgroundColor: habit.color + "15", borderColor: habit.color + "30" }]}
+      >
+        <View style={styles.progressContent}>
+          <GoalMeter current={todayUnits} goal={habit.dailyGoal} color={habit.color} size="large" />
+          <View style={styles.progressText}>
+            <ThemedText type="h1" style={{ color: habit.color }}>
+              {todayUnits}
+            </ThemedText>
+            <ThemedText type="body" style={{ color: theme.textSecondary }}>
+              / {habit.dailyGoal} {habit.unitName} today
+            </ThemedText>
+          </View>
+        </View>
+        {isGoalMet ? (
+          <View style={[styles.goalBadge, { backgroundColor: "#FFD700" }]}>
+            <Feather name="award" size={14} color="#000" />
+            <ThemedText type="small" style={{ color: "#000", fontWeight: "600" }}>
+              Goal reached!
+            </ThemedText>
+          </View>
+        ) : null}
+      </Animated.View>
 
       <View style={styles.quickAddSection}>
         <Pressable
@@ -206,16 +230,14 @@ export default function HabitDetailScreen() {
             +1
           </ThemedText>
         </Pressable>
-        {isPro ? (
-          <Pressable
-            onPress={() => handleAddUnits(5)}
-            style={[styles.quickAddButton, { backgroundColor: habit.color + "CC" }]}
-          >
-            <ThemedText type="body" style={{ color: "white", fontWeight: "600" }}>
-              +5
-            </ThemedText>
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() => handleAddUnits(5)}
+          style={[styles.quickAddButton, { backgroundColor: habit.color + "CC" }]}
+        >
+          <ThemedText type="body" style={{ color: "white", fontWeight: "600" }}>
+            +5
+          </ThemedText>
+        </Pressable>
         <Pressable
           onPress={() => navigation.navigate("QuickAdd", { habitId: habit.id })}
           style={[styles.quickAddButton, { backgroundColor: theme.backgroundDefault }]}
@@ -229,21 +251,15 @@ export default function HabitDetailScreen() {
       <View style={styles.statsRow}>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Today
-          </ThemedText>
-          <ThemedText type="h4">{todayUnits}</ThemedText>
-        </View>
-        <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Week
+            This Week
           </ThemedText>
           <ThemedText type="h4">{weekUnits}</ThemedText>
         </View>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Lifetime
+            This Month
           </ThemedText>
-          <ThemedText type="h4">{lifetimeUnits}</ThemedText>
+          <ThemedText type="h4">{monthUnits}</ThemedText>
         </View>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
@@ -255,24 +271,10 @@ export default function HabitDetailScreen() {
 
       <View style={styles.wallSection}>
         <ThemedText type="h4" style={styles.sectionTitle}>
-          Wall
+          Activity
         </ThemedText>
         <HabitWall habit={habit} logs={habitLogs} onDayPress={handleDayPress} />
       </View>
-
-      {habit.softFloorPerWeek > 0 ? (
-        <View style={[styles.softFloorInfo, { backgroundColor: theme.backgroundDefault }]}>
-          <Feather name="target" size={18} color={theme.accent} />
-          <View style={styles.softFloorText}>
-            <ThemedText type="small" style={{ fontWeight: "500" }}>
-              Soft floor: {habit.softFloorPerWeek} units/week
-            </ThemedText>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Progress: {weekUnits}/{habit.softFloorPerWeek}
-            </ThemedText>
-          </View>
-        </View>
-      ) : null}
     </ScrollView>
   );
 }
@@ -306,7 +308,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 64,
     height: 64,
-    borderRadius: BorderRadius.lg,
+    borderRadius: 20,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.lg,
@@ -320,6 +322,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  progressCard: {
+    padding: Spacing.xl,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: Spacing["2xl"],
+  },
+  progressContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xl,
+  },
+  progressText: {
+    flex: 1,
+  },
+  goalBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 12,
+    gap: 4,
+    marginTop: Spacing.md,
+  },
   quickAddSection: {
     flexDirection: "row",
     gap: Spacing.sm,
@@ -328,7 +354,7 @@ const styles = StyleSheet.create({
   quickAddButton: {
     flex: 1,
     height: 48,
-    borderRadius: BorderRadius.md,
+    borderRadius: 14,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -340,7 +366,7 @@ const styles = StyleSheet.create({
   statChip: {
     flex: 1,
     padding: Spacing.md,
-    borderRadius: BorderRadius.md,
+    borderRadius: 14,
     alignItems: "center",
   },
   wallSection: {
@@ -348,15 +374,5 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     marginBottom: Spacing.md,
-  },
-  softFloorInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    gap: Spacing.md,
-  },
-  softFloorText: {
-    flex: 1,
   },
 });

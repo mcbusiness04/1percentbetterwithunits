@@ -3,7 +3,6 @@ import { View, ActivityIndicator } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import NewHabitScreen from "@/screens/NewHabitScreen";
-import NewTaskScreen from "@/screens/NewTaskScreen";
 import QuickAddScreen from "@/screens/QuickAddScreen";
 import PaywallScreen from "@/screens/PaywallScreen";
 import OnboardingScreen from "@/screens/OnboardingScreen";
@@ -15,7 +14,6 @@ export type RootStackParamList = {
   Main: undefined;
   Onboarding: undefined;
   NewHabit: undefined;
-  NewTask: undefined;
   QuickAdd: { habitId: string };
   Paywall: { reason: string };
 };
@@ -50,14 +48,6 @@ export default function RootStackNavigator() {
             options={{
               presentation: "modal",
               headerTitle: "New Habit",
-            }}
-          />
-          <Stack.Screen
-            name="NewTask"
-            component={NewTaskScreen}
-            options={{
-              presentation: "modal",
-              headerTitle: "New Task",
             }}
           />
           <Stack.Screen
