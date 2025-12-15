@@ -7,11 +7,12 @@ Units is a local-first mobile effort tracker built with Expo React Native. Users
 The app is fully functional with the following features:
 - 3-tab navigation (Today, Stats, Settings)
 - Habit creation with custom icons, colors, and unit definitions
-- One-tap unit logging with undo functionality
-- Task management linked to habits
+- Action menu for adding/removing units (Add 1, Add 5, Remove 1)
+- Falling blocks animation with pile visualization at bottom of Today screen
 - Local-first data persistence with AsyncStorage
 - Freemium model with Pro tier for unlimited access
 - iOS 26 liquid glass design aesthetic
+- Pie chart and enhanced analytics on Stats screen
 
 ## Project Architecture
 
@@ -33,14 +34,16 @@ client/
     QuickAddScreen.tsx       # Modal for adding multiple units
     PaywallScreen.tsx        # Pro upgrade screen
   components/
-    PileTray.tsx             # Physics-based block visualization
-    HabitRow.tsx             # Habit list item
-    TaskRow.tsx              # Task list item
+    FallingBlocks.tsx        # Falling block animation with pile
+    HabitActionMenu.tsx      # Action menu for Add 1, Add 5, Remove 1
+    HabitRow.tsx             # Habit list item with action menu
+    PieChart.tsx             # Pie chart for habit distribution
+    GoalMeter.tsx            # Animated goal progress meter
+    AnimatedBlocks.tsx       # Inline block visualization
     HabitWall.tsx            # Calendar heat map
     UndoToast.tsx            # Undo notification
     IconPicker.tsx           # Icon selection for habits
     ColorPicker.tsx          # Color selection for habits
-    SoftFloorStepper.tsx     # Weekly goal stepper
     StatCard.tsx             # Statistics display card
     SettingsRow.tsx          # Settings list item
   lib/
@@ -75,7 +78,11 @@ server/
 - Removed all task-related functionality (purely habit tracker now)
 - Added GoalMeter component with animated glow effects (red below goal, gold when met)
 - Added AnimatedBlocks for 3D block visualization
-- Redesigned StatsScreen to focus on charts only
+- **New: HabitActionMenu** - Modal with Add 1, Add 5, Remove 1 options
+- **New: FallingBlocks** - Animated blocks falling into pile at bottom of Today screen
+- **New: removeUnits function** - Ability to delete accidentally added units
+- **New: PieChart component** - Habit distribution visualization
+- **New: Enhanced StatsScreen** - Overview grid (Today, This Week, Daily Avg, Streak), bar charts, pie chart, habit progress cards
 
 ## User Preferences
 - No emojis in the UI

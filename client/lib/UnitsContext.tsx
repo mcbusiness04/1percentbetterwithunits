@@ -21,7 +21,7 @@ import {
 } from "@/lib/storage";
 
 interface UndoAction {
-  type: "add_units";
+  type: "add_units" | "remove_units";
   logId: string;
   habitId: string;
   count: number;
@@ -41,6 +41,7 @@ interface UnitsContextType {
   deleteHabit: (id: string) => Promise<void>;
   
   addUnits: (habitId: string, count: number) => Promise<boolean>;
+  removeUnits: (habitId: string, count: number) => Promise<boolean>;
   undoLastAdd: () => Promise<void>;
   clearUndo: () => void;
   
@@ -197,6 +198,51 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return true;
   }, [habits, logs, isPro, triggerHaptic, triggerSuccess]);
 
+  const handleRemoveUnits = useCallback(async (habitId: string, count: number) => {
+    const today = getTodayDate();
+    const todayLogs = logs
+      .filter((l) => l.habitId === habitId && l.date === today)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    if (todayLogs.length === 0) return false;
+
+    const totalAvailable = todayLogs.reduce((sum, l) => sum + l.count, 0);
+    if (totalAvailable === 0) return false;
+
+    const actualCountToRemove = Math.min(count, totalAvailable);
+
+    let remaining = actualCountToRemove;
+    const logsToRemove: string[] = [];
+    const logsToUpdate: { id: string; newCount: number }[] = [];
+
+    for (const log of todayLogs) {
+      if (remaining <= 0) break;
+      
+      if (log.count <= remaining) {
+        logsToRemove.push(log.id);
+        remaining -= log.count;
+      } else {
+        logsToUpdate.push({ id: log.id, newCount: log.count - remaining });
+        remaining = 0;
+      }
+    }
+
+    const updated = logs
+      .filter((l) => !logsToRemove.includes(l.id))
+      .map((l) => {
+        const update = logsToUpdate.find((u) => u.id === l.id);
+        if (update) {
+          return { ...l, count: update.newCount };
+        }
+        return l;
+      });
+
+    setLogs(updated);
+    await saveLogs(updated);
+    triggerHaptic("light");
+    return true;
+  }, [logs, triggerHaptic]);
+
   const handleUndoLastAdd = useCallback(async () => {
     if (!undoAction) return;
 
@@ -289,6 +335,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         updateHabit: handleUpdateHabit,
         deleteHabit: handleDeleteHabit,
         addUnits: handleAddUnits,
+        removeUnits: handleRemoveUnits,
         undoLastAdd: handleUndoLastAdd,
         clearUndo,
         updateSettings: handleUpdateSettings,

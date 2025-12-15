@@ -3,24 +3,25 @@ import { View, ScrollView, StyleSheet, Pressable, Dimensions } from "react-nativ
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { PieChart } from "@/components/PieChart";
 import { useUnits } from "@/lib/UnitsContext";
 
 type TimeRange = "daily" | "weekly" | "monthly";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
-const CHART_HEIGHT = 180;
-const BAR_GAP = 8;
+const CHART_HEIGHT = 160;
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, getTodayUnits, getWeekUnits, getMonthUnits } = useUnits();
+  const { habits, logs, getTodayUnits, getWeekUnits, getMonthUnits, getTodayTotalUnits, getWeekTotalUnits } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("daily");
 
@@ -28,6 +29,21 @@ export default function StatsScreen() {
     () => habits.filter((h) => !h.isArchived),
     [habits]
   );
+
+  const pieChartData = useMemo(() => {
+    return activeHabits.map((habit) => {
+      const value = timeRange === "daily" 
+        ? getTodayUnits(habit.id)
+        : timeRange === "weekly"
+        ? getWeekUnits(habit.id)
+        : getMonthUnits(habit.id);
+      return {
+        label: habit.name,
+        value,
+        color: habit.color,
+      };
+    }).filter((item) => item.value > 0);
+  }, [activeHabits, timeRange, getTodayUnits, getWeekUnits, getMonthUnits]);
 
   const dailyData = useMemo(() => {
     const days: { label: string; date: string; total: number }[] = [];
@@ -94,12 +110,50 @@ export default function StatsScreen() {
     return months;
   }, [logs]);
 
+  const statsOverview = useMemo(() => {
+    const totalUnits = logs.reduce((sum, l) => sum + l.count, 0);
+    const todayTotal = getTodayTotalUnits();
+    const weekTotal = getWeekTotalUnits();
+    
+    const daysTracked = new Set(logs.map((l) => l.date)).size;
+    
+    const avgPerDay = daysTracked > 0 ? Math.round(totalUnits / daysTracked * 10) / 10 : 0;
+    
+    const dayTotals: Record<string, number> = {};
+    logs.forEach((l) => {
+      dayTotals[l.date] = (dayTotals[l.date] || 0) + l.count;
+    });
+    const bestDay = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0];
+    
+    let currentStreak = 0;
+    const today = new Date();
+    for (let i = 0; i < 365; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      if (dayTotals[dateStr] && dayTotals[dateStr] > 0) {
+        currentStreak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+
+    return {
+      totalUnits,
+      todayTotal,
+      weekTotal,
+      daysTracked,
+      avgPerDay,
+      bestDayValue: bestDay ? bestDay[1] : 0,
+      bestDayDate: bestDay ? bestDay[0] : null,
+      currentStreak,
+    };
+  }, [logs, getTodayTotalUnits, getWeekTotalUnits]);
+
   const chartData = timeRange === "daily" ? dailyData : timeRange === "weekly" ? weeklyData : monthlyData;
   const maxValue = Math.max(...chartData.map((d) => d.total), 1);
 
   const renderChart = () => {
-    const barWidth = (SCREEN_WIDTH - Spacing.lg * 2 - (chartData.length - 1) * BAR_GAP) / chartData.length;
-    
     return (
       <View style={styles.chartContainer}>
         <View style={styles.chart}>
@@ -159,6 +213,41 @@ export default function StatsScreen() {
       ]}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
+      <Animated.View entering={FadeIn} style={styles.overviewGrid}>
+        <View style={[styles.statBox, { backgroundColor: theme.accent + "15" }]}>
+          <Feather name="zap" size={20} color={theme.accent} />
+          <ThemedText type="h3" style={{ color: theme.accent }}>
+            {statsOverview.todayTotal}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Today
+          </ThemedText>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: theme.backgroundDefault }]}>
+          <Feather name="calendar" size={20} color={theme.text} />
+          <ThemedText type="h3">{statsOverview.weekTotal}</ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            This Week
+          </ThemedText>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: theme.backgroundDefault }]}>
+          <Feather name="trending-up" size={20} color={theme.text} />
+          <ThemedText type="h3">{statsOverview.avgPerDay}</ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Daily Avg
+          </ThemedText>
+        </View>
+        <View style={[styles.statBox, { backgroundColor: statsOverview.currentStreak > 0 ? "#FFD700" + "20" : theme.backgroundDefault }]}>
+          <Feather name="award" size={20} color={statsOverview.currentStreak > 0 ? "#FFD700" : theme.text} />
+          <ThemedText type="h3" style={{ color: statsOverview.currentStreak > 0 ? "#FFD700" : theme.text }}>
+            {statsOverview.currentStreak}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Day Streak
+          </ThemedText>
+        </View>
+      </Animated.View>
+
       <View style={styles.tabsContainer}>
         {(["daily", "weekly", "monthly"] as TimeRange[]).map((range) => (
           <Pressable
@@ -189,14 +278,24 @@ export default function StatsScreen() {
         style={[styles.chartCard, { backgroundColor: theme.backgroundDefault }]}
       >
         <ThemedText type="h4" style={styles.chartTitle}>
-          {timeRange === "daily" ? "Last 7 Days" : timeRange === "weekly" ? "Last 4 Weeks" : "Last 3 Months"}
+          Activity
         </ThemedText>
         {renderChart()}
       </Animated.View>
 
+      <Animated.View
+        entering={FadeIn.delay(100)}
+        style={[styles.pieChartCard, { backgroundColor: theme.backgroundDefault }]}
+      >
+        <ThemedText type="h4" style={styles.chartTitle}>
+          Habit Distribution
+        </ThemedText>
+        <PieChart data={pieChartData} size={160} showLegend={true} />
+      </Animated.View>
+
       <View style={styles.habitStats}>
         <ThemedText type="h4" style={styles.sectionTitle}>
-          Habit Breakdown
+          Habit Progress
         </ThemedText>
         {activeHabits.length === 0 ? (
           <View style={[styles.emptyState, { backgroundColor: theme.backgroundDefault }]}>
@@ -210,6 +309,7 @@ export default function StatsScreen() {
             const weekUnits = getWeekUnits(habit.id);
             const monthUnits = getMonthUnits(habit.id);
             const progress = habit.dailyGoal > 0 ? todayUnits / habit.dailyGoal : 0;
+            const isGoalMet = todayUnits >= habit.dailyGoal && habit.dailyGoal > 0;
 
             return (
               <Animated.View
@@ -228,6 +328,11 @@ export default function StatsScreen() {
                   <ThemedText type="body" style={{ fontWeight: "600", flex: 1 }}>
                     {habit.name}
                   </ThemedText>
+                  {isGoalMet ? (
+                    <View style={styles.goalBadge}>
+                      <Feather name="check-circle" size={14} color="#FFD700" />
+                    </View>
+                  ) : null}
                   <ThemedText type="small" style={{ color: theme.textSecondary }}>
                     {todayUnits}/{habit.dailyGoal} today
                   </ThemedText>
@@ -238,7 +343,7 @@ export default function StatsScreen() {
                       styles.habitProgress,
                       {
                         width: `${Math.min(progress * 100, 100)}%`,
-                        backgroundColor: progress >= 1 ? "#FFD700" : habit.color,
+                        backgroundColor: isGoalMet ? "#FFD700" : habit.color,
                       },
                     ]}
                   />
@@ -260,12 +365,43 @@ export default function StatsScreen() {
                       this month
                     </ThemedText>
                   </View>
+                  <View style={styles.statItem}>
+                    <ThemedText type="h4" style={{ color: habit.color }}>
+                      {habit.dailyGoal > 0 ? Math.round(progress * 100) : 0}%
+                    </ThemedText>
+                    <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                      goal
+                    </ThemedText>
+                  </View>
                 </View>
               </Animated.View>
             );
           })
         )}
       </View>
+
+      {statsOverview.bestDayValue > 0 ? (
+        <Animated.View
+          entering={FadeIn.delay(200)}
+          style={[styles.insightCard, { backgroundColor: theme.backgroundDefault }]}
+        >
+          <Feather name="star" size={20} color="#FFD700" />
+          <View style={styles.insightText}>
+            <ThemedText type="body" style={{ fontWeight: "600" }}>
+              Best Day
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {statsOverview.bestDayValue} units on{" "}
+              {statsOverview.bestDayDate
+                ? new Date(statsOverview.bestDayDate).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                  })
+                : "N/A"}
+            </ThemedText>
+          </View>
+        </Animated.View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -277,10 +413,23 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: Spacing.lg,
   },
+  overviewGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  statBox: {
+    width: (SCREEN_WIDTH - Spacing.lg * 2 - Spacing.sm) / 2 - 1,
+    padding: Spacing.lg,
+    borderRadius: 16,
+    alignItems: "center",
+    gap: 4,
+  },
   tabsContainer: {
     flexDirection: "row",
     gap: Spacing.sm,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   tab: {
     flex: 1,
@@ -291,13 +440,18 @@ const styles = StyleSheet.create({
   chartCard: {
     padding: Spacing.lg,
     borderRadius: 20,
+    marginBottom: Spacing.lg,
+  },
+  pieChartCard: {
+    padding: Spacing.lg,
+    borderRadius: 20,
     marginBottom: Spacing.xl,
   },
   chartTitle: {
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   chartContainer: {
-    height: CHART_HEIGHT + 60,
+    height: CHART_HEIGHT + 40,
   },
   chart: {
     flexDirection: "row",
@@ -348,12 +502,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: Spacing.md,
+    gap: Spacing.sm,
   },
   habitDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
-    marginRight: Spacing.sm,
+  },
+  goalBadge: {
+    marginRight: 4,
   },
   habitProgressBar: {
     height: 8,
@@ -372,5 +529,16 @@ const styles = StyleSheet.create({
   },
   statItem: {
     alignItems: "center",
+  },
+  insightCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: Spacing.lg,
+    borderRadius: 16,
+    gap: Spacing.md,
+    marginBottom: Spacing.xl,
+  },
+  insightText: {
+    flex: 1,
   },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { View, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -11,6 +11,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { HabitRow } from "@/components/HabitRow";
+import { FallingBlocks, useFallingBlocks } from "@/components/FallingBlocks";
 import { UndoToast } from "@/components/UndoToast";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
@@ -31,6 +32,8 @@ export default function TodayScreen() {
     isPro,
     getTodayTotalUnits,
   } = useUnits();
+
+  const { pileBlocks, currentFallingBlock, dropBlock, removeBlock } = useFallingBlocks();
 
   const activeHabits = useMemo(
     () => habits.filter((h) => !h.isArchived),
@@ -54,6 +57,14 @@ export default function TodayScreen() {
     }
   }, [canAddHabit, navigation]);
 
+  const handleDropBlock = useCallback((color: string) => {
+    dropBlock(color);
+  }, [dropBlock]);
+
+  const handleRemoveBlock = useCallback((color: string) => {
+    removeBlock(color);
+  }, [removeBlock]);
+
   if (loading) {
     return (
       <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
@@ -72,7 +83,7 @@ export default function TodayScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + Spacing["4xl"],
+            paddingBottom: tabBarHeight + 160,
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
@@ -102,11 +113,9 @@ export default function TodayScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText type="h4">My Habits</ThemedText>
-            {!isPro ? (
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                {activeHabits.length}/3
-              </ThemedText>
-            ) : null}
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Tap to add units
+            </ThemedText>
           </View>
 
           {activeHabits.length === 0 ? (
@@ -136,12 +145,25 @@ export default function TodayScreen() {
           ) : (
             activeHabits.map((habit, index) => (
               <Animated.View key={habit.id} entering={FadeInDown.delay(100 + index * 50)}>
-                <HabitRow habit={habit} />
+                <HabitRow 
+                  habit={habit} 
+                  onDropBlock={handleDropBlock}
+                  onRemoveBlock={handleRemoveBlock}
+                />
               </Animated.View>
             ))
           )}
         </View>
       </ScrollView>
+
+      <View style={[styles.blockPileContainer, { bottom: tabBarHeight }]}>
+        <View style={[styles.pileBackground, { backgroundColor: theme.backgroundDefault }]}>
+          <FallingBlocks 
+            blocks={pileBlocks} 
+            newBlock={currentFallingBlock}
+          />
+        </View>
+      </View>
 
       <Pressable
         onPress={handleAddPress}
@@ -149,7 +171,7 @@ export default function TodayScreen() {
           styles.fab,
           {
             backgroundColor: theme.accent,
-            bottom: tabBarHeight + Spacing.xl,
+            bottom: tabBarHeight + 140,
             opacity: pressed ? 0.8 : 1,
             transform: [{ scale: pressed ? 0.95 : 1 }],
           },
@@ -238,6 +260,18 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     minWidth: 180,
+  },
+  blockPileContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    height: 130,
+  },
+  pileBackground: {
+    flex: 1,
+    marginHorizontal: Spacing.lg,
+    borderRadius: 20,
+    overflow: "hidden",
   },
   fab: {
     position: "absolute",
