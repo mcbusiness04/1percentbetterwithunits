@@ -65,7 +65,7 @@ server/
 4. **Freemium limits**: Free tier has 3 habits, 50 units/day, 7-day history
 
 ### Data Models
-- **Habit**: id, name, icon, color, unitName, dailyGoal, tapIncrement, createdAt, isArchived
+- **Habit**: id, name, icon, color, unitName, dailyGoal, tapIncrement, habitType ("count" | "time"), createdAt, isArchived
 - **UnitLog**: id, habitId, count, date, createdAt
 
 ## Recent Changes
@@ -92,7 +92,12 @@ server/
 - **New: Simplified habit creation** - Single field "What are you counting?" with auto-generated title-cased habit name
 - **New: Custom tap increment** - Users can set how many units each tap adds (e.g., +3, +5)
 - **New: Expanded customization** - 100+ icons and 27 colors to choose from
-- **New: Data migration** - Legacy habits automatically get tapIncrement: 1 on load
+- **New: Data migration** - Legacy habits automatically get tapIncrement: 1 and habitType: "count" on load
+- **New: Habit types** - Count habits (default) allow custom tap increments; Time habits track minutes with gold-bordered blocks
+- **New: Time vs Count toggle** - NewHabitScreen shows toggle to switch between count and time tracking modes
+- **New: Per-block glow** - Time-based habit blocks have gold border glow in FallingBlocks animation
+- **New: Tap increment editor** - HabitDetailScreen allows editing tap increment for count habits post-creation
+- **New: Curated icons** - Self-improvement focused icons (exercise, mindfulness, productivity, nutrition, sleep)
 
 ## User Preferences
 - No emojis in the UI
