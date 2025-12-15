@@ -1,0 +1,505 @@
+UNITS
+Three-word pitch: Effort, counted.
+1) One-sentence concept + positioning
+Units is a zero-friction effort tracker where every tap drops a physical “unit block” into your daily pile—so progress feels tangible, comparable across habits, and impossible to argue with.
+Why it wins: it measures effort (inputs) instead of outcomes, keeps users out of shame loops (no streaks), and makes logging viscerally satisfying (block physics + piles + walls) while staying minimal.
+2) Target user + core job-to-be-done
+Target user: adults who do real work (students, builders, creators, fitness people) and hate streak shame, journaling, or “productivity theater.”
+JTBD: “When I’m busy and motivation is unreliable, help me record small honest effort quickly, so I can trust I’m moving forward and see momentum over time.”
+3) Addictive loop + retention mechanics
+Addictive loop (no dark patterns)
+Trigger: “I just did a small piece of effort” OR “I have 10 seconds right now.”
+Action (1 tap): tap a habit or task → +1 unit (or quick add multiple).
+Reward (instant): a unit block drops into today’s pile with subtle haptics + a satisfying sound toggle; pile height updates immediately; a tiny “Total Units Today” number ticks up.
+Investment: soft floors + micro-planning (optional) make tomorrow easier: “Pin today’s 3” + “Habit of the Day” spotlight.
+Retention mechanics (no streaks, no punishment)
+Soft Floors (weekly): each habit has a minimum healthy pace per week. If under pace, it turns yellow (never red).
+Rolling averages: 7/30/90-day averages on the habit detail screen.
+Habit of the Day spotlight: automatically highlights one habit that would most benefit from 1–3 units today (computed from soft floor deficit + recent activity). This creates a daily “what should I do?” answer without tasks becoming overwhelming.
+Weekly receipt: on Monday morning, show a non-judgmental summary card: “You logged 63 units last week. Avg/day: 9. +12% vs prior week.” (Paid; free gets a tiny in-app banner only.)
+Widgets (Paid): Today pile + 1-tap logging from Home Screen.
+4) Full feature list (MVP + v1.1) with exact behavior + edge cases
+MVP (ship this)
+A. Habits
+Create habit with:
+Habit name (e.g., “Reading”)
+Unit name (singular) + unit shorthand (optional, e.g., “page”, “pg”)
+Unit size (number + optional measure text, e.g., “1 page”, “0.25 miles”, “5 minutes”)
+Soft floor per week (integer units/week; default suggested: 5)
+Color (system palette), icon (SF Symbol)
+Unit versions (data integrity):
+A habit has UnitVersion records.
+You can change unit definition only going forward:
+“Change unit going forward” creates a new UnitVersion with an effectiveStartDate = today.
+Past logs keep referencing the old UnitVersion.
+The UI always shows the current unit for input and “Lifetime units” counts are still raw units (not converted).
+Edge cases:
+If user changes unit and today already has logs: new logs reference new UnitVersion; the habit detail shows a small label: “Unit changed on Dec 15, 2025.”
+If user sets soft floor to 0: soft floor indicator hides entirely.
+B. Logging (the core)
+Home screen list of habits:
+Tap habit row → +1 unit instantly
+Long-press habit row → Quick Add:
+A bottom sheet with:
+big “+” and “–”
+keypad toggle (1–99)
+“Add” button
+Undo: after adding units, show a 5-second toast:
+“Added 1 unit • Undo”
+Undo reverses exactly that action (including multi-add).
+Edge cases:
+If user adds 0 units in Quick Add → disable Add button.
+If user tries to add >999 at once → cap at 999 and show “Max 999 per add.”
+C. The “piles” + “walls” visualization (fun, signature)
+Today Pile (Home):
+The top of Home shows a pile container (like a tray).
+Each logged unit spawns a small rectangular block that drops in with simple physics.
+Blocks stack; pile height is the “reward.”
+A small counter: “Total Units Today: 12”
+Habit Wall (Habit detail):
+A “wall” grid: columns = days, rows = unit blocks.
+Default shows last 14 days (scroll horizontally for more in Paid).
+Each day column stacks unit blocks (no streak highlighting).
+Weekly separators shown as subtle vertical lines.
+Edge cases:
+Very high unit days: after 50 blocks in a single day column, compress into “block bundles” (each visual block represents 5 units) and show “×5” on that block. Raw counts remain accurate.
+D. Tasks (minimal, not a full to-do app)
+A Today Tasks section on Home (below habits):
+Add task: title + optional habit link + unit estimate (1–5) default 1.
+Completing a task drops estimated units into today’s pile (counts toward Total Units Today) AND optionally into linked habit (see rule below).
+Rule (to keep thesis clean):
+Tasks are just containers for effort.
+If a task is linked to a habit, completing it logs units to that habit.
+If not linked, it logs to “General Effort” (a built-in, hidden habit that is not shown in the main habit list unless toggled on in Settings).
+Edge cases:
+If a linked habit is deleted/archived, task becomes unlinked and logs to General Effort.
+E. Stats (simple receipts)
+A Stats tab with:
+Total Units Today
+Units this week
+Lifetime units
+Rolling averages (7/30/90)
+Top habits this week (by units)
+F. Local-first storage (no account)
+All data stored on device.
+Optional iCloud backup toggle is Paid v1.1.
+v1.1 (after MVP is stable)
+Share stat cards (static images): “8,214 reading units” / “Avg 17 units/day in 2025”
+Widgets: 1-tap log for top 3 habits; Today Units counter
+Reminders: soft floor nudge + single daily “drop 1 unit?” reminder (opt-in)
+Seasons (lightweight): label date ranges (“Exam prep”) and filter stats by season
+Export: CSV export of logs
+iCloud sync (no login; uses user’s iCloud)
+No streaks, no social feed, no “levels.”
+5) Complete user flows (every screen)
+First open → onboarding
+Launch → Welcome
+Title: “Units”
+Subtitle: “Count effort. Watch it pile up.”
+Buttons:
+“Start” (primary)
+“Restore Purchases” (secondary, visible but subtle)
+Choose 3 starter habits (optional, skippable)
+Prebuilt cards: Reading (1 page), Gym (1 set), Writing (1 paragraph), Study (5 minutes), Walk (0.25 miles), Coding (1 commit)
+“Skip” top right
+Soft floors (fast)
+For each selected habit: slider 0–30 units/week (default 5)
+“Done”
+Paywall (hard limit preview)
+Show what paid unlocks, but allow “Not now” (no dark pattern).
+If user skips: app continues with Free limits enforced.
+Core action (daily use)
+Open app → Home
+Tap habit row → block drops → counts update → optional Undo toast
+Long press habit → multi add → block burst animation (but capped visually)
+Paywall placement
+Triggered when:
+User tries to create 3rd habit (Free limit = 2 habits)
+User scrolls wall beyond 7 days history (Free limit)
+User tries to add more than 5 tasks (Free limit = 3 tasks)
+User tries to log more than 20 total units/day (Free limit)
+Paywall offers upgrade; user can cancel and stay within limits.
+Subscription management
+Settings → “Manage Subscription” opens Apple subscription management URL.
+Paywall includes “Restore Purchases.”
+Settings → logout/delete account
+No account in MVP → no logout.
+Settings includes:
+“Erase All Data” (requires typing “ERASE”)
+“Export Data” (Paid v1.1)
+“Restore Purchases”
+“Manage Subscription”
+“Privacy Policy”
+“Contact Support”
+6) Full UI/UX spec
+Design principles
+One-handed, one-tap logging, zero guilt, fast launch.
+Minimal text, no quotes, no streak badges.
+Every interaction should feel physical (blocks + haptics).
+Navigation model
+Tab bar (3 tabs):
+Today
+Stats
+Settings
+Habits and tasks live in Today; habit detail is pushed onto stack.
+Screen-by-screen layouts (components, copy, states)
+A) Today (Home)
+Top bar
+Left: “Units” (title)
+Right: “+” (add) → opens action sheet:
+“New Habit”
+“New Task”
+Pile module (top)
+Header: “Today”
+Subheader: “Total Units: {N}”
+Pile tray visualization
+Small toggle icon (Settings shortcut) for sound/haptics
+Habit list
+Each row:
+Icon + Habit name
+Secondary line: “{unitName}” (e.g., “page”)
+Right side: “Today {x} • Week {y}”
+Tiny text below right: “Lifetime {z}”
+Row color tint based on habit color
+Soft floor indicator:
+If under pace for the week: small yellow dot + “Under pace”
+If on pace: nothing (stay clean)
+Tasks section
+Header: “Tasks”
+Each task row:
+Checkbox circle
+Title
+Right: “{k} units”
+Optional tag pill: linked habit name
+Completed tasks collapse into “Completed (n)” accordion
+Empty states
+No habits:
+Title: “Start with one unit.”
+Button: “Add a habit”
+No tasks:
+Text: “Tasks are optional. Keep it light.”
+Button: “Add a task”
+Error states
+Storage failure (rare): banner “Couldn’t save. Try again.”
+Haptics disabled: no error; silently ignore.
+Accessibility
+Tap targets ≥ 44×44
+VoiceOver:
+Habit row label: “Reading. Tap to add one unit. Today 3. This week 11.”
+Task row: “Finish outline. 2 units. Linked to Writing.”
+Dynamic Type: rows expand vertically; pile tray stays fixed height and scroll content below.
+B) New Habit (modal)
+Fields:
+“Habit name” (text)
+“Unit” group:
+“Unit name (singular)” e.g., “page”
+“Unit size” numeric + optional descriptor (“0.25 miles”, “5 minutes”)
+“Soft floor”:
+Stepper: “Minimum healthy pace: {n} units/week”
+Helper: “Yellow when under pace. No streaks.”
+Icon picker (SF Symbols shortlist)
+Color picker (system palette)
+Buttons:
+“Create” (disabled until habit name + unit name present)
+“Cancel”
+Edge cases:
+Duplicate habit names allowed but warn: “You already have a habit named Reading.”
+C) Habit Detail (push)
+Top:
+Habit name
+Quick add buttons:
+“+1”
+“+5” (hidden unless Paid; free shows only +1)
+“Add…” (opens Quick Add sheet)
+Stats chips:
+“Today {x}”
+“Week {y}”
+“Lifetime {z}”
+“Avg 7d {a}”
+Wall visualization:
+Default 14 days
+Swipe horizontally for time
+Tap a day column → shows small popover: “Dec 14: 8 units” + “Remove…” (lets user delete logs for that day with confirmation)
+Settings for habit (three dots):
+Edit habit name/icon/color
+Change unit going forward
+Set soft floor
+Archive habit (keeps data)
+Delete habit (destructive; requires confirm)
+D) New Task (modal)
+Fields:
+Title (required)
+“Units” estimate segmented control: 1 / 2 / 3 / 4 / 5
+Link to habit (optional dropdown)
+“Pin to Today” toggle (default on)
+Buttons: Create / Cancel
+E) Stats (tab)
+Sections:
+“This week” card:
+Units this week
+Avg/day this week
+Top habit by units
+“Rolling averages”:
+7 / 30 / 90 day averages
+“All time”:
+Lifetime units
+Total active habits
+Free limitation: show only 7-day average; 30/90 are blurred with “Unlock Paid.”
+F) Settings (tab)
+Subscription:
+“Upgrade to Units Pro”
+“Restore Purchases”
+“Manage Subscription”
+Preferences:
+Sound effects toggle
+Haptics toggle
+Show General Effort habit toggle
+Data:
+“Erase All Data”
+“Export Data (Pro)” (v1.1)
+“iCloud Sync (Pro)” (v1.1)
+Legal:
+Privacy Policy
+Terms
+Contact Support
+7) Monetization (subscription)
+Free tier (extremely limited, still delivers aha)
+Free allows the core feeling (blocks + pile + wall) but tight limits:
+Max 2 habits
+Max 20 total units/day (across everything)
+Wall history limited to 7 days
+Max 3 tasks
+Stats limited to 7-day average only
+No widgets, no share cards, no export, no seasons, no iCloud sync
+Aha moment: user logs a few units, sees pile grow, sees a 7-day wall.
+Paid tier: Units Pro
+Unlocks:
+Unlimited habits
+Unlimited units/day
+Full wall history (all time)
+Unlimited tasks
+7/30/90 rolling averages
+Share stat cards
+Widgets
+Export CSV (v1.1)
+Seasons (v1.1)
+iCloud sync (v1.1)
+Pricing suggestions (implement as options)
+$4.99/mo or $29.99/yr
+Offer 7-day free trial on annual only (optional). If trial is used, show “Cancel anytime in Settings.”
+Paywall copy (clean, non-manipulative)
+Title: “Make Units unlimited.”
+Bullets:
+“Unlimited habits and history”
+“Widgets + share cards”
+“Rolling averages (30/90)”
+“Export + iCloud sync (soon)”
+Buttons:
+Primary: “Start Pro”
+Secondary: “Not now”
+Footer (required): “Subscription auto-renews unless cancelled. Manage in Apple ID Settings. Terms • Privacy • Restore Purchases”
+Upgrade prompts:
+When hitting a limit, show contextual line:
+“Free allows 2 habits. Pro unlocks unlimited.”
+Downgrade handling:
+If subscription expires, keep all data but:
+Lock to 2 habits (user chooses which to keep active; others auto-archived)
+History beyond 7 days becomes view-only blurred
+Units/day cap re-applies (new logs blocked when over)
+8) App Store / iOS compliance checklist
+Apple Sign-In requirement
+Not required in MVP because there is no account creation.
+If later adding accounts (non-iCloud), then:
+If you offer any third-party login, you must offer Sign in with Apple.
+Privacy + data disclosure
+Collect minimum:
+Habit names, unit definitions, log counts, task titles (all stored locally).
+If analytics enabled:
+Use privacy-friendly analytics; avoid user-identifying data.
+Provide:
+Privacy Policy URL (required for subscriptions)
+Disclose any tracking; if none, ensure SDKs don’t track.
+Subscription rules
+Paywall must include:
+Price, billing period
+Auto-renewal statement
+Restore Purchases
+Links to Terms + Privacy
+Include “Manage Subscription” link in Settings.
+ATT (tracking)
+Do not show ATT unless you actually track users across apps/sites.
+Avoid ad SDKs in MVP.
+User-generated content safeguards
+None (no feed, no public sharing inside app). Share cards are exported images only.
+Permissions + justification strings
+Notifications (optional, v1.1):
+NSUserNotificationUsageDescription: “Get reminders for your soft floors and daily units.”
+Photos (only if saving share cards):
+Use system share sheet; avoid Photo Library permission by exporting via share sheet.
+No HealthKit, no Contacts, no Location.
+9) Technical spec (builder-friendly)
+Storage
+Local-first: SQLite/Core Data (or equivalent local DB).
+Cloud:
+v1.1 Pro: iCloud/CloudKit for sync (no login UI).
+Data model (tables/collections)
+Habit
+id (UUID, PK)
+name (String)
+icon (String, SF Symbol name)
+colorHex (String)
+isArchived (Bool)
+createdAt (Date)
+sortOrder (Int)
+UnitVersion
+id (UUID, PK)
+habitId (UUID, FK → Habit.id)
+unitNameSingular (String) // “page”
+unitShorthand (String?) // “pg”
+unitSizeValue (Double) // 1, 0.25, 5
+unitSizeLabel (String?) // “miles”, “minutes”
+effectiveStartDate (Date)
+LogEntry
+id (UUID, PK)
+habitId (UUID, FK)
+unitVersionId (UUID, FK)
+timestamp (Date)
+unitsAdded (Int) // typically positive; allow negative for undo audit if desired
+source (Enum: tap, quickAdd, taskComplete, edit)
+dayKey (String “YYYY-MM-DD” local timezone) // for fast grouping
+Task
+id (UUID, PK)
+title (String)
+estimatedUnits (Int 1–5)
+linkedHabitId (UUID?, nullable)
+isPinnedToday (Bool)
+isCompleted (Bool)
+completedAt (Date?, nullable)
+createdAt (Date)
+AppSettings
+id (singleton)
+hapticsEnabled (Bool)
+soundEnabled (Bool)
+showGeneralEffortHabit (Bool)
+proEntitlementCached (Bool)
+lastWeeklyReceiptShownAt (Date?)
+Entitlements
+proActive (Bool)
+expirationDate (Date?)
+Business logic rules
+Counts:
+Today units = sum(LogEntry.unitsAdded where dayKey=today)
+Habit today/week/lifetime similarly filtered
+Soft floor status (weekly):
+weekKey = ISO week in local timezone
+Under pace if habitWeekUnits < softFloor
+Habit of the Day selection:
+For each non-archived habit with softFloor>0:
+deficit = max(0, softFloor - thisWeekUnits)
+score = deficit * 2 + (unitsLast7Days == 0 ? 3 : 0)
+Pick highest score; if all zero, pick most recently logged habit.
+IAP (StoreKit 2)
+Products:
+units_pro_monthly
+units_pro_yearly (trial optional)
+Implement:
+Purchase
+Restore
+Entitlement caching
+Paywall limit checks
+Push notifications plan (v1.1)
+Opt-in timing:
+After user logs 10 total units (they “get it”).
+Templates:
+Daily (optional): “Drop 1 unit into today’s pile?”
+Soft floor (weekly, Sat morning): “You’re {x} units from your Reading soft floor.”
+Analytics events (privacy-safe)
+app_opened
+habit_created {unit_type, soft_floor}
+unit_logged {habit_id, units_added, method}
+task_created {estimated_units, linked}
+task_completed {estimated_units, linked}
+paywall_viewed {trigger}
+purchase_started {product}
+purchase_success {product}
+purchase_restore {result}
+limit_hit {limit_type}
+Error handling + offline
+Offline: fully functional (local DB).
+If purchase verification fails: show “Couldn’t verify purchase. Try again.” + restore option.
+If DB write fails: show top banner + log to console.
+10) Security + privacy by design
+Store everything locally; no account = minimal risk.
+If iCloud sync added, rely on Apple’s encryption + CloudKit.
+Provide Erase All Data:
+Requires typing “ERASE”
+Deletes all local DB records and resets settings.
+If analytics enabled, do not store habit names; only IDs or categories.
+11) QA test plan (critical cases)
+App Store rejection prevention
+Paywall includes required subscription terms, restore, links
+Restore purchases works without login
+Manage subscription link opens correctly
+No misleading trial language
+Limits are enforced without trapping user
+Crash + logic tests
+Add habit with empty fields → Create disabled
+Rapid tapping habit 50 times → no freeze; counts correct
+Quick Add 999 units → capped; UI still responsive
+Undo after multi-add → reverts exact amount
+Change unit version mid-day → old logs remain old version; new logs use new version
+Archive habit linked to tasks → tasks log to General Effort
+Free limits:
+attempt 3rd habit → paywall
+exceed 20 units/day → paywall; no logging beyond cap
+wall scroll beyond 7 days → blur + paywall
+Purchase flow:
+successful purchase unlocks instantly
+cancel purchase leaves app unchanged
+restore on fresh install works
+Dynamic Type max size → all buttons reachable, no clipped text
+VoiceOver reads habit rows and quick add controls correctly
+Timezone change → dayKey recalculation does not corrupt old days (dayKey stored at log time)
+12) Build Instructions for the AI App Builder (step-by-step)
+Create an iOS app named “Units” using SwiftUI (or builder equivalent) with a Tab Bar: Today / Stats / Settings.
+Implement local database with the exact schemas listed (Habit, UnitVersion, LogEntry, Task, AppSettings, Entitlements).
+Build Today screen:
+Top “Today Pile” physics animation container.
+Habit list rows with tap-to-log (+1) and long-press Quick Add sheet.
+Tasks section with create/complete behavior.
+Undo toast (5 seconds).
+Build Habit creation modal with validation and soft floor controls; create initial UnitVersion with effectiveStartDate = creation date.
+Build Logging engine:
+Create LogEntry on tap/quick add/task completion.
+Update pile animation with correct number of blocks (bundle visuals after 50/day).
+Build Habit Detail screen:
+Stats chips (today/week/lifetime/avg7d).
+Wall visualization (14-day default, horizontal scroll).
+Day tap → popover with remove/day edit actions.
+Build Stats tab using aggregated queries from LogEntry grouped by dayKey/weekKey; apply Free vs Pro feature gating (blur locked sections).
+Build Settings tab with toggles, legal links, restore, manage subscription, erase all data.
+Implement StoreKit 2 subscriptions:
+Products: monthly + yearly (trial optional).
+Entitlement check on app launch and after purchase.
+Restore purchases button.
+Paywall screen with required copy + links.
+Enforce Free limits exactly:
+2 habits max
+20 total units/day cap
+7-day wall history
+3 tasks max
+Stats: only 7-day average
+Add Accessibility:
+VoiceOver labels as specified
+Dynamic Type scaling and layout resilience
+Haptic/sound toggles respected
+Add polish:
+Subtle haptics on drop
+Optional sound toggle
+Fast launch; avoid heavy animations on list scroll
+Consistent spacing and typography (system font, SF Symbols)
+Add App Store readiness:
+Privacy Policy + Terms placeholders
+Subscription disclosures + restore
+No unnecessary permissions in Info.plist
+Run QA checklist items; fix edge cases; ensure no streak UI exists anywhere.
