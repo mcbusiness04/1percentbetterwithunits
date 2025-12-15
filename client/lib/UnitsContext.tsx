@@ -21,6 +21,8 @@ import {
   getTodayDate,
   getStartOfWeek,
   FREE_LIMITS,
+  isOnboardingComplete,
+  setOnboardingComplete,
 } from "@/lib/storage";
 
 interface UndoAction {
@@ -38,6 +40,7 @@ interface UnitsContextType {
   isPro: boolean;
   loading: boolean;
   undoAction: UndoAction | null;
+  hasCompletedOnboarding: boolean;
   
   addHabit: (habit: Omit<Habit, "id" | "createdAt" | "isArchived">) => Promise<boolean>;
   updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>;
@@ -53,6 +56,7 @@ interface UnitsContextType {
   
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   setIsPro: (isPro: boolean) => Promise<void>;
+  completeOnboarding: () => Promise<void>;
   
   getTodayUnits: (habitId: string) => number;
   getWeekUnits: (habitId: string) => number;
@@ -84,21 +88,24 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   const [isPro, setIsProState] = useState(false);
   const [loading, setLoading] = useState(true);
   const [undoAction, setUndoAction] = useState<UndoAction | null>(null);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
 
   const refreshData = useCallback(async () => {
     try {
-      const [loadedHabits, loadedLogs, loadedTasks, loadedSettings, loadedIsPro] = await Promise.all([
+      const [loadedHabits, loadedLogs, loadedTasks, loadedSettings, loadedIsPro, loadedOnboarding] = await Promise.all([
         getHabits(),
         getLogs(),
         getTasks(),
         getSettings(),
         getIsPro(),
+        isOnboardingComplete(),
       ]);
       setHabits(loadedHabits);
       setLogs(loadedLogs);
       setTasks(loadedTasks);
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
+      setHasCompletedOnboarding(loadedOnboarding);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -115,6 +122,26 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   }, [settings.hapticsEnabled]);
+
+  const playFeedback = useCallback((type: "add" | "complete" | "undo") => {
+    if (!settings.soundEnabled) return;
+    
+    try {
+      switch (type) {
+        case "add":
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          break;
+        case "complete":
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          break;
+        case "undo":
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          break;
+      }
+    } catch (error) {
+      // Haptics not supported
+    }
+  }, [settings.soundEnabled]);
 
   const handleAddHabit = useCallback(async (habit: Omit<Habit, "id" | "createdAt" | "isArchived">) => {
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -192,8 +219,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     });
 
     triggerHaptic();
+    playFeedback("add");
     return true;
-  }, [habits, logs, isPro, triggerHaptic]);
+  }, [habits, logs, isPro, triggerHaptic, playFeedback]);
 
   const handleUndoLastAdd = useCallback(async () => {
     if (!undoAction) return;
@@ -203,7 +231,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     await saveLogs(updated);
     setUndoAction(null);
     triggerHaptic();
-  }, [undoAction, logs, triggerHaptic]);
+    playFeedback("undo");
+  }, [undoAction, logs, triggerHaptic, playFeedback]);
 
   const clearUndo = useCallback(() => {
     setUndoAction(null);
@@ -242,7 +271,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       await handleAddUnits(task.linkedHabitId, task.unitEstimate);
     }
     triggerHaptic();
-  }, [tasks, handleAddUnits, triggerHaptic]);
+    playFeedback("complete");
+  }, [tasks, handleAddUnits, triggerHaptic, playFeedback]);
 
   const handleDeleteTask = useCallback(async (id: string) => {
     const updated = tasks.filter((t) => t.id !== id);
@@ -327,6 +357,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return todayTotal + count <= FREE_LIMITS.MAX_UNITS_PER_DAY;
   }, [isPro, getTodayTotalUnits]);
 
+  const handleCompleteOnboarding = useCallback(async () => {
+    await setOnboardingComplete();
+    setHasCompletedOnboarding(true);
+  }, []);
+
   return (
     <UnitsContext.Provider
       value={{
@@ -337,6 +372,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         isPro,
         loading,
         undoAction,
+        hasCompletedOnboarding,
         addHabit: handleAddHabit,
         updateHabit: handleUpdateHabit,
         deleteHabit: handleDeleteHabit,
@@ -348,6 +384,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         deleteTask: handleDeleteTask,
         updateSettings: handleUpdateSettings,
         setIsPro: handleSetIsPro,
+        completeOnboarding: handleCompleteOnboarding,
         getTodayUnits,
         getWeekUnits,
         getLifetimeUnits,

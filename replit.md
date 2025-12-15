@@ -69,6 +69,9 @@ server/
 - Added physics-based PileTray visualization
 - Created HabitWall calendar view
 - Integrated freemium paywall
+- Added onboarding flow with starter habit templates
+- Added sound effects (haptic feedback) for unit logging
+- Added navigation from HabitRow to HabitDetail screen
 
 ## User Preferences
 - No emojis in the UI

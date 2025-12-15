@@ -5,6 +5,7 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { CompositeNavigationProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
@@ -16,8 +17,12 @@ import { UndoToast } from "@/components/UndoToast";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { TodayStackParamList } from "@/navigation/TodayStackNavigator";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  NativeStackNavigationProp<TodayStackParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
@@ -121,6 +126,13 @@ export default function TodayScreen() {
     [navigation]
   );
 
+  const handleHabitDetailPress = useCallback(
+    (habitId: string) => {
+      navigation.navigate("HabitDetail", { habitId });
+    },
+    [navigation]
+  );
+
   const handleTaskComplete = useCallback(
     async (taskId: string) => {
       await completeTask(taskId);
@@ -202,6 +214,7 @@ export default function TodayScreen() {
                 habit={habit}
                 onPress={() => handleHabitPress(habit.id)}
                 onLongPress={() => handleHabitLongPress(habit.id)}
+                onDetailPress={() => handleHabitDetailPress(habit.id)}
               />
             ))
           )}

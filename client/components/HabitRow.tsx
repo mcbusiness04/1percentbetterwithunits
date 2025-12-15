@@ -17,6 +17,7 @@ interface HabitRowProps {
   habit: Habit;
   onPress: () => void;
   onLongPress: () => void;
+  onDetailPress?: () => void;
 }
 
 const springConfig: WithSpringConfig = {
@@ -28,7 +29,7 @@ const springConfig: WithSpringConfig = {
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export function HabitRow({ habit, onPress, onLongPress }: HabitRowProps) {
+export function HabitRow({ habit, onPress, onLongPress, onDetailPress }: HabitRowProps) {
   const { theme } = useTheme();
   const { getTodayUnits, getWeekUnits, getLifetimeUnits, isUnderPace } = useUnits();
   const scale = useSharedValue(1);
@@ -92,13 +93,24 @@ export function HabitRow({ habit, onPress, onLongPress }: HabitRowProps) {
           {unitName}
         </ThemedText>
       </View>
-      <View style={styles.stats}>
-        <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          Today {todayUnits} • Week {weekUnits}
-        </ThemedText>
-        <ThemedText type="small" style={{ color: theme.textSecondary, opacity: 0.6, fontSize: 11 }}>
-          Lifetime {lifetimeUnits}
-        </ThemedText>
+      <View style={styles.rightSection}>
+        <View style={styles.stats}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Today {todayUnits} • Week {weekUnits}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary, opacity: 0.6, fontSize: 11 }}>
+            Lifetime {lifetimeUnits}
+          </ThemedText>
+        </View>
+        {onDetailPress ? (
+          <Pressable 
+            onPress={onDetailPress} 
+            hitSlop={12}
+            style={styles.chevronButton}
+          >
+            <Feather name="chevron-right" size={18} color={theme.textSecondary} />
+          </Pressable>
+        ) : null}
       </View>
     </AnimatedPressable>
   );
@@ -147,7 +159,15 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 3,
   },
+  rightSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
   stats: {
     alignItems: "flex-end",
+  },
+  chevronButton: {
+    padding: 4,
   },
 });
