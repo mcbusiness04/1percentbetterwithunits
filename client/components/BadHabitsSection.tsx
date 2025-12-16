@@ -88,7 +88,7 @@ function BadHabitRow({ badHabit, hasTappedToday, onTap, onUndo, onDelete }: BadH
             <>
               <View style={[styles.failedBadge, { backgroundColor: theme.danger }]}>
                 <ThemedText type="small" style={{ color: theme.buttonText, fontWeight: "600" }}>
-                  -5%
+                  -10%
                 </ThemedText>
               </View>
               <Pressable

@@ -49,14 +49,15 @@ export default function TodayScreen() {
     if (activeHabits.length === 0) return null;
     
     if (dailyProgress.allGoalsMet && !dailyProgress.hasBadHabits) {
-      if (dailyProgress.percentage > 100) {
-        return `${dailyProgress.percentage - 100}% better today`;
-      }
-      return "1% better today";
+      const improvement = dailyProgress.allGoalsDoubled ? 2 : 1;
+      return `${improvement}% better today`;
     }
     
     if (dailyProgress.hasBadHabits) {
-      return `${dailyProgress.percentage}% - Penalties active`;
+      if (dailyProgress.rawAllGoalsMet) {
+        return `${dailyProgress.percentage}% (-${dailyProgress.penaltyPercent}% penalty)`;
+      }
+      return `${dailyProgress.percentage}% (-${dailyProgress.penaltyPercent}%)`;
     }
     
     return `${dailyProgress.percentage}% complete`;

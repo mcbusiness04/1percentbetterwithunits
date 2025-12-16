@@ -60,7 +60,7 @@ interface UnitsContextType {
   undoBadHabitTap: (badHabitId: string) => Promise<boolean>;
   getTodayBadHabitTaps: (badHabitId: string) => number;
   getTodayTotalPenalty: () => number;
-  getDailyProgress: () => { percentage: number; allGoalsMet: boolean; hasBadHabits: boolean; improvementPercent: number; hasDoubledGoal: boolean };
+  getDailyProgress: () => { percentage: number; allGoalsMet: boolean; rawAllGoalsMet: boolean; hasBadHabits: boolean; improvementPercent: number; hasDoubledGoal: boolean; allGoalsDoubled: boolean; doubledCount: number; penaltyPercent: number };
   
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   setIsPro: (isPro: boolean) => Promise<void>;
@@ -396,7 +396,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       });
       
       const totalLoggedUnits = habitUnitsAvailable.reduce((sum, h) => sum + h.available, 0);
-      const targetPenalty = Math.max(1, Math.round(totalLoggedUnits * 0.05));
+      const targetPenalty = Math.max(1, Math.round(totalLoggedUnits * 0.10));
       const actualPenalty = Math.min(targetPenalty, totalLoggedUnits);
       
       if (actualPenalty > 0 && totalLoggedUnits > 0) {
@@ -491,13 +491,13 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === today && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    return totalBadTaps * 5;
+    return totalBadTaps * 10;
   }, [badHabitLogs]);
 
   const getDailyProgress = useCallback(() => {
     const activeHabits = habits.filter((h) => !h.isArchived);
     if (activeHabits.length === 0) {
-      return { percentage: 100, allGoalsMet: true, hasBadHabits: false, improvementPercent: 0, hasDoubledGoal: false };
+      return { percentage: 100, allGoalsMet: true, rawAllGoalsMet: true, hasBadHabits: false, improvementPercent: 0, hasDoubledGoal: false, allGoalsDoubled: false, doubledCount: 0, penaltyPercent: 0 };
     }
     
     const today = getTodayDate();
@@ -505,11 +505,13 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .filter((l) => l.date === today && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     const hasBadHabits = totalBadTaps > 0;
-    const penaltyPercent = totalBadTaps * 5;
+    const penaltyPercent = totalBadTaps * 10;
     
     let totalProgress = 0;
-    let allGoalsMet = true;
-    let hasDoubledGoal = false;
+    let rawAllGoalsMet = true;
+    let allGoalsDoubled = true;
+    let anyGoalDoubled = false;
+    let doubledCount = 0;
     
     for (const habit of activeHabits) {
       const todayUnits = logs
@@ -518,27 +520,35 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       const progress = Math.min(todayUnits / habit.dailyGoal, 1);
       totalProgress += progress;
       if (todayUnits < habit.dailyGoal) {
-        allGoalsMet = false;
+        rawAllGoalsMet = false;
+        allGoalsDoubled = false;
       }
       if (todayUnits >= habit.dailyGoal * 2) {
-        hasDoubledGoal = true;
+        anyGoalDoubled = true;
+        doubledCount++;
+      } else {
+        allGoalsDoubled = false;
       }
     }
     
     const basePercent = (totalProgress / activeHabits.length) * 100;
-    const finalPercent = Math.max(0, basePercent - penaltyPercent);
+    const finalPercent = Math.min(100, Math.max(0, basePercent - penaltyPercent));
     
     let improvementPercent = 0;
-    if (allGoalsMet && !hasBadHabits) {
-      improvementPercent = hasDoubledGoal ? 2 : 1;
+    if (rawAllGoalsMet && !hasBadHabits) {
+      improvementPercent = allGoalsDoubled ? 2 : 1;
     }
     
     return { 
       percentage: Math.round(finalPercent), 
-      allGoalsMet: allGoalsMet && !hasBadHabits, 
+      allGoalsMet: rawAllGoalsMet && !hasBadHabits,
+      rawAllGoalsMet,
       hasBadHabits,
       improvementPercent,
-      hasDoubledGoal,
+      hasDoubledGoal: anyGoalDoubled,
+      allGoalsDoubled,
+      doubledCount,
+      penaltyPercent,
     };
   }, [habits, logs, badHabitLogs]);
 

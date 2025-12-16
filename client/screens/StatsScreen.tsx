@@ -154,7 +154,7 @@ export default function StatsScreen() {
   const maxValue = Math.max(...chartData.map((d) => d.total), 1);
 
   const dailyImprovement = useMemo(() => {
-    const { improvementPercent, hasDoubledGoal, allGoalsMet, hasBadHabits } = getDailyProgress();
+    const { improvementPercent, hasDoubledGoal, allGoalsMet, hasBadHabits, allGoalsDoubled, doubledCount, rawAllGoalsMet, penaltyPercent } = getDailyProgress();
     
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
@@ -234,15 +234,19 @@ export default function StatsScreen() {
       todayImprovement: improvementPercent,
       hasDoubledGoal,
       allGoalsMet,
+      rawAllGoalsMet,
       hasBadHabits,
+      allGoalsDoubled,
+      penaltyPercent,
       perfectDaysStreak: streak,
       perfectDaysThisWeek: daysWithGoalsMet.length,
       vsYesterday,
       todayTotal,
       yesterdayTotal,
       mostImproved,
-      doublesCount,
+      doublesCount: doubledCount,
       habitComparisons,
+      totalHabits: activeHabits.length,
     };
   }, [getDailyProgress, logs, badHabitLogs, activeHabits]);
 
@@ -362,12 +366,14 @@ export default function StatsScreen() {
                 : "Same as yesterday"}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {dailyImprovement.doublesCount > 0
-                ? `${dailyImprovement.doublesCount} habit${dailyImprovement.doublesCount > 1 ? "s" : ""} doubled - 2% bonus each`
+              {dailyImprovement.allGoalsDoubled && dailyImprovement.doublesCount === dailyImprovement.totalHabits
+                ? `All ${dailyImprovement.doublesCount} habits doubled - 2% better`
+                : dailyImprovement.doublesCount > 0 && !dailyImprovement.hasBadHabits
+                ? `${dailyImprovement.doublesCount}/${dailyImprovement.totalHabits} habits doubled`
                 : dailyImprovement.allGoalsMet 
-                ? "All goals met - 1% improvement"
+                ? "All goals met - 1% better"
                 : dailyImprovement.hasBadHabits
-                ? "Bad habit penalty applied"
+                ? `${dailyImprovement.penaltyPercent}% penalty applied${dailyImprovement.rawAllGoalsMet ? " (goals were met)" : ""}`
                 : `${dailyImprovement.todayTotal} units today vs ${dailyImprovement.yesterdayTotal} yesterday`}
             </ThemedText>
           </View>
