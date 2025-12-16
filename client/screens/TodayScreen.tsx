@@ -12,6 +12,7 @@ import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { HabitRow } from "@/components/HabitRow";
 import { FallingBlocks } from "@/components/FallingBlocks";
+import { BadHabitsSection } from "@/components/BadHabitsSection";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -32,6 +33,7 @@ export default function TodayScreen() {
     canAddHabit,
     getTodayTotalUnits,
     getHighestDailyTotal,
+    getDailyProgress,
   } = useUnits();
 
   const activeHabits = useMemo(
@@ -41,6 +43,24 @@ export default function TodayScreen() {
 
   const todayTotal = getTodayTotalUnits();
   const highestTotal = getHighestDailyTotal();
+  const dailyProgress = getDailyProgress();
+
+  const progressMessage = useMemo(() => {
+    if (activeHabits.length === 0) return null;
+    
+    if (dailyProgress.allGoalsMet && !dailyProgress.hasBadHabits) {
+      if (dailyProgress.percentage > 100) {
+        return `${dailyProgress.percentage - 100}% better today`;
+      }
+      return "1% better today";
+    }
+    
+    if (dailyProgress.hasBadHabits) {
+      return `${dailyProgress.percentage}% - Penalties active`;
+    }
+    
+    return `${dailyProgress.percentage}% complete`;
+  }, [dailyProgress, activeHabits.length]);
 
   const todayBlocks = useMemo(() => {
     const today = getTodayDate();
@@ -105,9 +125,6 @@ export default function TodayScreen() {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <ThemedText type="h4">My Habits</ThemedText>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Tap to add
-            </ThemedText>
           </View>
 
           {activeHabits.length === 0 ? (
@@ -142,6 +159,8 @@ export default function TodayScreen() {
             ))
           )}
         </View>
+
+        <BadHabitsSection />
       </ScrollView>
 
       <View style={[styles.pileSection, { bottom: tabBarHeight + 16 }]}>
@@ -166,6 +185,26 @@ export default function TodayScreen() {
               Best Day
             </ThemedText>
           </View>
+          {progressMessage ? (
+            <>
+              <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
+              <View style={styles.statItem}>
+                <ThemedText 
+                  type="small" 
+                  style={{ 
+                    color: dailyProgress.allGoalsMet && !dailyProgress.hasBadHabits 
+                      ? "#34C759" 
+                      : dailyProgress.hasBadHabits 
+                        ? "#FF4444" 
+                        : theme.textSecondary,
+                    fontWeight: "600",
+                  }}
+                >
+                  {progressMessage}
+                </ThemedText>
+              </View>
+            </>
+          ) : null}
         </Animated.View>
 
         <View style={[styles.pileContainer, { backgroundColor: theme.backgroundDefault }]}>
