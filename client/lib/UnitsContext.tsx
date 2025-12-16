@@ -388,9 +388,6 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     let updatedLogs = [...logs];
     
     if (activeHabits.length > 0) {
-      const totalDailyGoal = activeHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
-      const targetPenalty = Math.max(1, Math.round(totalDailyGoal * 0.05));
-      
       const habitUnitsAvailable = activeHabits.map((habit) => {
         const todayUnits = logs
           .filter((l) => l.habitId === habit.id && l.date === today)
@@ -398,31 +395,29 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         return { habit, available: Math.max(0, todayUnits) };
       });
       
-      const totalAvailable = habitUnitsAvailable.reduce((sum, h) => sum + h.available, 0);
-      const actualPenalty = Math.min(targetPenalty, totalAvailable);
+      const totalLoggedUnits = habitUnitsAvailable.reduce((sum, h) => sum + h.available, 0);
+      const targetPenalty = Math.max(1, Math.round(totalLoggedUnits * 0.05));
+      const actualPenalty = Math.min(targetPenalty, totalLoggedUnits);
       
-      if (actualPenalty > 0) {
-        let remaining = actualPenalty;
+      if (actualPenalty > 0 && totalLoggedUnits > 0) {
         const habitsWithUnits = habitUnitsAvailable.filter((h) => h.available > 0);
         
-        for (let i = 0; i < habitsWithUnits.length && remaining > 0; i++) {
+        for (let i = 0; i < habitsWithUnits.length; i++) {
           const { habit, available } = habitsWithUnits[i];
-          const isLast = i === habitsWithUnits.length - 1;
-          const share = isLast 
-            ? remaining 
-            : Math.min(Math.ceil(actualPenalty / habitsWithUnits.length), available, remaining);
+          const proportion = available / totalLoggedUnits;
+          const share = Math.max(1, Math.round(actualPenalty * proportion));
+          const actualShare = Math.min(share, available);
           
-          if (share > 0) {
+          if (actualShare > 0) {
             const penaltyLog: UnitLog = {
               id: generateId(),
               habitId: habit.id,
-              count: -share,
+              count: -actualShare,
               date: today,
               createdAt: new Date().toISOString(),
             };
             updatedLogs.push(penaltyLog);
-            penaltyAdjustments.push({ habitId: habit.id, unitsRemoved: share });
-            remaining -= share;
+            penaltyAdjustments.push({ habitId: habit.id, unitsRemoved: actualShare });
           }
         }
         

@@ -157,8 +157,37 @@ export default function StatsScreen() {
     const { improvementPercent, hasDoubledGoal, allGoalsMet, hasBadHabits } = getDailyProgress();
     
     const today = new Date();
-    const daysWithGoalsMet: string[] = [];
+    const todayStr = today.toISOString().split("T")[0];
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
     
+    const todayLogs = logs.filter((l) => l.date === todayStr);
+    const yesterdayLogs = logs.filter((l) => l.date === yesterdayStr);
+    const todayTotal = todayLogs.reduce((sum, l) => sum + l.count, 0);
+    const yesterdayTotal = yesterdayLogs.reduce((sum, l) => sum + l.count, 0);
+    
+    const vsYesterday = yesterdayTotal > 0 
+      ? Math.round(((todayTotal - yesterdayTotal) / yesterdayTotal) * 100) 
+      : todayTotal > 0 ? 100 : 0;
+    
+    const habitComparisons = activeHabits.map((habit) => {
+      const todayUnits = todayLogs.filter((l) => l.habitId === habit.id).reduce((sum, l) => sum + l.count, 0);
+      const yesterdayUnits = yesterdayLogs.filter((l) => l.habitId === habit.id).reduce((sum, l) => sum + l.count, 0);
+      const change = yesterdayUnits > 0 
+        ? Math.round(((todayUnits - yesterdayUnits) / yesterdayUnits) * 100)
+        : todayUnits > 0 ? 100 : 0;
+      const isDoubled = todayUnits >= habit.dailyGoal * 2;
+      return { habit, todayUnits, yesterdayUnits, change, isDoubled };
+    });
+    
+    const mostImproved = habitComparisons
+      .filter((h) => h.change > 0)
+      .sort((a, b) => b.change - a.change)[0];
+    
+    const doublesCount = habitComparisons.filter((h) => h.isDoubled).length;
+    
+    const daysWithGoalsMet: string[] = [];
     for (let i = 0; i < 7; i++) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
@@ -208,6 +237,12 @@ export default function StatsScreen() {
       hasBadHabits,
       perfectDaysStreak: streak,
       perfectDaysThisWeek: daysWithGoalsMet.length,
+      vsYesterday,
+      todayTotal,
+      yesterdayTotal,
+      mostImproved,
+      doublesCount,
+      habitComparisons,
     };
   }, [getDailyProgress, logs, badHabitLogs, activeHabits]);
 
@@ -308,28 +343,32 @@ export default function StatsScreen() {
 
       <Animated.View
         entering={FadeIn.delay(50)}
-        style={[styles.improvementCard, { backgroundColor: dailyImprovement.todayImprovement > 0 ? "#06D6A0" + "20" : theme.backgroundDefault }]}
+        style={[styles.improvementCard, { backgroundColor: dailyImprovement.vsYesterday > 0 ? "#06D6A0" + "20" : theme.backgroundDefault }]}
       >
         <View style={styles.improvementHeader}>
-          <Feather 
-            name={dailyImprovement.todayImprovement > 0 ? "trending-up" : "minus"} 
-            size={24} 
-            color={dailyImprovement.todayImprovement > 0 ? "#06D6A0" : theme.textSecondary} 
-          />
+          <View style={[styles.improvementIcon, { backgroundColor: dailyImprovement.vsYesterday > 0 ? "#06D6A0" + "30" : theme.textSecondary + "20" }]}>
+            <Feather 
+              name={dailyImprovement.vsYesterday > 0 ? "trending-up" : dailyImprovement.vsYesterday < 0 ? "trending-down" : "minus"} 
+              size={24} 
+              color={dailyImprovement.vsYesterday > 0 ? "#06D6A0" : dailyImprovement.vsYesterday < 0 ? theme.danger : theme.textSecondary} 
+            />
+          </View>
           <View style={styles.improvementTextContainer}>
-            <ThemedText type="h3" style={{ color: dailyImprovement.todayImprovement > 0 ? "#06D6A0" : theme.text }}>
-              {dailyImprovement.todayImprovement > 0 
-                ? `${dailyImprovement.todayImprovement}% better today`
-                : "Keep going"}
+            <ThemedText type="h3" style={{ color: dailyImprovement.vsYesterday > 0 ? "#06D6A0" : dailyImprovement.vsYesterday < 0 ? theme.danger : theme.text }}>
+              {dailyImprovement.vsYesterday > 0 
+                ? `${dailyImprovement.vsYesterday}% better than yesterday`
+                : dailyImprovement.vsYesterday < 0 
+                ? `${Math.abs(dailyImprovement.vsYesterday)}% behind yesterday`
+                : "Same as yesterday"}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              {dailyImprovement.hasDoubledGoal 
-                ? "Doubled a goal today - 2x bonus"
+              {dailyImprovement.doublesCount > 0
+                ? `${dailyImprovement.doublesCount} habit${dailyImprovement.doublesCount > 1 ? "s" : ""} doubled - 2% bonus each`
                 : dailyImprovement.allGoalsMet 
-                ? "All goals met - great work"
+                ? "All goals met - 1% improvement"
                 : dailyImprovement.hasBadHabits
                 ? "Bad habit penalty applied"
-                : "Complete all goals to improve"}
+                : `${dailyImprovement.todayTotal} units today vs ${dailyImprovement.yesterdayTotal} yesterday`}
             </ThemedText>
           </View>
         </View>
@@ -348,8 +387,31 @@ export default function StatsScreen() {
               This week
             </ThemedText>
           </View>
+          <View style={styles.improvementStatItem}>
+            <ThemedText type="h4" style={{ color: dailyImprovement.doublesCount > 0 ? "#FFD700" : theme.text }}>
+              {dailyImprovement.doublesCount}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Doubled
+            </ThemedText>
+          </View>
         </View>
       </Animated.View>
+
+      {dailyImprovement.mostImproved ? (
+        <Animated.View
+          entering={FadeIn.delay(75)}
+          style={[styles.insightMiniCard, { backgroundColor: dailyImprovement.mostImproved.habit.color + "20" }]}
+        >
+          <Feather name="award" size={18} color={dailyImprovement.mostImproved.habit.color} />
+          <ThemedText type="body" style={{ flex: 1 }}>
+            <ThemedText style={{ fontWeight: "600", color: dailyImprovement.mostImproved.habit.color }}>
+              {dailyImprovement.mostImproved.habit.name}
+            </ThemedText>
+            {" "}is up {dailyImprovement.mostImproved.change}% today
+          </ThemedText>
+        </Animated.View>
+      ) : null}
 
       <View style={styles.tabsContainer}>
         {(["daily", "weekly", "monthly"] as TimeRange[]).map((range) => (
@@ -667,5 +729,20 @@ const styles = StyleSheet.create({
   },
   improvementStatItem: {
     alignItems: "center",
+  },
+  improvementIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  insightMiniCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    padding: Spacing.md,
+    borderRadius: 12,
+    marginBottom: Spacing.lg,
   },
 });

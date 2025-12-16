@@ -115,7 +115,10 @@ server/
 - **New: Bad habit green state** - Untapped bad habits show green with "Resisted today" text to encourage positive behavior
 - **New: One-tap limit** - Bad habits can only be tapped once per day; shows "-5% failed" permanently until undone
 - **New: Actual unit removal** - Bad habit penalties remove 5% of total daily goal evenly from all habits (actual units, not just display)
-- **New: Stats improvement card** - Shows "1% better today" when goals met, "2% better" when any goal doubled, plus perfect days streak
+- **New: Stats improvement card** - Shows "X% better/behind than yesterday" comparing totals, "2% bonus" for doubled goals
+- **New: Enhanced penalty** - Bad habit penalty now removes 5% of TOTAL LOGGED UNITS (not daily goal), distributed evenly across habits
+- **New: Most improved insight** - Stats shows which habit improved the most vs yesterday
+- **New: Doubled goals tracking** - Stats shows count of doubled goals with golden highlight
 
 ## User Preferences
 - No emojis in the UI
