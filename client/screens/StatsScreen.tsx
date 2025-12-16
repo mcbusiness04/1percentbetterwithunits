@@ -163,7 +163,7 @@ export default function StatsScreen() {
   }, [getDayStats]);
 
   const chartData = useMemo(() => {
-    const data: { label: string; total: number; goal: number; isGood: boolean; hasPenalty: boolean }[] = [];
+    const data: { label: string; total: number; goal: number; isGood: boolean; isNeutral: boolean; hasPenalty: boolean }[] = [];
     const today = new Date();
     
     if (timeRange === "daily") {
@@ -172,11 +172,13 @@ export default function StatsScreen() {
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split("T")[0];
         const stats = getDayStats(dateStr);
+        const hasGoal = stats.totalGoal > 0;
         data.push({
           label: date.toLocaleDateString("en-US", { weekday: "short" }).slice(0, 2),
           total: stats.total,
           goal: stats.totalGoal,
-          isGood: stats.isGoodDay,
+          isGood: hasGoal && stats.isGoodDay,
+          isNeutral: !hasGoal,
           hasPenalty: stats.hasPenalty,
         });
       }
@@ -184,20 +186,20 @@ export default function StatsScreen() {
       for (let i = 3; i >= 0; i--) {
         let weekTotal = 0;
         let weekGoal = 0;
-        let allGood = true;
         let anyPenalty = false;
         for (let d = 0; d < 7; d++) {
           const stats = getDayStats(getDateString(i * 7 + d));
           weekTotal += stats.total;
           weekGoal += stats.totalGoal;
-          if (!stats.isGoodDay) allGood = false;
           if (stats.hasPenalty) anyPenalty = true;
         }
+        const hasGoal = weekGoal > 0;
         data.push({
           label: `W${4 - i}`,
           total: weekTotal,
           goal: weekGoal,
-          isGood: weekTotal >= weekGoal,
+          isGood: hasGoal && weekTotal >= weekGoal,
+          isNeutral: !hasGoal,
           hasPenalty: anyPenalty,
         });
       }
@@ -207,7 +209,6 @@ export default function StatsScreen() {
         const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
         let monthTotal = 0;
         let monthGoal = 0;
-        let goodDays = 0;
         let anyPenalty = false;
         
         for (let d = 0; d < daysInMonth; d++) {
@@ -218,14 +219,15 @@ export default function StatsScreen() {
           const stats = getDayStats(dateStr);
           monthTotal += stats.total;
           monthGoal += stats.totalGoal;
-          if (stats.isGoodDay) goodDays++;
           if (stats.hasPenalty) anyPenalty = true;
         }
+        const hasGoal = monthGoal > 0;
         data.push({
           label: monthDate.toLocaleDateString("en-US", { month: "short" }),
           total: monthTotal,
           goal: monthGoal,
-          isGood: monthTotal >= monthGoal,
+          isGood: hasGoal && monthTotal >= monthGoal,
+          isNeutral: !hasGoal,
           hasPenalty: anyPenalty,
         });
       }
@@ -245,11 +247,13 @@ export default function StatsScreen() {
           monthTotal += stats.total;
           monthGoal += stats.totalGoal;
         }
+        const hasGoal = monthGoal > 0;
         data.push({
           label: monthDate.toLocaleDateString("en-US", { month: "narrow" }),
           total: monthTotal,
           goal: monthGoal,
-          isGood: monthTotal >= monthGoal,
+          isGood: hasGoal && monthTotal >= monthGoal,
+          isNeutral: !hasGoal,
           hasPenalty: false,
         });
       }
@@ -576,13 +580,17 @@ export default function StatsScreen() {
             <View style={[styles.legendDot, { backgroundColor: RED }]} />
             <ThemedText type="small" style={{ color: theme.textSecondary }}>Missed</ThemedText>
           </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: theme.textSecondary + "60" }]} />
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>No Goal</ThemedText>
+          </View>
         </View>
         <View style={styles.chart}>
           {chartData.map((item, index) => {
             const height = (item.total / maxChartValue) * 140;
             const goalHeight = (item.goal / maxChartValue) * 140;
             const isLast = index === chartData.length - 1;
-            const barColor = item.isGood ? GREEN : item.hasPenalty ? RED : RED + "80";
+            const barColor = item.isNeutral ? theme.textSecondary + "60" : item.isGood ? GREEN : item.hasPenalty ? RED : RED + "80";
             
             return (
               <View key={index} style={styles.barContainer}>

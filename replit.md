@@ -125,6 +125,12 @@ server/
 - **New: Enhanced penalty** - Bad habit penalty now removes 5% of TOTAL LOGGED UNITS (not daily goal), distributed evenly across habits
 - **New: Most improved insight** - Stats shows which habit improved the most vs yesterday
 - **New: Doubled goals tracking** - Stats shows count of doubled goals with golden highlight
+- **New: Enhanced Stats Screen** - Complete redesign with:
+  - Overview cards (Today, Week, Avg, Streak) with red/green delta indicators
+  - Overall Improvement hero showing cumulative progress, success rate, perfect days
+  - Recent Days horizontal scroll with goal hit/miss indicators per day
+  - Goal Achievement Charts with daily/weekly/monthly/yearly views
+  - Per-Habit Details with progress bars, deltas, weekly stats, best day
 
 ## User Preferences
 - No emojis in the UI
