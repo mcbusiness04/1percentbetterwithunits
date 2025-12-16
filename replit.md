@@ -103,7 +103,7 @@ server/
 - **New: Curated icons** - Self-improvement focused icons (exercise, mindfulness, productivity, nutrition, sleep)
 - **New: Time habit custom increments** - Time habits now support custom minute increments (e.g., +5 min, +10 min per tap)
 - **New: Edit button in HabitRow** - Pencil icon on each habit row for quick access to habit settings
-- **New: Bad Habits Section** - Track bad habits with green/red toggle states and 5% penalty deduction per tap
+- **New: Bad Habits Section** - Track bad habits with green/red toggle states and 10% penalty deduction per tap
 - **New: Progress messaging** - Shows "1% better today" when goals met, or calculated percentage with penalty status
 - **New: Editable daily goals** - Stepper controls in HabitDetailScreen to adjust daily goals
 - **New: Smart icon/color suggestions** - Auto-suggests icons and colors based on habit name keywords with user override
