@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from "react";
+import { AppState, AppStateStatus } from "react-native";
 import * as Haptics from "expo-haptics";
 import {
   Habit,
@@ -44,6 +45,7 @@ interface UnitsContextType {
   hasCompletedOnboarding: boolean;
   badHabits: BadHabit[];
   badHabitLogs: BadHabitLog[];
+  currentDate: string;
   
   addHabit: (habit: Omit<Habit, "id" | "createdAt" | "isArchived">) => Promise<boolean>;
   updateHabit: (id: string, updates: Partial<Habit>) => Promise<void>;
@@ -95,6 +97,62 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [badHabits, setBadHabits] = useState<BadHabit[]>([]);
   const [badHabitLogs, setBadHabitLogs] = useState<BadHabitLog[]>([]);
+  const [currentDate, setCurrentDate] = useState(getTodayDate());
+  const appState = useRef(AppState.currentState);
+
+  // Day change detection - check if date has changed
+  const checkDayChange = useCallback(() => {
+    const today = getTodayDate();
+    if (today !== currentDate) {
+      setCurrentDate(today);
+      setUndoAction(null); // Clear undo on new day
+      return true;
+    }
+    return false;
+  }, [currentDate]);
+
+  // Listen for app state changes (foreground/background)
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState: AppStateStatus) => {
+      if (appState.current.match(/inactive|background/) && nextAppState === "active") {
+        // App came to foreground - check if day changed
+        checkDayChange();
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [checkDayChange]);
+
+  // Set up midnight timer to detect day change
+  useEffect(() => {
+    const checkMidnight = () => {
+      checkDayChange();
+    };
+
+    // Calculate ms until next midnight
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+
+    // Set timeout for midnight, then check every minute after
+    const midnightTimeout = setTimeout(() => {
+      checkMidnight();
+      // After midnight, check every minute in case timeout was slightly off
+      const intervalId = setInterval(checkMidnight, 60000);
+      return () => clearInterval(intervalId);
+    }, msUntilMidnight);
+
+    // Also check every minute as a fallback
+    const intervalId = setInterval(checkMidnight, 60000);
+
+    return () => {
+      clearTimeout(midnightTimeout);
+      clearInterval(intervalId);
+    };
+  }, [checkDayChange]);
 
   const refreshData = useCallback(async () => {
     try {
@@ -290,11 +348,10 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getTodayUnits = useCallback((habitId: string) => {
-    const today = getTodayDate();
     return logs
-      .filter((l) => l.habitId === habitId && l.date === today)
+      .filter((l) => l.habitId === habitId && l.date === currentDate)
       .reduce((sum, l) => sum + l.count, 0);
-  }, [logs]);
+  }, [logs, currentDate]);
 
   const getWeekUnits = useCallback((habitId: string) => {
     const startOfWeek = getStartOfWeek();
@@ -312,9 +369,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [logs]);
 
   const getTodayTotalUnits = useCallback(() => {
-    const today = getTodayDate();
-    return logs.filter((l) => l.date === today).reduce((sum, l) => sum + l.count, 0);
-  }, [logs]);
+    return logs.filter((l) => l.date === currentDate).reduce((sum, l) => sum + l.count, 0);
+  }, [logs, currentDate]);
 
   const getWeekTotalUnits = useCallback(() => {
     const startOfWeek = getStartOfWeek();
@@ -326,16 +382,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [logs]);
 
   const getHighestDailyTotal = useCallback(() => {
-    const today = getTodayDate();
     const dailyTotals: Record<string, number> = {};
     logs.forEach((log) => {
-      if (log.date !== today) {
+      if (log.date !== currentDate) {
         dailyTotals[log.date] = (dailyTotals[log.date] || 0) + log.count;
       }
     });
     const totals = Object.values(dailyTotals);
     return totals.length > 0 ? Math.max(...totals) : 0;
-  }, [logs]);
+  }, [logs, currentDate]);
 
   const canAddHabit = useCallback(() => {
     if (isPro) return true;
@@ -494,19 +549,17 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [badHabitLogs, logs, settings.hapticsEnabled]);
 
   const getTodayBadHabitTaps = useCallback((badHabitId: string) => {
-    const today = getTodayDate();
     return badHabitLogs
-      .filter((l) => l.badHabitId === badHabitId && l.date === today && !l.isUndone)
+      .filter((l) => l.badHabitId === badHabitId && l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-  }, [badHabitLogs]);
+  }, [badHabitLogs, currentDate]);
 
   const getTodayTotalPenalty = useCallback(() => {
-    const today = getTodayDate();
     const totalBadTaps = badHabitLogs
-      .filter((l) => l.date === today && !l.isUndone)
+      .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     return totalBadTaps * 10;
-  }, [badHabitLogs]);
+  }, [badHabitLogs, currentDate]);
 
   const getDailyProgress = useCallback(() => {
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -514,9 +567,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       return { percentage: 100, allGoalsMet: true, rawAllGoalsMet: true, hasBadHabits: false, improvementPercent: 0, hasDoubledGoal: false, allGoalsDoubled: false, doubledCount: 0, penaltyPercent: 0 };
     }
     
-    const today = getTodayDate();
     const totalBadTaps = badHabitLogs
-      .filter((l) => l.date === today && !l.isUndone)
+      .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     const hasBadHabits = totalBadTaps > 0;
     const penaltyPercent = totalBadTaps * 10;
@@ -529,7 +581,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     
     for (const habit of activeHabits) {
       const todayUnits = logs
-        .filter((l) => l.habitId === habit.id && l.date === today)
+        .filter((l) => l.habitId === habit.id && l.date === currentDate)
         .reduce((sum, l) => sum + l.count, 0);
       const progress = Math.min(todayUnits / habit.dailyGoal, 1);
       totalProgress += progress;
@@ -576,7 +628,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       doubledCount,
       penaltyPercent,
     };
-  }, [habits, logs, badHabitLogs]);
+  }, [habits, logs, badHabitLogs, currentDate]);
 
   return (
     <UnitsContext.Provider
@@ -590,6 +642,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         hasCompletedOnboarding,
         badHabits,
         badHabitLogs,
+        currentDate,
         addHabit: handleAddHabit,
         updateHabit: handleUpdateHabit,
         deleteHabit: handleDeleteHabit,

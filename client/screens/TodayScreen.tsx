@@ -16,7 +16,6 @@ import { BadHabitsSection } from "@/components/BadHabitsSection";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
-import { getTodayDate } from "@/lib/storage";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -34,6 +33,7 @@ export default function TodayScreen() {
     getTodayTotalUnits,
     getHighestDailyTotal,
     getDailyProgress,
+    currentDate,
   } = useUnits();
 
   const activeHabits = useMemo(
@@ -63,8 +63,7 @@ export default function TodayScreen() {
   }, [dailyProgress, activeHabits.length]);
 
   const todayBlocks = useMemo(() => {
-    const today = getTodayDate();
-    const todayLogs = logs.filter((l) => l.date === today);
+    const todayLogs = logs.filter((l) => l.date === currentDate);
     const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
     
     // Aggregate units per habit first (handles positive and negative logs)
@@ -89,7 +88,7 @@ export default function TodayScreen() {
     });
     
     return blocks;
-  }, [logs, habits]);
+  }, [logs, habits, currentDate]);
 
   const handleAddPress = useCallback(() => {
     if (canAddHabit()) {
