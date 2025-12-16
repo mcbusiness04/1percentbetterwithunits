@@ -5,6 +5,7 @@ import Animated, { FadeInDown, FadeIn, useSharedValue, useAnimatedStyle, withSpr
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useUnits } from "@/lib/UnitsContext";
 import { BadHabit } from "@/lib/storage";
 
@@ -42,9 +43,9 @@ function BadHabitRow({ badHabit, todayTaps, onTap, onDelete }: BadHabitRowProps)
     transform: [{ scale: scale.value }],
   }));
 
-  const backgroundColor = isActive ? "#FF444420" : "#34C75920";
-  const borderColor = isActive ? "#FF4444" : "#34C759";
-  const textColor = isActive ? "#FF4444" : "#34C759";
+  const backgroundColor = isActive ? theme.dangerLight : theme.successLight;
+  const borderColor = isActive ? theme.danger : theme.success;
+  const textColor = isActive ? theme.danger : theme.success;
 
   return (
     <Animated.View style={animatedStyle}>
@@ -71,8 +72,8 @@ function BadHabitRow({ badHabit, todayTaps, onTap, onDelete }: BadHabitRowProps)
           </ThemedText>
         </View>
         {todayTaps > 0 ? (
-          <View style={[styles.tapCount, { backgroundColor: "#FF4444" }]}>
-            <ThemedText type="small" style={{ color: "#fff", fontWeight: "600" }}>
+          <View style={[styles.tapCount, { backgroundColor: theme.danger }]}>
+            <ThemedText type="small" style={{ color: theme.buttonText, fontWeight: "600" }}>
               -{todayTaps * 5}%
             </ThemedText>
           </View>
@@ -145,54 +146,59 @@ export function BadHabitsSection() {
             style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}
             onPress={(e) => e.stopPropagation()}
           >
-            <ThemedText type="h4" style={styles.modalTitle}>
-              Add Bad Habit
-            </ThemedText>
-            <TextInput
-              value={newBadHabitName}
-              onChangeText={setNewBadHabitName}
-              placeholder="e.g., Smoking, Junk food, Social media"
-              placeholderTextColor={theme.textSecondary}
-              style={[
-                styles.modalInput,
-                {
-                  backgroundColor: theme.backgroundRoot,
-                  color: theme.text,
-                },
-              ]}
-              autoFocus
-              onSubmitEditing={handleAddBadHabit}
-            />
-            <View style={styles.modalButtons}>
-              <Pressable
-                onPress={() => setShowAddModal(false)}
-                style={[styles.modalButton, { backgroundColor: theme.backgroundRoot }]}
-              >
-                <ThemedText type="body" style={{ color: theme.textSecondary }}>
-                  Cancel
-                </ThemedText>
-              </Pressable>
-              <Pressable
-                onPress={handleAddBadHabit}
+            <KeyboardAwareScrollViewCompat
+              contentContainerStyle={styles.modalScrollContent}
+              bounces={false}
+            >
+              <ThemedText type="h4" style={styles.modalTitle}>
+                Add Bad Habit
+              </ThemedText>
+              <TextInput
+                value={newBadHabitName}
+                onChangeText={setNewBadHabitName}
+                placeholder="e.g., Smoking, Junk food, Social media"
+                placeholderTextColor={theme.textSecondary}
                 style={[
-                  styles.modalButton,
+                  styles.modalInput,
                   {
-                    backgroundColor: newBadHabitName.trim() ? "#FF4444" : theme.backgroundRoot,
+                    backgroundColor: theme.backgroundRoot,
+                    color: theme.text,
                   },
                 ]}
-                disabled={!newBadHabitName.trim()}
-              >
-                <ThemedText
-                  type="body"
-                  style={{
-                    color: newBadHabitName.trim() ? "#fff" : theme.textSecondary,
-                    fontWeight: "600",
-                  }}
+                autoFocus
+                onSubmitEditing={handleAddBadHabit}
+              />
+              <View style={styles.modalButtons}>
+                <Pressable
+                  onPress={() => setShowAddModal(false)}
+                  style={[styles.modalButton, { backgroundColor: theme.backgroundRoot }]}
                 >
-                  Add
-                </ThemedText>
-              </Pressable>
-            </View>
+                  <ThemedText type="body" style={{ color: theme.textSecondary }}>
+                    Cancel
+                  </ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={handleAddBadHabit}
+                  style={[
+                    styles.modalButton,
+                    {
+                      backgroundColor: newBadHabitName.trim() ? theme.danger : theme.backgroundRoot,
+                    },
+                  ]}
+                  disabled={!newBadHabitName.trim()}
+                >
+                  <ThemedText
+                    type="body"
+                    style={{
+                      color: newBadHabitName.trim() ? theme.buttonText : theme.textSecondary,
+                      fontWeight: "600",
+                    }}
+                  >
+                    Add
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </KeyboardAwareScrollViewCompat>
           </Pressable>
         </Pressable>
       </Modal>
@@ -253,8 +259,11 @@ const styles = StyleSheet.create({
   modalContent: {
     width: "85%",
     maxWidth: 360,
-    padding: Spacing.xl,
     borderRadius: 20,
+    overflow: "hidden",
+  },
+  modalScrollContent: {
+    padding: Spacing.xl,
   },
   modalTitle: {
     textAlign: "center",

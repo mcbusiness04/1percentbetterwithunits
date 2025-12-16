@@ -193,9 +193,9 @@ export default function TodayScreen() {
                   type="small" 
                   style={{ 
                     color: dailyProgress.allGoalsMet && !dailyProgress.hasBadHabits 
-                      ? "#34C759" 
+                      ? theme.success 
                       : dailyProgress.hasBadHabits 
-                        ? "#FF4444" 
+                        ? theme.danger 
                         : theme.textSecondary,
                     fontWeight: "600",
                   }}
