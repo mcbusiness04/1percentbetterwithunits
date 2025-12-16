@@ -169,11 +169,16 @@ export default function StatsScreen() {
       const habitLogs = logs.filter((l) => l.habitId === habit.id);
       const todayUnits = habitLogs.filter((l) => l.date === currentDate).reduce((sum, l) => sum + l.count, 0);
       
-      let weekUnits = 0;
       let daysGoalMet = 0;
+      let daysWithData = 0;
+      let totalUnitsLast7 = 0;
       for (let i = 0; i < 7; i++) {
-        const units = habitLogs.filter((l) => l.date === getDateString(i)).reduce((sum, l) => sum + l.count, 0);
-        weekUnits += units;
+        const dateStr = getDateString(i);
+        const createdDate = habit.createdAt.split("T")[0];
+        if (dateStr < createdDate) continue;
+        daysWithData++;
+        const units = habitLogs.filter((l) => l.date === dateStr).reduce((sum, l) => sum + l.count, 0);
+        totalUnitsLast7 += units;
         if (units >= habit.dailyGoal) daysGoalMet++;
       }
       
@@ -181,15 +186,16 @@ export default function StatsScreen() {
       habitLogs.forEach((l) => {
         dayTotals[l.date] = (dayTotals[l.date] || 0) + l.count;
       });
-      const bestDayEntry = Object.entries(dayTotals).sort((a, b) => b[1] - a[1])[0];
-      const bestDay = bestDayEntry ? bestDayEntry[1] : 0;
+      const dayValues = Object.values(dayTotals);
+      const bestDay = dayValues.length > 0 ? Math.max(...dayValues) : 0;
+      const avgDay = dayValues.length > 0 ? Math.round(dayValues.reduce((a, b) => a + b, 0) / dayValues.length) : 0;
       
       const isGoalMet = todayUnits >= habit.dailyGoal;
       const progress = habit.dailyGoal > 0 ? Math.min(todayUnits / habit.dailyGoal, 1) : 0;
       
-      return { habit, todayUnits, weekUnits, isGoalMet, progress, daysGoalMet, bestDay };
+      return { habit, todayUnits, isGoalMet, progress, daysGoalMet, daysWithData, bestDay, avgDay };
     });
-  }, [activeHabits, logs, currentDate]);
+  }, [activeHabits, logs, currentDate, getDateString]);
 
   const maxTrendValue = Math.max(...trendData.data.map(d => d.total), 1);
 
@@ -386,8 +392,14 @@ export default function StatsScreen() {
             
             <View style={styles.habitStats}>
               <View style={styles.habitStatItem}>
-                <ThemedText type="body" style={{ fontWeight: "600" }}>{stat.weekUnits}</ThemedText>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>week</ThemedText>
+                <ThemedText type="body" style={{ fontWeight: "600", color: stat.daysGoalMet >= 5 ? GREEN : stat.daysGoalMet >= 3 ? GOLD : theme.text }}>
+                  {stat.daysGoalMet}/{stat.daysWithData}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>goals</ThemedText>
+              </View>
+              <View style={styles.habitStatItem}>
+                <ThemedText type="body" style={{ fontWeight: "600" }}>{stat.avgDay}</ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>avg</ThemedText>
               </View>
               <View style={styles.habitStatItem}>
                 <ThemedText type="body" style={{ fontWeight: "600", color: GOLD }}>{stat.bestDay}</ThemedText>
@@ -475,14 +487,12 @@ const styles = StyleSheet.create({
     alignItems: "flex-end",
     minHeight: 60,
     height: 60,
-    gap: 1,
     overflow: "hidden",
   },
   trendBar: {
     flex: 1,
-    borderRadius: 1,
-    minWidth: 1,
-    maxWidth: 12,
+    borderRadius: 2,
+    marginHorizontal: 1,
   },
   sectionTitle: {
     marginBottom: Spacing.md,
