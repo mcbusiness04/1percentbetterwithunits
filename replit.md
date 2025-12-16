@@ -107,10 +107,11 @@ server/
 - **New: Progress messaging** - Shows "1% better today" when goals met, or calculated percentage with penalty status
 - **New: Editable daily goals** - Stepper controls in HabitDetailScreen to adjust daily goals
 - **New: Smart icon/color suggestions** - Auto-suggests icons and colors based on habit name keywords with user override
-- **Fixed: Penalty system** - Bad habit tap removes exactly 10% of total logged units evenly across all habits via negative log entries
+- **Fixed: Penalty system** - Bad habit tap removes exactly 10% of total logged units (minimum 1 unit, rounded to nearest whole number)
 - **Fixed: Visual block updates** - Unit blocks now aggregate per habit (net of penalties) so blocks visually disappear when penalty applied
 - **Fixed: Undo restores exact units** - Undo button restores the exact units that were removed using penaltyAdjustments tracking
 - **Fixed: Percentage reflects actual units** - Progress percentage now correctly drops when penalty applied (no double-counting)
+- **Fixed: Improvement scaling** - Shows 1% when goals met, 2% when doubled, 3% when tripled, etc. (based on minimum multiplier across all habits)
 - **New: 3-mode creation** - NewHabitScreen has Count, Time, and Bad Habit tabs in a single unified creation flow
 - **New: Auto-assigned appearance** - Icons and colors are automatically assigned during creation; users can edit via small edit buttons
 - **New: Simplified bad habit creation** - Bad habits created through the unified NewHabitScreen with simplified form (name only)

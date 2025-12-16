@@ -396,7 +396,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       });
       
       const totalLoggedUnits = habitUnitsAvailable.reduce((sum, h) => sum + h.available, 0);
-      const targetPenalty = Math.floor(totalLoggedUnits * 0.10);
+      // Always remove at least 1 unit when there are any units, round to nearest whole number
+      const targetPenalty = totalLoggedUnits > 0 ? Math.max(1, Math.round(totalLoggedUnits * 0.10)) : 0;
       
       if (targetPenalty > 0 && totalLoggedUnits > 0) {
         const habitsWithUnits = habitUnitsAvailable.filter((h) => h.available > 0);
@@ -522,7 +523,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     
     let totalProgress = 0;
     let rawAllGoalsMet = true;
-    let allGoalsDoubled = true;
+    let minMultiplier = Infinity; // Track the minimum goal multiplier across all habits
     let anyGoalDoubled = false;
     let doubledCount = 0;
     
@@ -532,26 +533,36 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         .reduce((sum, l) => sum + l.count, 0);
       const progress = Math.min(todayUnits / habit.dailyGoal, 1);
       totalProgress += progress;
+      
+      // Calculate multiplier for this habit (how many times goal is met)
+      const multiplier = Math.floor(todayUnits / habit.dailyGoal);
+      
       if (todayUnits < habit.dailyGoal) {
         rawAllGoalsMet = false;
-        allGoalsDoubled = false;
+        minMultiplier = 0;
+      } else {
+        minMultiplier = Math.min(minMultiplier, multiplier);
       }
+      
       if (todayUnits >= habit.dailyGoal * 2) {
         anyGoalDoubled = true;
         doubledCount++;
-      } else {
-        allGoalsDoubled = false;
       }
     }
+    
+    // If no habits or none met goal, multiplier is 0
+    if (minMultiplier === Infinity) minMultiplier = 0;
     
     const basePercent = (totalProgress / activeHabits.length) * 100;
     // Units are already deducted from logs when bad habit is tapped, so just use basePercent
     // No need to subtract penaltyPercent again - that would be double-counting
     const finalPercent = Math.min(100, Math.max(0, basePercent));
     
+    // Improvement scales: 1x goals = 1%, 2x = 2%, 3x = 3%, etc.
+    // Only show improvement if all habits meet goals AND no bad habits
     let improvementPercent = 0;
-    if (rawAllGoalsMet && !hasBadHabits) {
-      improvementPercent = allGoalsDoubled ? 2 : 1;
+    if (rawAllGoalsMet && !hasBadHabits && minMultiplier >= 1) {
+      improvementPercent = minMultiplier;
     }
     
     return { 
@@ -561,7 +572,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       hasBadHabits,
       improvementPercent,
       hasDoubledGoal: anyGoalDoubled,
-      allGoalsDoubled,
+      allGoalsDoubled: minMultiplier >= 2,
       doubledCount,
       penaltyPercent,
     };
