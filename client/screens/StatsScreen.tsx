@@ -22,7 +22,7 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, badHabitLogs, currentDate } = useUnits();
+  const { habits, logs, badHabits, badHabitLogs, currentDate } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
 
@@ -122,37 +122,44 @@ export default function StatsScreen() {
       }
     }
     
-    const percent = totalGoals > 0 ? Math.round(((totalUnits - totalGoals) / totalGoals) * 100) : 0;
-    const isPositive = percent >= 0;
+    const rawPercent = totalGoals > 0 ? ((totalUnits - totalGoals) / totalGoals) * 100 : 0;
+    const displayPercent = Math.abs(rawPercent) < 1 && rawPercent !== 0 
+      ? (rawPercent > 0 ? "+" : "") + rawPercent.toFixed(1)
+      : (rawPercent >= 0 ? "+" : "") + Math.round(rawPercent);
+    const isPositive = rawPercent >= 0;
     
     let message = "";
     if (trackedDays === 0) {
       message = "Start tracking to see progress!";
-    } else if (percent >= 50) {
+    } else if (rawPercent >= 50) {
       message = "You're crushing it!";
-    } else if (percent >= 20) {
+    } else if (rawPercent >= 20) {
       message = "Amazing progress!";
-    } else if (percent >= 0) {
+    } else if (rawPercent >= 0) {
       message = "On track!";
-    } else if (percent >= -20) {
+    } else if (rawPercent >= -20) {
       message = "Almost there, keep going!";
     } else {
       message = "Time to bounce back!";
     }
     
-    return { percent, isPositive, message, goodDays, trackedDays };
+    return { displayPercent, isPositive, message, goodDays, trackedDays };
   }, [getDayStats, getDateString]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365;
-    const data: { isGood: boolean; total: number; goal: number }[] = [];
+    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean }[] = [];
     
     for (let i = days - 1; i >= 0; i--) {
-      const stats = getDayStats(getDateString(i));
+      const dateStr = getDateString(i);
+      const stats = getDayStats(dateStr);
+      const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
       data.push({
         isGood: stats.isGoodDay,
         total: stats.total,
         goal: stats.totalGoal,
+        allGoalsMet: stats.allGoalsMet,
+        hadBadHabits: dayBadLogs.length > 0,
       });
     }
     
@@ -162,7 +169,7 @@ export default function StatsScreen() {
     const totalUnits = data.reduce((sum, d) => sum + d.total, 0);
     
     return { data, goodDays, totalDays, successRate, totalUnits };
-  }, [timeRange, getDayStats, getDateString]);
+  }, [timeRange, getDayStats, getDateString, badHabitLogs]);
 
   const habitStats = useMemo(() => {
     return activeHabits.map((habit) => {
@@ -193,9 +200,34 @@ export default function StatsScreen() {
       const isGoalMet = todayUnits >= habit.dailyGoal;
       const progress = habit.dailyGoal > 0 ? Math.min(todayUnits / habit.dailyGoal, 1) : 0;
       
-      return { habit, todayUnits, isGoalMet, progress, daysGoalMet, daysWithData, bestDay, avgDay };
+      const unitLabel = habit.habitType === "time" ? "min" : "";
+      
+      return { habit, todayUnits, isGoalMet, progress, bestDay, avgDay, unitLabel };
     });
   }, [activeHabits, logs, currentDate, getDateString]);
+
+  const badHabitStats = useMemo(() => {
+    const activeBadHabits = badHabits.filter(bh => !bh.isArchived);
+    return activeBadHabits.map(bh => {
+      const bhLogs = badHabitLogs.filter(l => l.badHabitId === bh.id && !l.isUndone);
+      const todayTaps = bhLogs.filter(l => l.date === currentDate).length;
+      const createdDate = bh.createdAt.split("T")[0];
+      
+      let daysClean = 0;
+      let daysTracked = 0;
+      for (let i = 0; i < 30; i++) {
+        const dateStr = getDateString(i);
+        if (dateStr < createdDate) continue;
+        daysTracked++;
+        const dayTaps = bhLogs.filter(l => l.date === dateStr).length;
+        if (dayTaps === 0) daysClean++;
+      }
+      
+      const totalTaps = bhLogs.length;
+      
+      return { badHabit: bh, todayTaps, daysClean, daysTracked, totalTaps };
+    });
+  }, [badHabits, badHabitLogs, currentDate, getDateString]);
 
   const maxTrendValue = Math.max(...trendData.data.map(d => d.total), 1);
 
@@ -227,7 +259,7 @@ export default function StatsScreen() {
               fontWeight: "700",
             }}
           >
-            {totalImprovement.isPositive ? "+" : ""}{totalImprovement.percent}%
+            {totalImprovement.displayPercent}%
           </ThemedText>
           <ThemedText type="body" style={{ color: totalImprovement.isPositive ? GREEN : RED, fontWeight: "600" }}>
             {totalImprovement.message}
@@ -322,20 +354,48 @@ export default function StatsScreen() {
             </ThemedText>
           </View>
         </View>
-        <View style={styles.trendChart}>
-          {trendData.data.map((day, i) => (
-            <View
-              key={i}
-              style={[
-                styles.trendBar,
-                {
-                  height: Math.max((day.total / maxTrendValue) * 60, 2),
-                  backgroundColor: day.goal === 0 ? theme.textSecondary + "30" : day.isGood ? GREEN : RED + "60",
-                },
-              ]}
-            />
-          ))}
-        </View>
+        {timeRange === "year" ? (
+          <View style={styles.yearGrid}>
+            {trendData.data.map((day, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.yearSquare,
+                  {
+                    backgroundColor: day.goal === 0 
+                      ? theme.textSecondary + "20" 
+                      : day.isGood 
+                        ? GREEN 
+                        : day.allGoalsMet && day.hadBadHabits
+                          ? RED + "80"
+                          : RED + "40",
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={styles.trendChart}>
+            {trendData.data.map((day, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.trendBar,
+                  {
+                    height: Math.max((day.total / maxTrendValue) * 60, 2),
+                    backgroundColor: day.goal === 0 
+                      ? theme.textSecondary + "30" 
+                      : day.isGood 
+                        ? GREEN 
+                        : day.allGoalsMet && day.hadBadHabits
+                          ? RED + "80"
+                          : RED + "40",
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        )}
       </Animated.View>
 
       <ThemedText type="h4" style={styles.sectionTitle}>Habits</ThemedText>
@@ -392,23 +452,69 @@ export default function StatsScreen() {
             
             <View style={styles.habitStats}>
               <View style={styles.habitStatItem}>
-                <ThemedText type="body" style={{ fontWeight: "600", color: stat.daysGoalMet >= 5 ? GREEN : stat.daysGoalMet >= 3 ? GOLD : theme.text }}>
-                  {stat.daysGoalMet}/{stat.daysWithData}
+                <ThemedText type="body" style={{ fontWeight: "600" }}>
+                  {stat.avgDay}{stat.unitLabel}
                 </ThemedText>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>goals</ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>daily avg</ThemedText>
               </View>
               <View style={styles.habitStatItem}>
-                <ThemedText type="body" style={{ fontWeight: "600" }}>{stat.avgDay}</ThemedText>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>avg</ThemedText>
-              </View>
-              <View style={styles.habitStatItem}>
-                <ThemedText type="body" style={{ fontWeight: "600", color: GOLD }}>{stat.bestDay}</ThemedText>
+                <ThemedText type="body" style={{ fontWeight: "600", color: GOLD }}>
+                  {stat.bestDay}{stat.unitLabel}
+                </ThemedText>
                 <ThemedText type="small" style={{ color: theme.textSecondary }}>best</ThemedText>
               </View>
             </View>
           </Animated.View>
         ))
       )}
+
+      {badHabitStats.length > 0 ? (
+        <>
+          <ThemedText type="h4" style={styles.sectionTitle}>Bad Habits</ThemedText>
+          {badHabitStats.map((stat, index) => (
+            <Animated.View
+              key={stat.badHabit.id}
+              entering={FadeInDown.delay(index * 30)}
+              style={[
+                styles.habitCard,
+                { backgroundColor: theme.backgroundDefault },
+              ]}
+            >
+              <View style={styles.habitHeader}>
+                <View style={[styles.habitDot, { backgroundColor: RED }]} />
+                <ThemedText type="body" style={{ fontWeight: "600", flex: 1 }}>
+                  {stat.badHabit.name}
+                </ThemedText>
+                <View style={[
+                  styles.goalBadge, 
+                  { backgroundColor: stat.todayTaps === 0 ? GREEN + "20" : RED + "20" }
+                ]}>
+                  <Feather 
+                    name={stat.todayTaps === 0 ? "check" : "x"} 
+                    size={12} 
+                    color={stat.todayTaps === 0 ? GREEN : RED} 
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.habitStats}>
+                <View style={styles.habitStatItem}>
+                  <ThemedText type="body" style={{ fontWeight: "600", color: stat.daysClean === stat.daysTracked ? GREEN : stat.daysClean >= stat.daysTracked * 0.8 ? GOLD : theme.text }}>
+                    {stat.daysClean}/{stat.daysTracked}
+                  </ThemedText>
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>clean days</ThemedText>
+                </View>
+                <View style={styles.habitStatItem}>
+                  <ThemedText type="body" style={{ fontWeight: "600", color: stat.totalTaps === 0 ? GREEN : RED }}>
+                    {stat.totalTaps}
+                  </ThemedText>
+                  <ThemedText type="small" style={{ color: theme.textSecondary }}>total slips</ThemedText>
+                </View>
+              </View>
+            </Animated.View>
+          ))}
+        </>
+      ) : null}
     </ScrollView>
   );
 }
@@ -471,6 +577,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: Spacing.md,
+  },
+  yearGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 2,
+  },
+  yearSquare: {
+    width: 14,
+    height: 14,
+    borderRadius: 2,
   },
   trendSummary: {
     flexDirection: "row",
