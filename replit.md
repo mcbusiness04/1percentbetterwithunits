@@ -131,6 +131,11 @@ server/
   - Recent Days horizontal scroll with goal hit/miss indicators per day
   - Goal Achievement Charts with daily/weekly/monthly/yearly views
   - Per-Habit Details with progress bars, deltas, weekly stats, best day
+- **New: Year view heatmap** - 365-square grid showing daily goal achievement (green = all goals met + no bad habits, red = otherwise)
+- **New: Decimal percentages** - Hero improvement percentage shows decimals for small values (e.g., +0.4%)
+- **New: Bad habits stats** - Stats screen shows clean days (respects creation date), total slips per bad habit
+- **Fixed: Habit stats simplified** - Only shows "daily avg" and "best" (removed X/Y goals format)
+- **Fixed: Bad habit clean days** - Now counts from habit creation date, not arbitrary 30 days
 
 ## User Preferences
 - No emojis in the UI
