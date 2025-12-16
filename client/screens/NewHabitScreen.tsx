@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from "react";
-import { View, StyleSheet, TextInput, Alert, Pressable, ScrollView } from "react-native";
+import { View, StyleSheet, TextInput, Alert, Pressable, ScrollView, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -12,22 +12,26 @@ import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollV
 import { useUnits } from "@/lib/UnitsContext";
 import { HABIT_COLORS, HABIT_ICONS, HabitType, suggestIconAndColor } from "@/lib/storage";
 
+type CreationMode = "count" | "time" | "bad";
+
 export default function NewHabitScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const navigation = useNavigation();
-  const { addHabit, habits, canAddHabit } = useUnits();
+  const { addHabit, addBadHabit, habits, badHabits, canAddHabit } = useUnits();
 
+  const [creationMode, setCreationMode] = useState<CreationMode>("count");
   const [unitName, setUnitName] = useState("");
   const [dailyGoal, setDailyGoal] = useState("5");
   const [tapIncrement, setTapIncrement] = useState("1");
-  const [habitType, setHabitType] = useState<HabitType>("count");
   const [selectedIcon, setSelectedIcon] = useState<string>(HABIT_ICONS[0]);
   const [selectedColor, setSelectedColor] = useState<string>(HABIT_COLORS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasManuallySetIcon, setHasManuallySetIcon] = useState(false);
   const [hasManuallySetColor, setHasManuallySetColor] = useState(false);
+  const [showIconPicker, setShowIconPicker] = useState(false);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const handleUnitNameChange = useCallback((text: string) => {
     setUnitName(text);
@@ -53,6 +57,7 @@ export default function NewHabitScreen() {
   }, []);
 
   const isValid = unitName.trim().length > 0;
+  const habitType: HabitType = creationMode === "time" ? "time" : "count";
 
   const capitalizeWords = (str: string) => {
     return str
@@ -61,47 +66,81 @@ export default function NewHabitScreen() {
       .join(" ");
   };
 
+  const handleModeChange = useCallback((mode: CreationMode) => {
+    setCreationMode(mode);
+    setUnitName("");
+    setDailyGoal("5");
+    setTapIncrement("1");
+    setHasManuallySetIcon(false);
+    setHasManuallySetColor(false);
+    const suggestion = suggestIconAndColor("");
+    setSelectedIcon(suggestion.icon);
+    setSelectedColor(suggestion.color);
+  }, []);
+
   const handleCreate = useCallback(async () => {
     if (!isValid || isSubmitting) return;
 
     const habitName = capitalizeWords(unitName.trim());
     
-    const existingHabit = habits.find(
-      (h) => h.name.toLowerCase() === habitName.toLowerCase()
-    );
-    if (existingHabit) {
-      Alert.alert("Duplicate", `You already have a habit for "${habitName}".`);
-      return;
-    }
+    if (creationMode === "bad") {
+      const existingBadHabit = badHabits.find(
+        (h) => h.name.toLowerCase() === habitName.toLowerCase()
+      );
+      if (existingBadHabit) {
+        Alert.alert("Duplicate", `You already have a bad habit named "${habitName}".`);
+        return;
+      }
 
-    if (!canAddHabit()) {
-      Alert.alert("Limit Reached", "Free tier allows 3 habits. Upgrade to Pro for unlimited habits.");
-      return;
-    }
+      setIsSubmitting(true);
+      try {
+        await addBadHabit(habitName);
+        navigation.goBack();
+      } catch (error) {
+        Alert.alert("Error", "Failed to create bad habit. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      const existingHabit = habits.find(
+        (h) => h.name.toLowerCase() === habitName.toLowerCase()
+      );
+      if (existingHabit) {
+        Alert.alert("Duplicate", `You already have a habit for "${habitName}".`);
+        return;
+      }
 
-    setIsSubmitting(true);
+      if (!canAddHabit()) {
+        Alert.alert("Limit Reached", "Free tier allows 3 habits. Upgrade to Pro for unlimited habits.");
+        return;
+      }
 
-    try {
-      await addHabit({
-        name: habitName,
-        icon: selectedIcon,
-        color: selectedColor,
-        unitName: unitName.trim(),
-        dailyGoal: parseInt(dailyGoal) || 5,
-        tapIncrement: parseInt(tapIncrement) || 1,
-        habitType,
-      });
+      setIsSubmitting(true);
 
-      navigation.goBack();
-    } catch (error) {
-      Alert.alert("Error", "Failed to create habit. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      try {
+        await addHabit({
+          name: habitName,
+          icon: selectedIcon,
+          color: selectedColor,
+          unitName: unitName.trim(),
+          dailyGoal: parseInt(dailyGoal) || 5,
+          tapIncrement: parseInt(tapIncrement) || 1,
+          habitType,
+        });
+
+        navigation.goBack();
+      } catch (error) {
+        Alert.alert("Error", "Failed to create habit. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   }, [
     isValid,
     isSubmitting,
+    creationMode,
     habits,
+    badHabits,
     unitName,
     dailyGoal,
     tapIncrement,
@@ -109,6 +148,7 @@ export default function NewHabitScreen() {
     selectedIcon,
     selectedColor,
     addHabit,
+    addBadHabit,
     canAddHabit,
     navigation,
   ]);
@@ -156,37 +196,54 @@ export default function NewHabitScreen() {
         </ThemedText>
         <View style={styles.typeToggle}>
           <Pressable
-            onPress={() => setHabitType("count")}
+            onPress={() => handleModeChange("count")}
             style={[
               styles.typeButton,
               {
-                backgroundColor: habitType === "count" ? theme.link : theme.backgroundDefault,
+                backgroundColor: creationMode === "count" ? theme.link : theme.backgroundDefault,
               },
             ]}
           >
-            <Feather name="hash" size={18} color={habitType === "count" ? "#fff" : theme.text} />
+            <Feather name="hash" size={18} color={creationMode === "count" ? theme.buttonText : theme.text} />
             <ThemedText
               type="body"
-              style={{ color: habitType === "count" ? "#fff" : theme.text, marginLeft: Spacing.xs }}
+              style={{ color: creationMode === "count" ? theme.buttonText : theme.text, marginLeft: Spacing.xs }}
             >
               Count
             </ThemedText>
           </Pressable>
           <Pressable
-            onPress={() => setHabitType("time")}
+            onPress={() => handleModeChange("time")}
             style={[
               styles.typeButton,
               {
-                backgroundColor: habitType === "time" ? theme.link : theme.backgroundDefault,
+                backgroundColor: creationMode === "time" ? theme.link : theme.backgroundDefault,
               },
             ]}
           >
-            <Feather name="clock" size={18} color={habitType === "time" ? "#fff" : theme.text} />
+            <Feather name="clock" size={18} color={creationMode === "time" ? theme.buttonText : theme.text} />
             <ThemedText
               type="body"
-              style={{ color: habitType === "time" ? "#fff" : theme.text, marginLeft: Spacing.xs }}
+              style={{ color: creationMode === "time" ? theme.buttonText : theme.text, marginLeft: Spacing.xs }}
             >
               Time
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => handleModeChange("bad")}
+            style={[
+              styles.typeButton,
+              {
+                backgroundColor: creationMode === "bad" ? theme.danger : theme.backgroundDefault,
+              },
+            ]}
+          >
+            <Feather name="x-circle" size={18} color={creationMode === "bad" ? theme.buttonText : theme.text} />
+            <ThemedText
+              type="body"
+              style={{ color: creationMode === "bad" ? theme.buttonText : theme.text, marginLeft: Spacing.xs }}
+            >
+              Bad
             </ThemedText>
           </Pressable>
         </View>
@@ -194,12 +251,22 @@ export default function NewHabitScreen() {
 
       <View style={styles.inputGroup}>
         <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          {habitType === "time" ? "What are you timing?" : "What are you counting?"}
+          {creationMode === "bad" 
+            ? "What bad habit are you avoiding?" 
+            : creationMode === "time" 
+              ? "What are you timing?" 
+              : "What are you counting?"}
         </ThemedText>
         <TextInput
           value={unitName}
           onChangeText={handleUnitNameChange}
-          placeholder={habitType === "time" ? "e.g., reading, meditation, exercise" : "e.g., push ups, pages, glasses of water"}
+          placeholder={
+            creationMode === "bad" 
+              ? "e.g., soda, social media, snacking" 
+              : creationMode === "time" 
+                ? "e.g., reading, meditation, exercise" 
+                : "e.g., push ups, pages, glasses of water"
+          }
           placeholderTextColor={theme.textSecondary}
           style={[
             styles.input,
@@ -210,148 +277,221 @@ export default function NewHabitScreen() {
           ]}
           autoFocus
         />
-        {habitType === "time" ? (
+        {creationMode === "time" ? (
           <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
             Time habits track minutes and glow brighter
+          </ThemedText>
+        ) : creationMode === "bad" ? (
+          <ThemedText type="small" style={{ color: theme.danger, marginTop: Spacing.xs }}>
+            Each tap deducts 5% from your daily progress
           </ThemedText>
         ) : null}
       </View>
 
-      <View style={styles.inputGroup}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Daily goal
-        </ThemedText>
-        <View style={styles.goalRow}>
-          <Pressable
-            onPress={() => setDailyGoal(String(Math.max(1, parseInt(dailyGoal) - 1)))}
-            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-          >
-            <Feather name="minus" size={20} color={theme.text} />
-          </Pressable>
-          <TextInput
-            value={dailyGoal}
-            onChangeText={setDailyGoal}
-            keyboardType="number-pad"
-            style={[
-              styles.goalInput,
-              {
-                backgroundColor: theme.backgroundDefault,
-                color: theme.text,
-              },
-            ]}
-          />
-          <Pressable
-            onPress={() => setDailyGoal(String(parseInt(dailyGoal) + 1))}
-            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-          >
-            <Feather name="plus" size={20} color={theme.text} />
-          </Pressable>
-          <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-            {habitType === "time" ? "minutes" : unitName || "units"} per day
-          </ThemedText>
-        </View>
-      </View>
+      {creationMode !== "bad" ? (
+        <>
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+              Daily goal
+            </ThemedText>
+            <View style={styles.goalRow}>
+              <Pressable
+                onPress={() => setDailyGoal(String(Math.max(1, parseInt(dailyGoal) - 1)))}
+                style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+              >
+                <Feather name="minus" size={20} color={theme.text} />
+              </Pressable>
+              <TextInput
+                value={dailyGoal}
+                onChangeText={setDailyGoal}
+                keyboardType="number-pad"
+                style={[
+                  styles.goalInput,
+                  {
+                    backgroundColor: theme.backgroundDefault,
+                    color: theme.text,
+                  },
+                ]}
+              />
+              <Pressable
+                onPress={() => setDailyGoal(String(parseInt(dailyGoal) + 1))}
+                style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+              >
+                <Feather name="plus" size={20} color={theme.text} />
+              </Pressable>
+              <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+                {creationMode === "time" ? "minutes" : unitName || "units"} per day
+              </ThemedText>
+            </View>
+          </View>
 
-      <View style={styles.inputGroup}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Add per tap
-        </ThemedText>
-        <View style={styles.goalRow}>
-          <Pressable
-            onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
-            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-          >
-            <Feather name="minus" size={20} color={theme.text} />
-          </Pressable>
-          <TextInput
-            value={tapIncrement}
-            onChangeText={setTapIncrement}
-            keyboardType="number-pad"
-            style={[
-              styles.goalInput,
-              {
-                backgroundColor: theme.backgroundDefault,
-                color: theme.text,
-              },
-            ]}
-          />
-          <Pressable
-            onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
-            style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
-          >
-            <Feather name="plus" size={20} color={theme.text} />
-          </Pressable>
-          <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-            {habitType === "time" ? "min" : unitName || "units"} per tap
-          </ThemedText>
-        </View>
-      </View>
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+              Add per tap
+            </ThemedText>
+            <View style={styles.goalRow}>
+              <Pressable
+                onPress={() => setTapIncrement(String(Math.max(1, parseInt(tapIncrement) - 1)))}
+                style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+              >
+                <Feather name="minus" size={20} color={theme.text} />
+              </Pressable>
+              <TextInput
+                value={tapIncrement}
+                onChangeText={setTapIncrement}
+                keyboardType="number-pad"
+                style={[
+                  styles.goalInput,
+                  {
+                    backgroundColor: theme.backgroundDefault,
+                    color: theme.text,
+                  },
+                ]}
+              />
+              <Pressable
+                onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
+                style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+              >
+                <Feather name="plus" size={20} color={theme.text} />
+              </Pressable>
+              <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
+                {creationMode === "time" ? "min" : unitName || "units"} per tap
+              </ThemedText>
+            </View>
+          </View>
 
-      <View style={styles.inputGroup}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Pick an icon
-        </ThemedText>
-        <ScrollView 
-          horizontal={false} 
-          style={styles.iconScrollView}
-          contentContainerStyle={styles.iconGrid}
-          showsVerticalScrollIndicator={false}
-        >
-          {HABIT_ICONS.map((icon) => (
-            <Pressable
-              key={icon}
-              onPress={() => handleIconSelect(icon)}
-              style={[
-                styles.iconOption,
-                {
-                  backgroundColor: selectedIcon === icon ? selectedColor + "30" : theme.backgroundDefault,
-                  borderColor: selectedIcon === icon ? selectedColor : "transparent",
-                },
-              ]}
-            >
-              <Feather name={icon as any} size={22} color={selectedIcon === icon ? selectedColor : theme.textSecondary} />
+          <View style={styles.inputGroup}>
+            <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
+              Icon & Color (auto-assigned)
+            </ThemedText>
+            <View style={styles.customizeRow}>
+              <Pressable
+                onPress={() => setShowIconPicker(true)}
+                style={[styles.customizeButton, { backgroundColor: selectedColor + "20", borderColor: selectedColor }]}
+              >
+                <Feather name={selectedIcon as any} size={24} color={selectedColor} />
+                <View style={styles.editBadge}>
+                  <Feather name="edit-2" size={10} color={theme.buttonText} />
+                </View>
+              </Pressable>
+              <Pressable
+                onPress={() => setShowColorPicker(true)}
+                style={[styles.customizeButton, { backgroundColor: selectedColor }]}
+              >
+                <View style={styles.editBadge}>
+                  <Feather name="edit-2" size={10} color={theme.buttonText} />
+                </View>
+              </Pressable>
+              <ThemedText type="small" style={{ color: theme.textSecondary, marginLeft: Spacing.md, flex: 1 }}>
+                Tap to change
+              </ThemedText>
+            </View>
+          </View>
+
+          <View style={[styles.preview, { backgroundColor: selectedColor + "20", borderColor: selectedColor + "40" }]}>
+            <View style={styles.previewRow}>
+              <View style={[styles.previewIcon, { backgroundColor: selectedColor + "30" }]}>
+                <Feather name={selectedIcon as any} size={24} color={selectedColor} />
+              </View>
+              <View style={styles.previewText}>
+                <ThemedText type="body" style={{ fontWeight: "600" }}>
+                  {capitalizeWords(unitName) || "Your Habit"}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Goal: {dailyGoal} {creationMode === "time" ? "min" : unitName || "units"}/day | +{tapIncrement} {creationMode === "time" ? "min" : unitName || "units"} per tap
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        </>
+      ) : (
+        <View style={[styles.preview, { backgroundColor: theme.dangerLight, borderColor: theme.danger }]}>
+          <View style={styles.previewRow}>
+            <View style={[styles.previewIcon, { backgroundColor: theme.dangerLight }]}>
+              <Feather name="x-circle" size={24} color={theme.danger} />
+            </View>
+            <View style={styles.previewText}>
+              <ThemedText type="body" style={{ fontWeight: "600" }}>
+                {capitalizeWords(unitName) || "Your Bad Habit"}
+              </ThemedText>
+              <ThemedText type="small" style={{ color: theme.danger }}>
+                -5% penalty per tap
+              </ThemedText>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <Modal
+        visible={showIconPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowIconPicker(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.backgroundRoot }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+            <ThemedText type="body" style={{ fontWeight: "600", fontSize: 18 }}>Pick an Icon</ThemedText>
+            <Pressable onPress={() => setShowIconPicker(false)}>
+              <Feather name="x" size={24} color={theme.text} />
             </Pressable>
-          ))}
-        </ScrollView>
-      </View>
-
-      <View style={styles.inputGroup}>
-        <ThemedText type="small" style={[styles.label, { color: theme.textSecondary }]}>
-          Pick a color
-        </ThemedText>
-        <View style={styles.colorGrid}>
-          {HABIT_COLORS.map((color) => (
-            <Pressable
-              key={color}
-              onPress={() => handleColorSelect(color)}
-              style={[
-                styles.colorOption,
-                {
-                  backgroundColor: color,
-                  borderColor: selectedColor === color ? theme.text : "transparent",
-                  borderWidth: selectedColor === color ? 3 : 0,
-                },
-              ]}
-            />
-          ))}
-        </View>
-      </View>
-
-      <View style={[styles.preview, { backgroundColor: selectedColor + "20", borderColor: selectedColor + "40" }]}>
-        <View style={styles.previewRow}>
-          <View style={[styles.previewIcon, { backgroundColor: selectedColor + "30" }]}>
-            <Feather name={selectedIcon as any} size={24} color={selectedColor} />
           </View>
-          <View style={styles.previewText}>
-            <ThemedText type="body" style={{ fontWeight: "600" }}>
-              {capitalizeWords(unitName) || "Your Habit"}
-            </ThemedText>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Goal: {dailyGoal} {habitType === "time" ? "min" : unitName || "units"}/day | +{tapIncrement} {habitType === "time" ? "min" : unitName || "units"} per tap
-            </ThemedText>
+          <ScrollView contentContainerStyle={styles.pickerGrid}>
+            {HABIT_ICONS.map((icon) => (
+              <Pressable
+                key={icon}
+                onPress={() => {
+                  handleIconSelect(icon);
+                  setShowIconPicker(false);
+                }}
+                style={[
+                  styles.iconOption,
+                  {
+                    backgroundColor: selectedIcon === icon ? selectedColor + "30" : theme.backgroundDefault,
+                    borderColor: selectedIcon === icon ? selectedColor : "transparent",
+                  },
+                ]}
+              >
+                <Feather name={icon as any} size={22} color={selectedIcon === icon ? selectedColor : theme.textSecondary} />
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showColorPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowColorPicker(false)}
+      >
+        <View style={[styles.modalContainer, { backgroundColor: theme.backgroundRoot }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+            <ThemedText type="body" style={{ fontWeight: "600", fontSize: 18 }}>Pick a Color</ThemedText>
+            <Pressable onPress={() => setShowColorPicker(false)}>
+              <Feather name="x" size={24} color={theme.text} />
+            </Pressable>
+          </View>
+          <View style={styles.pickerGrid}>
+            {HABIT_COLORS.map((color) => (
+              <Pressable
+                key={color}
+                onPress={() => {
+                  handleColorSelect(color);
+                  setShowColorPicker(false);
+                }}
+                style={[
+                  styles.colorOptionLarge,
+                  {
+                    backgroundColor: color,
+                    borderColor: selectedColor === color ? theme.text : "transparent",
+                    borderWidth: selectedColor === color ? 3 : 0,
+                  },
+                ]}
+              />
+            ))}
           </View>
         </View>
-      </View>
+      </Modal>
     </KeyboardAwareScrollViewCompat>
   );
 }
@@ -434,6 +574,36 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
   },
+  colorOptionLarge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  customizeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  customizeButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    position: "relative",
+  },
+  editBadge: {
+    position: "absolute",
+    bottom: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: "#007AFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   preview: {
     padding: Spacing.lg,
     borderRadius: 16,
@@ -454,5 +624,21 @@ const styles = StyleSheet.create({
   },
   previewText: {
     flex: 1,
+  },
+  modalContainer: {
+    flex: 1,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: Spacing.lg,
+    borderBottomWidth: 1,
+  },
+  pickerGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.sm,
+    padding: Spacing.lg,
   },
 });
