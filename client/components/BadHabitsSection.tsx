@@ -10,23 +10,28 @@ import { BadHabit } from "@/lib/storage";
 
 interface BadHabitRowProps {
   badHabit: BadHabit;
-  todayTaps: number;
+  hasTappedToday: boolean;
   onTap: () => void;
   onUndo: () => void;
   onDelete: () => void;
 }
 
-function BadHabitRow({ badHabit, todayTaps, onTap, onUndo, onDelete }: BadHabitRowProps) {
+function BadHabitRow({ badHabit, hasTappedToday, onTap, onUndo, onDelete }: BadHabitRowProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
-  const isActive = todayTaps > 0;
 
   const handlePress = useCallback(() => {
+    if (hasTappedToday) return;
     scale.value = withSpring(0.95, { damping: 15 }, () => {
       scale.value = withSpring(1, { damping: 12 });
     });
     onTap();
-  }, [onTap, scale]);
+  }, [onTap, scale, hasTappedToday]);
+
+  const handleUndoPress = useCallback((e: any) => {
+    e.stopPropagation();
+    onUndo();
+  }, [onUndo]);
 
   const handleLongPress = useCallback(() => {
     Alert.alert(
@@ -43,9 +48,9 @@ function BadHabitRow({ badHabit, todayTaps, onTap, onUndo, onDelete }: BadHabitR
     transform: [{ scale: scale.value }],
   }));
 
-  const backgroundColor = isActive ? theme.dangerLight : theme.successLight;
-  const borderColor = isActive ? theme.danger : theme.success;
-  const textColor = isActive ? theme.danger : theme.success;
+  const backgroundColor = hasTappedToday ? theme.dangerLight : theme.successLight;
+  const borderColor = hasTappedToday ? theme.danger : theme.success;
+  const textColor = hasTappedToday ? theme.danger : theme.success;
 
   return (
     <Animated.View style={animatedStyle}>
@@ -63,26 +68,34 @@ function BadHabitRow({ badHabit, todayTaps, onTap, onUndo, onDelete }: BadHabitR
       >
         <View style={styles.badHabitContent}>
           <Feather 
-            name={isActive ? "x-circle" : "check-circle"} 
+            name={hasTappedToday ? "x-circle" : "check-circle"} 
             size={20} 
             color={textColor} 
           />
-          <ThemedText type="body" style={[styles.badHabitName, { color: textColor }]}>
-            {badHabit.name}
-          </ThemedText>
+          <View style={styles.nameContainer}>
+            <ThemedText type="body" style={[styles.badHabitName, { color: textColor }]}>
+              {badHabit.name}
+            </ThemedText>
+            {!hasTappedToday ? (
+              <ThemedText type="small" style={{ color: theme.success, opacity: 0.8 }}>
+                Resisted today
+              </ThemedText>
+            ) : null}
+          </View>
         </View>
         <View style={styles.rightContent}>
-          {todayTaps > 0 ? (
+          {hasTappedToday ? (
             <>
               <Pressable
-                onPress={onUndo}
+                onPress={handleUndoPress}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 style={[styles.undoButton, { backgroundColor: theme.backgroundDefault }]}
               >
                 <Feather name="rotate-ccw" size={14} color={theme.textSecondary} />
               </Pressable>
               <View style={[styles.tapCount, { backgroundColor: theme.danger }]}>
                 <ThemedText type="small" style={{ color: theme.buttonText, fontWeight: "600" }}>
-                  -{todayTaps * 5}%
+                  -5% failed
                 </ThemedText>
               </View>
             </>
@@ -119,7 +132,7 @@ export function BadHabitsSection() {
           <Animated.View key={badHabit.id} entering={FadeInDown.delay(100 + index * 50)}>
             <BadHabitRow
               badHabit={badHabit}
-              todayTaps={getTodayBadHabitTaps(badHabit.id)}
+              hasTappedToday={getTodayBadHabitTaps(badHabit.id) > 0}
               onTap={() => tapBadHabit(badHabit.id)}
               onUndo={() => undoBadHabitTap(badHabit.id)}
               onDelete={() => deleteBadHabit(badHabit.id)}
@@ -159,6 +172,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
+    flex: 1,
+  },
+  nameContainer: {
     flex: 1,
   },
   badHabitName: {
