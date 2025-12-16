@@ -86,18 +86,21 @@ function BadHabitRow({ badHabit, hasTappedToday, onTap, onUndo, onDelete }: BadH
         <View style={styles.rightContent}>
           {hasTappedToday ? (
             <>
-              <Pressable
-                onPress={handleUndoPress}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                style={[styles.undoButton, { backgroundColor: theme.backgroundDefault }]}
-              >
-                <Feather name="rotate-ccw" size={14} color={theme.textSecondary} />
-              </Pressable>
-              <View style={[styles.tapCount, { backgroundColor: theme.danger }]}>
+              <View style={[styles.failedBadge, { backgroundColor: theme.danger }]}>
                 <ThemedText type="small" style={{ color: theme.buttonText, fontWeight: "600" }}>
-                  -5% failed
+                  -5%
                 </ThemedText>
               </View>
+              <Pressable
+                onPress={handleUndoPress}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={[styles.undoButton, { backgroundColor: theme.backgroundDefault, borderColor: theme.textSecondary }]}
+              >
+                <Feather name="rotate-ccw" size={16} color={theme.text} />
+                <ThemedText type="small" style={{ color: theme.text, fontWeight: "500" }}>
+                  Undo
+                </ThemedText>
+              </Pressable>
             </>
           ) : null}
         </View>
@@ -186,13 +189,16 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   undoButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  tapCount: {
+  failedBadge: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: 8,
