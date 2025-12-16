@@ -283,7 +283,7 @@ export default function NewHabitScreen() {
           </ThemedText>
         ) : creationMode === "bad" ? (
           <ThemedText type="small" style={{ color: theme.danger, marginTop: Spacing.xs }}>
-            Each tap deducts 5% from your daily progress
+            Each tap deducts 10% from your daily progress
           </ThemedText>
         ) : null}
       </View>
@@ -415,7 +415,7 @@ export default function NewHabitScreen() {
                 {capitalizeWords(unitName) || "Your Bad Habit"}
               </ThemedText>
               <ThemedText type="small" style={{ color: theme.danger }}>
-                -5% penalty per tap
+                -10% penalty per tap
               </ThemedText>
             </View>
           </View>

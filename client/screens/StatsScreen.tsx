@@ -373,7 +373,7 @@ export default function StatsScreen() {
                 : dailyImprovement.allGoalsMet 
                 ? "All goals met - 1% better"
                 : dailyImprovement.hasBadHabits
-                ? `${dailyImprovement.penaltyPercent}% penalty applied${dailyImprovement.rawAllGoalsMet ? " (goals were met)" : ""}`
+                ? "Penalty applied - keep adding units to recover"
                 : `${dailyImprovement.todayTotal} units today vs ${dailyImprovement.yesterdayTotal} yesterday`}
             </ThemedText>
           </View>

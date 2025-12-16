@@ -396,28 +396,41 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       });
       
       const totalLoggedUnits = habitUnitsAvailable.reduce((sum, h) => sum + h.available, 0);
-      const targetPenalty = Math.max(1, Math.round(totalLoggedUnits * 0.10));
-      const actualPenalty = Math.min(targetPenalty, totalLoggedUnits);
+      const targetPenalty = Math.floor(totalLoggedUnits * 0.10);
       
-      if (actualPenalty > 0 && totalLoggedUnits > 0) {
+      if (targetPenalty > 0 && totalLoggedUnits > 0) {
         const habitsWithUnits = habitUnitsAvailable.filter((h) => h.available > 0);
+        let remainingPenalty = targetPenalty;
         
-        for (let i = 0; i < habitsWithUnits.length; i++) {
-          const { habit, available } = habitsWithUnits[i];
+        // Distribute penalty proportionally without over-allocating
+        const shares: { habit: typeof habitsWithUnits[0]["habit"]; share: number }[] = [];
+        for (const { habit, available } of habitsWithUnits) {
           const proportion = available / totalLoggedUnits;
-          const share = Math.max(1, Math.round(actualPenalty * proportion));
-          const actualShare = Math.min(share, available);
-          
-          if (actualShare > 0) {
+          const share = Math.min(Math.floor(targetPenalty * proportion), available);
+          shares.push({ habit, share });
+          remainingPenalty -= share;
+        }
+        
+        // Distribute any remaining penalty to habits with available units
+        for (let i = 0; i < shares.length && remainingPenalty > 0; i++) {
+          const habitData = habitsWithUnits.find(h => h.habit.id === shares[i].habit.id);
+          if (habitData && shares[i].share < habitData.available) {
+            shares[i].share++;
+            remainingPenalty--;
+          }
+        }
+        
+        for (const { habit, share } of shares) {
+          if (share > 0) {
             const penaltyLog: UnitLog = {
               id: generateId(),
               habitId: habit.id,
-              count: -actualShare,
+              count: -share,
               date: today,
               createdAt: new Date().toISOString(),
             };
             updatedLogs.push(penaltyLog);
-            penaltyAdjustments.push({ habitId: habit.id, unitsRemoved: actualShare });
+            penaltyAdjustments.push({ habitId: habit.id, unitsRemoved: share });
           }
         }
         
@@ -532,7 +545,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     }
     
     const basePercent = (totalProgress / activeHabits.length) * 100;
-    const finalPercent = Math.min(100, Math.max(0, basePercent - penaltyPercent));
+    // Units are already deducted from logs when bad habit is tapped, so just use basePercent
+    // No need to subtract penaltyPercent again - that would be double-counting
+    const finalPercent = Math.min(100, Math.max(0, basePercent));
     
     let improvementPercent = 0;
     if (rawAllGoalsMet && !hasBadHabits) {
