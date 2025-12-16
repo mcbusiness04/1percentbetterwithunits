@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useCallback } from "react";
 import { View, ScrollView, StyleSheet, Pressable, Dimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -31,11 +31,12 @@ export default function StatsScreen() {
     [habits]
   );
 
-  const getDateString = (daysAgo: number) => {
-    const date = new Date();
+  const getDateString = useCallback((daysAgo: number) => {
+    const [year, month, day] = currentDate.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() - daysAgo);
     return date.toISOString().split("T")[0];
-  };
+  }, [currentDate]);
 
   const getDayStats = useMemo(() => {
     return (dateStr: string) => {
@@ -81,14 +82,16 @@ export default function StatsScreen() {
     const weekDelta = weekTotal - lastWeekTotal;
     
     let streak = 0;
-    for (let i = 0; i < 365; i++) {
+    for (let i = 1; i < 365; i++) {
       const dayStats = getDayStats(getDateString(i));
+      if (dayStats.totalGoal === 0) continue;
       if (dayStats.isGoodDay) {
         streak++;
-      } else if (i > 0) {
+      } else {
         break;
       }
     }
+    if (today.isGoodDay) streak++;
     
     let perfectDays = 0;
     for (let i = 0; i < 30; i++) {
@@ -101,7 +104,7 @@ export default function StatsScreen() {
       streak,
       perfectDays,
     };
-  }, [getDayStats, currentDate]);
+  }, [getDayStats, currentDate, getDateString]);
 
   const totalImprovement = useMemo(() => {
     let totalUnits = 0;
@@ -138,7 +141,7 @@ export default function StatsScreen() {
     }
     
     return { percent, isPositive, message, goodDays, trackedDays };
-  }, [getDayStats]);
+  }, [getDayStats, getDateString]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365;
@@ -159,7 +162,7 @@ export default function StatsScreen() {
     const totalUnits = data.reduce((sum, d) => sum + d.total, 0);
     
     return { data, goodDays, totalDays, successRate, totalUnits };
-  }, [timeRange, getDayStats]);
+  }, [timeRange, getDayStats, getDateString]);
 
   const habitStats = useMemo(() => {
     return activeHabits.map((habit) => {
@@ -387,12 +390,6 @@ export default function StatsScreen() {
                 <ThemedText type="small" style={{ color: theme.textSecondary }}>week</ThemedText>
               </View>
               <View style={styles.habitStatItem}>
-                <ThemedText type="body" style={{ fontWeight: "600", color: stat.daysGoalMet >= 5 ? GREEN : theme.text }}>
-                  {stat.daysGoalMet}/7
-                </ThemedText>
-                <ThemedText type="small" style={{ color: theme.textSecondary }}>goals</ThemedText>
-              </View>
-              <View style={styles.habitStatItem}>
                 <ThemedText type="body" style={{ fontWeight: "600", color: GOLD }}>{stat.bestDay}</ThemedText>
                 <ThemedText type="small" style={{ color: theme.textSecondary }}>best</ThemedText>
               </View>
@@ -476,13 +473,16 @@ const styles = StyleSheet.create({
   trendChart: {
     flexDirection: "row",
     alignItems: "flex-end",
+    minHeight: 60,
     height: 60,
-    gap: 2,
+    gap: 1,
+    overflow: "hidden",
   },
   trendBar: {
     flex: 1,
-    borderRadius: 2,
-    minWidth: 2,
+    borderRadius: 1,
+    minWidth: 1,
+    maxWidth: 12,
   },
   sectionTitle: {
     marginBottom: Spacing.md,
