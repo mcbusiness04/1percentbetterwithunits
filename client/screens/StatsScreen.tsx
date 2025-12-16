@@ -103,6 +103,43 @@ export default function StatsScreen() {
     };
   }, [getDayStats, currentDate]);
 
+  const totalImprovement = useMemo(() => {
+    let totalUnits = 0;
+    let totalGoals = 0;
+    let goodDays = 0;
+    let trackedDays = 0;
+    
+    for (let i = 0; i < 30; i++) {
+      const stats = getDayStats(getDateString(i));
+      if (stats.totalGoal > 0) {
+        totalUnits += stats.total;
+        totalGoals += stats.totalGoal;
+        trackedDays++;
+        if (stats.isGoodDay) goodDays++;
+      }
+    }
+    
+    const percent = totalGoals > 0 ? Math.round(((totalUnits - totalGoals) / totalGoals) * 100) : 0;
+    const isPositive = percent >= 0;
+    
+    let message = "";
+    if (trackedDays === 0) {
+      message = "Start tracking to see progress!";
+    } else if (percent >= 50) {
+      message = "You're crushing it!";
+    } else if (percent >= 20) {
+      message = "Amazing progress!";
+    } else if (percent >= 0) {
+      message = "On track!";
+    } else if (percent >= -20) {
+      message = "Almost there, keep going!";
+    } else {
+      message = "Time to bounce back!";
+    }
+    
+    return { percent, isPositive, message, goodDays, trackedDays };
+  }, [getDayStats]);
+
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365;
     const data: { isGood: boolean; total: number; goal: number }[] = [];
@@ -165,7 +202,34 @@ export default function StatsScreen() {
       ]}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
-      <Animated.View entering={FadeIn} style={styles.overviewGrid}>
+      <Animated.View 
+        entering={FadeIn} 
+        style={[
+          styles.heroCard, 
+          { backgroundColor: totalImprovement.isPositive ? GREEN + "15" : RED + "15" }
+        ]}
+      >
+        <View style={styles.heroContent}>
+          <ThemedText 
+            type="h1" 
+            style={{ 
+              color: totalImprovement.isPositive ? GREEN : RED,
+              fontSize: 48,
+              fontWeight: "700",
+            }}
+          >
+            {totalImprovement.isPositive ? "+" : ""}{totalImprovement.percent}%
+          </ThemedText>
+          <ThemedText type="body" style={{ color: totalImprovement.isPositive ? GREEN : RED, fontWeight: "600" }}>
+            {totalImprovement.message}
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: 4 }}>
+            {totalImprovement.goodDays} perfect days out of {totalImprovement.trackedDays}
+          </ThemedText>
+        </View>
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(50)} style={styles.overviewGrid}>
         <View style={[styles.statBox, { backgroundColor: overviewStats.todayIsGood ? GREEN + "15" : theme.backgroundDefault }]}>
           <ThemedText type="h2" style={{ color: overviewStats.todayIsGood ? GREEN : theme.text }}>
             {overviewStats.todayTotal}
@@ -346,6 +410,15 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: Spacing.lg,
+  },
+  heroCard: {
+    padding: Spacing.xl,
+    borderRadius: 20,
+    marginBottom: Spacing.lg,
+    alignItems: "center",
+  },
+  heroContent: {
+    alignItems: "center",
   },
   overviewGrid: {
     flexDirection: "row",
