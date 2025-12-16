@@ -49,6 +49,7 @@ client/
     ColorPicker.tsx          # Color selection for habits
     StatCard.tsx             # Statistics display card
     SettingsRow.tsx          # Settings list item
+    BadHabitsSection.tsx     # Bad habits with penalty tracking
   lib/
     UnitsContext.tsx         # Global state management
     storage.ts               # AsyncStorage persistence
@@ -67,6 +68,8 @@ server/
 ### Data Models
 - **Habit**: id, name, icon, color, unitName, dailyGoal, tapIncrement, habitType ("count" | "time"), createdAt, isArchived
 - **UnitLog**: id, habitId, count, date, createdAt
+- **BadHabit**: id, name, createdAt, isArchived
+- **BadHabitLog**: id, badHabitId, count, date, createdAt
 
 ## Recent Changes
 - December 2025: Initial implementation with full feature set
@@ -100,6 +103,10 @@ server/
 - **New: Curated icons** - Self-improvement focused icons (exercise, mindfulness, productivity, nutrition, sleep)
 - **New: Time habit custom increments** - Time habits now support custom minute increments (e.g., +5 min, +10 min per tap)
 - **New: Edit button in HabitRow** - Pencil icon on each habit row for quick access to habit settings
+- **New: Bad Habits Section** - Track bad habits with green/red toggle states and 5% penalty deduction per tap
+- **New: Progress messaging** - Shows "1% better today" when goals met, or calculated percentage with penalty status
+- **New: Editable daily goals** - Stepper controls in HabitDetailScreen to adjust daily goals
+- **New: Smart icon/color suggestions** - Auto-suggests icons and colors based on habit name keywords with user override
 
 ## User Preferences
 - No emojis in the UI
