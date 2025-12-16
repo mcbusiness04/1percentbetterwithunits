@@ -110,6 +110,8 @@ server/
 - **New: 3-mode creation** - NewHabitScreen has Count, Time, and Bad Habit tabs in a single unified creation flow
 - **New: Auto-assigned appearance** - Icons and colors are automatically assigned during creation; users can edit via small edit buttons
 - **New: Simplified bad habit creation** - Bad habits created through the unified NewHabitScreen with simplified form (name only)
+- **New: Bad habit undo** - Undo button appears next to penalty badge to remove accidental taps
+- **New: Always-visible Bad Habits section** - Section shows even when empty with helpful message
 
 ## User Preferences
 - No emojis in the UI

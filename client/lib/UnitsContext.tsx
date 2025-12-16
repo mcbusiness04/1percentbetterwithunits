@@ -56,6 +56,7 @@ interface UnitsContextType {
   addBadHabit: (name: string) => Promise<boolean>;
   deleteBadHabit: (id: string) => Promise<void>;
   tapBadHabit: (badHabitId: string) => Promise<void>;
+  undoBadHabitTap: (badHabitId: string) => Promise<boolean>;
   getTodayBadHabitTaps: (badHabitId: string) => number;
   getTodayTotalPenalty: () => number;
   getDailyProgress: () => { percentage: number; allGoalsMet: boolean; hasBadHabits: boolean };
@@ -390,6 +391,21 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     }
   }, [badHabitLogs, settings.hapticsEnabled]);
 
+  const handleUndoBadHabitTap = useCallback(async (badHabitId: string): Promise<boolean> => {
+    const today = getTodayDate();
+    const todayLogs = badHabitLogs.filter((l) => l.badHabitId === badHabitId && l.date === today);
+    if (todayLogs.length === 0) return false;
+    
+    const lastLog = todayLogs[todayLogs.length - 1];
+    const updated = badHabitLogs.filter((l) => l.id !== lastLog.id);
+    setBadHabitLogs(updated);
+    await saveBadHabitLogs(updated);
+    if (settings.hapticsEnabled) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    return true;
+  }, [badHabitLogs, settings.hapticsEnabled]);
+
   const getTodayBadHabitTaps = useCallback((badHabitId: string) => {
     const today = getTodayDate();
     return badHabitLogs
@@ -464,6 +480,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         addBadHabit: handleAddBadHabit,
         deleteBadHabit: handleDeleteBadHabit,
         tapBadHabit: handleTapBadHabit,
+        undoBadHabitTap: handleUndoBadHabitTap,
         getTodayBadHabitTaps,
         getTodayTotalPenalty,
         getDailyProgress,
