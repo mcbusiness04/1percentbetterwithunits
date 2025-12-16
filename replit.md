@@ -112,6 +112,10 @@ server/
 - **New: Simplified bad habit creation** - Bad habits created through the unified NewHabitScreen with simplified form (name only)
 - **New: Bad habit undo** - Undo button appears next to penalty badge to remove accidental taps
 - **New: Always-visible Bad Habits section** - Section shows even when empty with helpful message
+- **New: Bad habit green state** - Untapped bad habits show green with "Resisted today" text to encourage positive behavior
+- **New: One-tap limit** - Bad habits can only be tapped once per day; shows "-5% failed" permanently until undone
+- **New: Actual unit removal** - Bad habit penalties remove 5% of total daily goal evenly from all habits (actual units, not just display)
+- **New: Stats improvement card** - Shows "1% better today" when goals met, "2% better" when any goal doubled, plus perfect days streak
 
 ## User Preferences
 - No emojis in the UI

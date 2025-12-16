@@ -6,6 +6,7 @@ import {
   AppSettings,
   BadHabit,
   BadHabitLog,
+  PenaltyAdjustment,
   getHabits,
   saveHabits,
   getLogs,
@@ -59,7 +60,7 @@ interface UnitsContextType {
   undoBadHabitTap: (badHabitId: string) => Promise<boolean>;
   getTodayBadHabitTaps: (badHabitId: string) => number;
   getTodayTotalPenalty: () => number;
-  getDailyProgress: () => { percentage: number; allGoalsMet: boolean; hasBadHabits: boolean };
+  getDailyProgress: () => { percentage: number; allGoalsMet: boolean; hasBadHabits: boolean; improvementPercent: number; hasDoubledGoal: boolean };
   
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   setIsPro: (isPro: boolean) => Promise<void>;
@@ -376,47 +377,124 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const handleTapBadHabit = useCallback(async (badHabitId: string) => {
     const today = getTodayDate();
+    
+    const alreadyTappedToday = badHabitLogs.some(
+      (l) => l.badHabitId === badHabitId && l.date === today && !l.isUndone
+    );
+    if (alreadyTappedToday) return;
+    
+    const activeHabits = habits.filter((h) => !h.isArchived);
+    const penaltyAdjustments: PenaltyAdjustment[] = [];
+    let updatedLogs = [...logs];
+    
+    if (activeHabits.length > 0) {
+      const totalDailyGoal = activeHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
+      const targetPenalty = Math.max(1, Math.round(totalDailyGoal * 0.05));
+      
+      const habitUnitsAvailable = activeHabits.map((habit) => {
+        const todayUnits = logs
+          .filter((l) => l.habitId === habit.id && l.date === today)
+          .reduce((sum, l) => sum + l.count, 0);
+        return { habit, available: Math.max(0, todayUnits) };
+      });
+      
+      const totalAvailable = habitUnitsAvailable.reduce((sum, h) => sum + h.available, 0);
+      const actualPenalty = Math.min(targetPenalty, totalAvailable);
+      
+      if (actualPenalty > 0) {
+        let remaining = actualPenalty;
+        const habitsWithUnits = habitUnitsAvailable.filter((h) => h.available > 0);
+        
+        for (let i = 0; i < habitsWithUnits.length && remaining > 0; i++) {
+          const { habit, available } = habitsWithUnits[i];
+          const isLast = i === habitsWithUnits.length - 1;
+          const share = isLast 
+            ? remaining 
+            : Math.min(Math.ceil(actualPenalty / habitsWithUnits.length), available, remaining);
+          
+          if (share > 0) {
+            const penaltyLog: UnitLog = {
+              id: generateId(),
+              habitId: habit.id,
+              count: -share,
+              date: today,
+              createdAt: new Date().toISOString(),
+            };
+            updatedLogs.push(penaltyLog);
+            penaltyAdjustments.push({ habitId: habit.id, unitsRemoved: share });
+            remaining -= share;
+          }
+        }
+        
+        setLogs(updatedLogs);
+        await saveLogs(updatedLogs);
+      }
+    }
+    
     const newLog: BadHabitLog = {
       id: generateId(),
       badHabitId,
       count: 1,
       date: today,
       createdAt: new Date().toISOString(),
+      penaltyAdjustments,
+      isUndone: false,
     };
-    const updated = [...badHabitLogs, newLog];
-    setBadHabitLogs(updated);
-    await saveBadHabitLogs(updated);
+    const updatedBadLogs = [...badHabitLogs, newLog];
+    setBadHabitLogs(updatedBadLogs);
+    await saveBadHabitLogs(updatedBadLogs);
+    
     if (settings.hapticsEnabled) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-  }, [badHabitLogs, settings.hapticsEnabled]);
+  }, [badHabitLogs, habits, logs, settings.hapticsEnabled]);
 
   const handleUndoBadHabitTap = useCallback(async (badHabitId: string): Promise<boolean> => {
     const today = getTodayDate();
-    const todayLogs = badHabitLogs.filter((l) => l.badHabitId === badHabitId && l.date === today);
-    if (todayLogs.length === 0) return false;
+    const todayLog = badHabitLogs.find(
+      (l) => l.badHabitId === badHabitId && l.date === today && !l.isUndone
+    );
+    if (!todayLog) return false;
     
-    const lastLog = todayLogs[todayLogs.length - 1];
-    const updated = badHabitLogs.filter((l) => l.id !== lastLog.id);
-    setBadHabitLogs(updated);
-    await saveBadHabitLogs(updated);
+    if (todayLog.penaltyAdjustments && todayLog.penaltyAdjustments.length > 0) {
+      let updatedLogs = [...logs];
+      for (const adjustment of todayLog.penaltyAdjustments) {
+        const restoreLog: UnitLog = {
+          id: generateId(),
+          habitId: adjustment.habitId,
+          count: adjustment.unitsRemoved,
+          date: today,
+          createdAt: new Date().toISOString(),
+        };
+        updatedLogs.push(restoreLog);
+      }
+      setLogs(updatedLogs);
+      await saveLogs(updatedLogs);
+    }
+    
+    const updatedBadLogs = badHabitLogs.map((l) =>
+      l.id === todayLog.id ? { ...l, isUndone: true } : l
+    );
+    setBadHabitLogs(updatedBadLogs);
+    await saveBadHabitLogs(updatedBadLogs);
+    
     if (settings.hapticsEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     return true;
-  }, [badHabitLogs, settings.hapticsEnabled]);
+  }, [badHabitLogs, logs, settings.hapticsEnabled]);
 
   const getTodayBadHabitTaps = useCallback((badHabitId: string) => {
     const today = getTodayDate();
     return badHabitLogs
-      .filter((l) => l.badHabitId === badHabitId && l.date === today)
+      .filter((l) => l.badHabitId === badHabitId && l.date === today && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
   }, [badHabitLogs]);
 
   const getTodayTotalPenalty = useCallback(() => {
     const today = getTodayDate();
     const totalBadTaps = badHabitLogs
-      .filter((l) => l.date === today)
+      .filter((l) => l.date === today && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     return totalBadTaps * 5;
   }, [badHabitLogs]);
@@ -424,18 +502,19 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   const getDailyProgress = useCallback(() => {
     const activeHabits = habits.filter((h) => !h.isArchived);
     if (activeHabits.length === 0) {
-      return { percentage: 100, allGoalsMet: true, hasBadHabits: false };
+      return { percentage: 100, allGoalsMet: true, hasBadHabits: false, improvementPercent: 0, hasDoubledGoal: false };
     }
     
     const today = getTodayDate();
     const totalBadTaps = badHabitLogs
-      .filter((l) => l.date === today)
+      .filter((l) => l.date === today && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     const hasBadHabits = totalBadTaps > 0;
     const penaltyPercent = totalBadTaps * 5;
     
     let totalProgress = 0;
     let allGoalsMet = true;
+    let hasDoubledGoal = false;
     
     for (const habit of activeHabits) {
       const todayUnits = logs
@@ -446,15 +525,25 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       if (todayUnits < habit.dailyGoal) {
         allGoalsMet = false;
       }
+      if (todayUnits >= habit.dailyGoal * 2) {
+        hasDoubledGoal = true;
+      }
     }
     
     const basePercent = (totalProgress / activeHabits.length) * 100;
     const finalPercent = Math.max(0, basePercent - penaltyPercent);
     
+    let improvementPercent = 0;
+    if (allGoalsMet && !hasBadHabits) {
+      improvementPercent = hasDoubledGoal ? 2 : 1;
+    }
+    
     return { 
       percentage: Math.round(finalPercent), 
       allGoalsMet: allGoalsMet && !hasBadHabits, 
-      hasBadHabits 
+      hasBadHabits,
+      improvementPercent,
+      hasDoubledGoal,
     };
   }, [habits, logs, badHabitLogs]);
 

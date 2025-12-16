@@ -21,7 +21,7 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, getTodayUnits, getWeekUnits, getMonthUnits, getTodayTotalUnits, getWeekTotalUnits } = useUnits();
+  const { habits, logs, getTodayUnits, getWeekUnits, getMonthUnits, getTodayTotalUnits, getWeekTotalUnits, getDailyProgress, badHabitLogs } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("daily");
 
@@ -153,6 +153,64 @@ export default function StatsScreen() {
   const chartData = timeRange === "daily" ? dailyData : timeRange === "weekly" ? weeklyData : monthlyData;
   const maxValue = Math.max(...chartData.map((d) => d.total), 1);
 
+  const dailyImprovement = useMemo(() => {
+    const { improvementPercent, hasDoubledGoal, allGoalsMet, hasBadHabits } = getDailyProgress();
+    
+    const today = new Date();
+    const daysWithGoalsMet: string[] = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      
+      const dayLogs = logs.filter((l) => l.date === dateStr);
+      const dayBadHabitLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
+      
+      const habitTotals: Record<string, number> = {};
+      dayLogs.forEach((l) => {
+        habitTotals[l.habitId] = (habitTotals[l.habitId] || 0) + l.count;
+      });
+      
+      const dayActiveHabits = activeHabits.filter((h) => {
+        const createdDate = h.createdAt.split("T")[0];
+        return createdDate <= dateStr;
+      });
+      
+      if (dayActiveHabits.length === 0) continue;
+      
+      const allMet = dayActiveHabits.every(
+        (h) => (habitTotals[h.id] || 0) >= h.dailyGoal
+      );
+      const noBadHabits = dayBadHabitLogs.length === 0;
+      
+      if (allMet && noBadHabits) {
+        daysWithGoalsMet.push(dateStr);
+      }
+    }
+    
+    let streak = 0;
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      if (daysWithGoalsMet.includes(dateStr)) {
+        streak++;
+      } else if (i > 0) {
+        break;
+      }
+    }
+    
+    return {
+      todayImprovement: improvementPercent,
+      hasDoubledGoal,
+      allGoalsMet,
+      hasBadHabits,
+      perfectDaysStreak: streak,
+      perfectDaysThisWeek: daysWithGoalsMet.length,
+    };
+  }, [getDailyProgress, logs, badHabitLogs, activeHabits]);
+
   const renderChart = () => {
     return (
       <View style={styles.chartContainer}>
@@ -245,6 +303,51 @@ export default function StatsScreen() {
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
             Day Streak
           </ThemedText>
+        </View>
+      </Animated.View>
+
+      <Animated.View
+        entering={FadeIn.delay(50)}
+        style={[styles.improvementCard, { backgroundColor: dailyImprovement.todayImprovement > 0 ? "#06D6A0" + "20" : theme.backgroundDefault }]}
+      >
+        <View style={styles.improvementHeader}>
+          <Feather 
+            name={dailyImprovement.todayImprovement > 0 ? "trending-up" : "minus"} 
+            size={24} 
+            color={dailyImprovement.todayImprovement > 0 ? "#06D6A0" : theme.textSecondary} 
+          />
+          <View style={styles.improvementTextContainer}>
+            <ThemedText type="h3" style={{ color: dailyImprovement.todayImprovement > 0 ? "#06D6A0" : theme.text }}>
+              {dailyImprovement.todayImprovement > 0 
+                ? `${dailyImprovement.todayImprovement}% better today`
+                : "Keep going"}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {dailyImprovement.hasDoubledGoal 
+                ? "Doubled a goal today - 2x bonus"
+                : dailyImprovement.allGoalsMet 
+                ? "All goals met - great work"
+                : dailyImprovement.hasBadHabits
+                ? "Bad habit penalty applied"
+                : "Complete all goals to improve"}
+            </ThemedText>
+          </View>
+        </View>
+        <View style={styles.improvementStats}>
+          <View style={styles.improvementStatItem}>
+            <ThemedText type="h4" style={{ color: dailyImprovement.perfectDaysStreak > 0 ? "#FFD700" : theme.text }}>
+              {dailyImprovement.perfectDaysStreak}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Perfect streak
+            </ThemedText>
+          </View>
+          <View style={styles.improvementStatItem}>
+            <ThemedText type="h4">{dailyImprovement.perfectDaysThisWeek}/7</ThemedText>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              This week
+            </ThemedText>
+          </View>
         </View>
       </Animated.View>
 
@@ -540,5 +643,29 @@ const styles = StyleSheet.create({
   },
   insightText: {
     flex: 1,
+  },
+  improvementCard: {
+    padding: Spacing.lg,
+    borderRadius: 20,
+    marginBottom: Spacing.lg,
+  },
+  improvementHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  improvementTextContainer: {
+    flex: 1,
+  },
+  improvementStats: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.1)",
+  },
+  improvementStatItem: {
+    alignItems: "center",
   },
 });

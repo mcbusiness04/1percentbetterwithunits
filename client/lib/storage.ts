@@ -45,12 +45,19 @@ export interface BadHabit {
   isArchived: boolean;
 }
 
+export interface PenaltyAdjustment {
+  habitId: string;
+  unitsRemoved: number;
+}
+
 export interface BadHabitLog {
   id: string;
   badHabitId: string;
   count: number;
   date: string;
   createdAt: string;
+  penaltyAdjustments?: PenaltyAdjustment[];
+  isUndone?: boolean;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
