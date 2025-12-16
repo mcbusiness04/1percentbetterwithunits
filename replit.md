@@ -107,6 +107,9 @@ server/
 - **New: Progress messaging** - Shows "1% better today" when goals met, or calculated percentage with penalty status
 - **New: Editable daily goals** - Stepper controls in HabitDetailScreen to adjust daily goals
 - **New: Smart icon/color suggestions** - Auto-suggests icons and colors based on habit name keywords with user override
+- **New: 3-mode creation** - NewHabitScreen has Count, Time, and Bad Habit tabs in a single unified creation flow
+- **New: Auto-assigned appearance** - Icons and colors are automatically assigned during creation; users can edit via small edit buttons
+- **New: Simplified bad habit creation** - Bad habits created through the unified NewHabitScreen with simplified form (name only)
 
 ## User Preferences
 - No emojis in the UI
