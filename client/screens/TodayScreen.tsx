@@ -68,13 +68,20 @@ export default function TodayScreen() {
     const todayLogs = logs.filter((l) => l.date === today);
     const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
     
+    // Aggregate units per habit first (handles positive and negative logs)
+    const habitTotals: Record<string, number> = {};
     todayLogs.forEach((log) => {
-      const habit = habits.find((h) => h.id === log.habitId);
-      if (habit) {
+      habitTotals[log.habitId] = (habitTotals[log.habitId] || 0) + log.count;
+    });
+    
+    // Create blocks based on net totals (which reflect penalties)
+    Object.entries(habitTotals).forEach(([habitId, netCount]) => {
+      const habit = habits.find((h) => h.id === habitId);
+      if (habit && netCount > 0) {
         const isTimeBlock = habit.habitType === "time";
-        for (let i = 0; i < log.count; i++) {
+        for (let i = 0; i < netCount; i++) {
           blocks.push({
-            id: `${log.id}-${i}`,
+            id: `${habitId}-${i}`,
             color: habit.color,
             isTimeBlock,
           });
