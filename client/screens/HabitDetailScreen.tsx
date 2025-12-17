@@ -361,9 +361,11 @@ export default function HabitDetailScreen() {
         <Pressable
           onPress={() => {
             const currentIncrement = habit.tapIncrement || 1;
-            if (currentIncrement < 500) {
-              updateHabit(habit.id, { tapIncrement: currentIncrement + 1 });
+            if (currentIncrement >= 500) {
+              Alert.alert("Limit Reached", "Maximum tap increment is 500.");
+              return;
             }
+            updateHabit(habit.id, { tapIncrement: currentIncrement + 1 });
           }}
           style={[styles.incrementButton, { 
             backgroundColor: theme.backgroundDefault,
@@ -373,9 +375,12 @@ export default function HabitDetailScreen() {
           <Feather name="plus" size={20} color={theme.text} />
         </Pressable>
         <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-          {habit.habitType === "time" ? "min" : habit.unitName} per tap (max 500)
+          {habit.habitType === "time" ? "min" : habit.unitName} per tap
         </ThemedText>
       </View>
+      <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.xl }}>
+        Limit 500
+      </ThemedText>
 
       <View style={styles.statsRow}>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
