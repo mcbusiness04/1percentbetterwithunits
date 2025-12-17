@@ -361,7 +361,7 @@ export default function HabitDetailScreen() {
         <Pressable
           onPress={() => {
             const currentIncrement = habit.tapIncrement || 1;
-            if (currentIncrement >= 500) {
+            if (currentIncrement > 499) {
               Alert.alert("Limit Reached", "Maximum tap increment is 500.");
               return;
             }
@@ -369,7 +369,7 @@ export default function HabitDetailScreen() {
           }}
           style={[styles.incrementButton, { 
             backgroundColor: theme.backgroundDefault,
-            opacity: (habit.tapIncrement || 1) >= 500 ? 0.5 : 1,
+            opacity: (habit.tapIncrement || 1) > 499 ? 0.5 : 1,
           }]}
         >
           <Feather name="plus" size={20} color={theme.text} />

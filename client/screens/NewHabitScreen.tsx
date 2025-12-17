@@ -363,13 +363,13 @@ export default function NewHabitScreen() {
               <Pressable
                 onPress={() => {
                   const current = parseInt(tapIncrement) || 1;
-                  if (current < 500) {
+                  if (current <= 499) {
                     setTapIncrement(String(current + 1));
                   }
                 }}
                 style={[styles.goalButton, { 
                   backgroundColor: theme.backgroundDefault,
-                  opacity: parseInt(tapIncrement) >= 500 ? 0.5 : 1,
+                  opacity: parseInt(tapIncrement) > 499 ? 0.5 : 1,
                 }]}
               >
                 <Feather name="plus" size={20} color={theme.text} />
