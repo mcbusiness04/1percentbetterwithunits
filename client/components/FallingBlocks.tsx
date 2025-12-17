@@ -2,6 +2,17 @@ import React, { useMemo, memo } from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
+import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
+import Animated, { 
+  useAnimatedStyle, 
+  withRepeat, 
+  withSequence, 
+  withTiming,
+  useSharedValue,
+  withDelay,
+} from "react-native-reanimated";
+import { useEffect } from "react";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
@@ -32,62 +43,53 @@ const BlockGrid = memo(function BlockGrid({
     const totalUnits = blocks.length;
     if (totalUnits === 0) return null;
 
-    const availableWidth = containerWidth;
-    const availableHeight = containerHeight;
-    const totalArea = availableWidth * availableHeight;
+    // Calculate optimal grid to fill container completely
+    const aspectRatio = containerWidth / containerHeight;
     
-    let areaPerUnit = totalArea / totalUnits;
-    let blockSize = Math.floor(Math.sqrt(areaPerUnit));
+    // Calculate columns and rows to fill space
+    let columns = Math.ceil(Math.sqrt(totalUnits * aspectRatio));
+    let rows = Math.ceil(totalUnits / columns);
     
-    blockSize = Math.max(1, Math.min(blockSize, 20));
-    
-    let gap = blockSize >= 6 ? 1 : 0;
-    let effectiveSize = blockSize + gap;
-    
-    let columns = Math.max(1, Math.floor(availableWidth / effectiveSize));
-    let rows = Math.max(1, Math.floor(availableHeight / effectiveSize));
-    let capacity = columns * rows;
-    
-    while (capacity < totalUnits && blockSize > 1) {
-      blockSize--;
-      gap = blockSize >= 6 ? 1 : 0;
-      effectiveSize = blockSize + gap;
-      columns = Math.max(1, Math.floor(availableWidth / effectiveSize));
-      rows = Math.max(1, Math.floor(availableHeight / effectiveSize));
-      capacity = columns * rows;
+    // Recalculate to minimize empty cells
+    while (columns * (rows - 1) >= totalUnits && rows > 1) {
+      rows--;
+    }
+    while ((columns - 1) * rows >= totalUnits && columns > 1) {
+      columns--;
     }
     
-    if (capacity < totalUnits) {
-      columns = Math.max(1, Math.floor(availableWidth / 1));
-      rows = Math.max(1, Math.floor(availableHeight / 1));
-      capacity = columns * rows;
-      blockSize = 1;
-      gap = 0;
-    }
+    // Calculate block dimensions to fill container exactly
+    const blockWidth = containerWidth / columns;
+    const blockHeight = containerHeight / rows;
     
-    const displayBlocks = blocks.slice(0, capacity);
+    // Use smaller dimension for square blocks, or stretch to fill
+    const blockSize = Math.min(blockWidth, blockHeight);
     
+    // For very large counts, use the calculated dimensions directly
+    const finalBlockWidth = Math.max(1, Math.floor(blockWidth));
+    const finalBlockHeight = Math.max(1, Math.floor(blockHeight));
+    
+    // Build grid rows
     const gridRows: { color: string; isTimeBlock: boolean }[][] = [];
-    let currentRow: { color: string; isTimeBlock: boolean }[] = [];
+    let blockIndex = 0;
     
-    displayBlocks.forEach((block) => {
-      currentRow.push({ color: block.color, isTimeBlock: !!block.isTimeBlock });
-      if (currentRow.length >= columns) {
-        gridRows.push(currentRow);
-        currentRow = [];
+    for (let r = 0; r < rows && blockIndex < totalUnits; r++) {
+      const row: { color: string; isTimeBlock: boolean }[] = [];
+      for (let c = 0; c < columns && blockIndex < totalUnits; c++) {
+        const block = blocks[blockIndex];
+        row.push({ color: block.color, isTimeBlock: !!block.isTimeBlock });
+        blockIndex++;
       }
-    });
-    if (currentRow.length > 0) {
-      gridRows.push(currentRow);
+      gridRows.push(row);
     }
     
-    return { gridRows, blockSize, gap, columns };
+    return { gridRows, blockWidth: finalBlockWidth, blockHeight: finalBlockHeight, columns };
   }, [blocks, containerWidth, containerHeight]);
 
   if (!gridData || gridData.gridRows.length === 0) return null;
 
-  const { gridRows, blockSize, gap } = gridData;
-  const borderRadius = blockSize >= 3 ? Math.max(1, Math.floor(blockSize / 4)) : 0;
+  const { gridRows, blockWidth, blockHeight } = gridData;
+  const borderRadius = Math.min(blockWidth, blockHeight) >= 3 ? 1 : 0;
 
   return (
     <View style={styles.gridWrapper}>
@@ -97,13 +99,11 @@ const BlockGrid = memo(function BlockGrid({
             <View
               key={cellIdx}
               style={{
-                width: blockSize,
-                height: blockSize,
+                width: blockWidth,
+                height: blockHeight,
                 backgroundColor: cell.color,
                 borderRadius: borderRadius,
-                marginRight: gap,
-                marginBottom: gap,
-                borderWidth: cell.isTimeBlock && blockSize >= 4 ? 1 : 0,
+                borderWidth: cell.isTimeBlock && blockWidth >= 4 ? 1 : 0,
                 borderColor: cell.isTimeBlock ? "#FFD700" : undefined,
               }}
             />
@@ -113,6 +113,51 @@ const BlockGrid = memo(function BlockGrid({
     </View>
   );
 });
+
+function OverflowBadge({ extraUnits }: { extraUnits: number }) {
+  const scale = useSharedValue(1);
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    scale.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 800 }),
+        withTiming(1, { duration: 800 })
+      ),
+      -1,
+      true
+    );
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 800 }),
+        withTiming(0.85, { duration: 800 })
+      ),
+      -1,
+      true
+    );
+  }, []);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity: opacity.value,
+  }));
+
+  return (
+    <Animated.View style={[styles.overflowBadge, animatedStyle]}>
+      <LinearGradient
+        colors={["#FFD700", "#FFA500", "#FF8C00"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.badgeGradient}
+      >
+        <Feather name="alert-circle" size={14} color="#FFF" style={styles.badgeIcon} />
+        <ThemedText style={styles.badgeText}>
+          +{extraUnits.toLocaleString()}
+        </ThemedText>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
 
 export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBlocksProps) {
   const containerWidth = propWidth || SCREEN_WIDTH - 32;
@@ -129,27 +174,39 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
     
     // Sample blocks proportionally from all habits to represent the distribution
     const sampleRatio = MAX_VISUAL_BLOCKS / totalBlocks;
-    const sampled: BlockData[] = [];
     
     // Count blocks per color to maintain proportions
-    const colorCounts: Record<string, { blocks: BlockData[]; count: number }> = {};
+    const colorGroups: Record<string, BlockData[]> = {};
     blocks.forEach((block) => {
-      if (!colorCounts[block.color]) {
-        colorCounts[block.color] = { blocks: [], count: 0 };
+      if (!colorGroups[block.color]) {
+        colorGroups[block.color] = [];
       }
-      colorCounts[block.color].blocks.push(block);
-      colorCounts[block.color].count++;
+      colorGroups[block.color].push(block);
     });
     
-    // Sample proportionally from each color
-    Object.values(colorCounts).forEach(({ blocks: colorBlocks, count }) => {
-      const sampleCount = Math.max(1, Math.round(count * sampleRatio));
-      for (let i = 0; i < sampleCount && i < colorBlocks.length; i++) {
-        sampled.push(colorBlocks[i]);
-      }
-    });
+    // Sample proportionally from each color and interleave
+    const sampled: BlockData[] = [];
+    const colors = Object.keys(colorGroups);
+    const targetCounts = colors.map(c => Math.max(1, Math.round(colorGroups[c].length * sampleRatio)));
+    const indices = colors.map(() => 0);
     
-    return sampled.slice(0, MAX_VISUAL_BLOCKS);
+    // Interleave colors for better visual distribution
+    let added = 0;
+    while (added < MAX_VISUAL_BLOCKS) {
+      let addedThisRound = false;
+      for (let i = 0; i < colors.length && added < MAX_VISUAL_BLOCKS; i++) {
+        const color = colors[i];
+        if (indices[i] < targetCounts[i] && indices[i] < colorGroups[color].length) {
+          sampled.push(colorGroups[color][indices[i]]);
+          indices[i]++;
+          added++;
+          addedThisRound = true;
+        }
+      }
+      if (!addedThisRound) break;
+    }
+    
+    return sampled;
   }, [blocks, totalBlocks]);
 
   const extraUnits = totalBlocks > MAX_VISUAL_BLOCKS ? totalBlocks - MAX_VISUAL_BLOCKS : 0;
@@ -165,35 +222,25 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   }
 
   return (
-    <View style={styles.outerContainer}>
-      <View style={styles.container}>
-        <View style={styles.innerContainer}>
-          <BlockGrid
-            blocks={visualBlocks}
-            containerWidth={innerWidth}
-            containerHeight={innerHeight}
-          />
-        </View>
+    <View style={styles.container}>
+      <View style={styles.innerContainer}>
+        <BlockGrid
+          blocks={visualBlocks}
+          containerWidth={innerWidth}
+          containerHeight={innerHeight}
+        />
       </View>
-      {extraUnits > 0 ? (
-        <View style={styles.extraUnitsContainer}>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            +{extraUnits.toLocaleString()} units
-          </ThemedText>
-        </View>
-      ) : null}
+      {extraUnits > 0 ? <OverflowBadge extraUnits={extraUnits} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  outerContainer: {
-    width: "100%",
-  },
   container: {
     height: PILE_HEIGHT,
     width: "100%",
     overflow: "hidden",
+    position: "relative",
   },
   emptyContainer: {
     justifyContent: "center",
@@ -207,14 +254,37 @@ const styles = StyleSheet.create({
   gridWrapper: {
     flex: 1,
     flexDirection: "column",
-    alignItems: "flex-start",
+    alignItems: "stretch",
     justifyContent: "flex-start",
   },
   gridRow: {
     flexDirection: "row",
   },
-  extraUnitsContainer: {
+  overflowBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    zIndex: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  badgeGradient: {
+    flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    gap: 4,
+  },
+  badgeIcon: {
+    marginRight: 2,
+  },
+  badgeText: {
+    color: "#FFF",
+    fontWeight: "700",
+    fontSize: 13,
   },
 });
