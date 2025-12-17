@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState } from "react";
-import { View, ScrollView, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform, TextInput } from "react-native";
+import { View, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -10,6 +10,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useUnits } from "@/lib/UnitsContext";
 import { TodayStackParamList } from "@/navigation/TodayStackNavigator";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -182,7 +183,7 @@ export default function HabitDetailScreen() {
   const isGoalMet = todayUnits >= habit.dailyGoal && habit.dailyGoal > 0;
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       contentContainerStyle={[
         styles.content,
@@ -392,7 +393,7 @@ export default function HabitDetailScreen() {
         </View>
       </View>
 
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
