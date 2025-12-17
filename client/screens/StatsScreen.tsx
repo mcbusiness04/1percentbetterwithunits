@@ -14,7 +14,7 @@ type TimeRange = "week" | "month" | "year";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const GREEN = "#06D6A0";
-const RED = "#EF476F";
+const RED = "#FF3B30"; // Bright red (no pink)
 const GOLD = "#FFD700";
 const YELLOW = "#FFD93D";
 
@@ -142,13 +142,11 @@ export default function StatsScreen() {
       if (totalGoal > 0) {
         trackedDays++;
         
-        // Calculate multiplier (e.g., 40% of goals = 0.4, 100% = 1.0, 200% = 2.0)
-        const multiplier = totalUnits / totalGoal;
-        // Each day adds: multiplier as percentage (40% of goals = 0.4% improvement)
-        const dayPercent = multiplier;
+        // Calculate percentage (e.g., 67% of goal = 67, 100% = 100, 200% = 200)
+        const dayPercent = (totalUnits / totalGoal) * 100;
         
-        // Each bad habit tap subtracts 0.1%
-        const badHabitPenalty = dayBadLogs.length * 0.1;
+        // Each bad habit tap subtracts 10%
+        const badHabitPenalty = dayBadLogs.length * 10;
         
         const dayTotal = dayPercent - badHabitPenalty;
         cumulativePercent += dayTotal;
@@ -178,13 +176,13 @@ export default function StatsScreen() {
     let message = "";
     if (trackedDays === 0) {
       message = "Start tracking to see progress!";
-    } else if (cumulativePercent >= 20) {
+    } else if (cumulativePercent >= 200) {
       message = "You're crushing it!";
-    } else if (cumulativePercent >= 10) {
+    } else if (cumulativePercent >= 100) {
       message = "Amazing progress!";
     } else if (cumulativePercent >= 0) {
       message = "On track!";
-    } else if (cumulativePercent >= -5) {
+    } else if (cumulativePercent >= -50) {
       message = "Almost there, keep going!";
     } else {
       message = "Time to bounce back!";
