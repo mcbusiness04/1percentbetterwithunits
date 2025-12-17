@@ -18,6 +18,15 @@ const RED = "#EF476F";
 const GOLD = "#FFD700";
 const YELLOW = "#FFD93D";
 
+// Convert UTC ISO timestamp to local date string (YYYY-MM-DD)
+const getLocalDateFromISO = (isoString: string): string => {
+  const date = new Date(isoString);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -54,7 +63,7 @@ export default function StatsScreen() {
       });
       
       const dayActiveHabits = activeHabits.filter((h) => {
-        const createdDate = h.createdAt.split("T")[0];
+        const createdDate = getLocalDateFromISO(h.createdAt);
         return createdDate <= dateStr;
       });
       
@@ -123,7 +132,7 @@ export default function StatsScreen() {
       
       // Get habits that existed on this date
       const dayActiveHabits = activeHabits.filter((h) => {
-        const createdDate = h.createdAt.split("T")[0];
+        const createdDate = getLocalDateFromISO(h.createdAt);
         return createdDate <= dateStr;
       });
       
@@ -221,7 +230,7 @@ export default function StatsScreen() {
       let totalUnitsLast7 = 0;
       for (let i = 0; i < 7; i++) {
         const dateStr = getDateString(i);
-        const createdDate = habit.createdAt.split("T")[0];
+        const createdDate = getLocalDateFromISO(habit.createdAt);
         if (dateStr < createdDate) continue;
         daysWithData++;
         const units = habitLogs.filter((l) => l.date === dateStr).reduce((sum, l) => sum + l.count, 0);
@@ -251,7 +260,7 @@ export default function StatsScreen() {
     return activeBadHabits.map(bh => {
       const bhLogs = badHabitLogs.filter(l => l.badHabitId === bh.id && !l.isUndone);
       const todayTaps = bhLogs.filter(l => l.date === currentDate).length;
-      const createdDate = bh.createdAt.split("T")[0];
+      const createdDate = getLocalDateFromISO(bh.createdAt);
       
       let daysClean = 0;
       let daysTracked = 0;
