@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 200;
-const CONTAINER_PADDING = 8;
+const CONTAINER_PADDING = 6;
 const MAX_VISUAL_BLOCKS = 15000;
 
 interface BlockData {
@@ -32,12 +32,10 @@ function calculateGridLayout(
   let bestConfig = { columns: 1, rows: totalBlocks, blockSize: 1, gap: 0 };
   let maxBlockSize = 0;
 
-  const gapOptions = [3, 2, 1, 0];
+  const gapOptions = [2, 1, 0];
 
   for (const gap of gapOptions) {
-    const maxCols = Math.min(totalBlocks, Math.floor(availableWidth / (1 + gap)));
-    
-    for (let cols = 1; cols <= maxCols; cols++) {
+    for (let cols = 1; cols <= Math.min(totalBlocks, 500); cols++) {
       const rows = Math.ceil(totalBlocks / cols);
       
       const totalGapWidth = (cols - 1) * gap;
@@ -48,10 +46,10 @@ function calculateGridLayout(
       const blockSize = Math.floor(Math.min(blockWidth, blockHeight));
       
       if (blockSize >= 1) {
-        const totalHeight = rows * blockSize + (rows - 1) * gap;
-        const totalWidth = cols * blockSize + (cols - 1) * gap;
+        const actualTotalHeight = rows * blockSize + (rows - 1) * gap;
+        const actualTotalWidth = cols * blockSize + (cols - 1) * gap;
         
-        if (totalHeight <= availableHeight && totalWidth <= availableWidth) {
+        if (actualTotalHeight <= availableHeight && actualTotalWidth <= availableWidth) {
           if (blockSize > maxBlockSize) {
             maxBlockSize = blockSize;
             bestConfig = { columns: cols, rows, blockSize, gap };
@@ -65,9 +63,16 @@ function calculateGridLayout(
 
   if (maxBlockSize < 1) {
     const aspectRatio = availableWidth / availableHeight;
-    const cols = Math.ceil(Math.sqrt(totalBlocks * aspectRatio));
+    const cols = Math.max(1, Math.ceil(Math.sqrt(totalBlocks * aspectRatio)));
     const rows = Math.ceil(totalBlocks / cols);
-    bestConfig = { columns: cols, rows, blockSize: 1, gap: 0 };
+    const blockWidth = availableWidth / cols;
+    const blockHeight = availableHeight / rows;
+    bestConfig = { 
+      columns: cols, 
+      rows, 
+      blockSize: Math.max(1, Math.floor(Math.min(blockWidth, blockHeight))), 
+      gap: 0 
+    };
   }
 
   return bestConfig;
@@ -84,7 +89,7 @@ const UnitBlock = memo(function UnitBlock({
   isTimeBlock: boolean;
   showEffects: boolean;
 }) {
-  const borderRadius = size >= 3 ? Math.max(1, Math.min(size * 0.2, 6)) : 0;
+  const borderRadius = size >= 3 ? Math.max(1, Math.min(size * 0.2, 4)) : 0;
   
   return (
     <View
@@ -93,13 +98,13 @@ const UnitBlock = memo(function UnitBlock({
         height: size,
         borderRadius,
         backgroundColor: color,
-        borderWidth: isTimeBlock && size >= 4 ? 1 : 0,
+        borderWidth: isTimeBlock && size >= 3 ? 0.5 : 0,
         borderColor: isTimeBlock ? "#FFD700" : undefined,
       }}
     >
       {showEffects ? (
         <LinearGradient
-          colors={["rgba(255,255,255,0.35)", "transparent"]}
+          colors={["rgba(255,255,255,0.3)", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={{
@@ -145,17 +150,25 @@ const BlockGrid = memo(function BlockGrid({
       gridRows.push(row);
     }
     
-    const showEffects = blockSize >= 8;
+    const showEffects = blockSize >= 6;
+    const actualGridHeight = rows * blockSize + (rows - 1) * gap;
+    const actualGridWidth = columns * blockSize + (columns - 1) * gap;
     
-    return { gridRows, blockSize, gap, showEffects };
+    return { gridRows, blockSize, gap, showEffects, actualGridHeight, actualGridWidth };
   }, [blocks, containerWidth, containerHeight]);
 
   if (!gridData || gridData.gridRows.length === 0) return null;
 
-  const { gridRows, blockSize, gap, showEffects } = gridData;
+  const { gridRows, blockSize, gap, showEffects, actualGridHeight, actualGridWidth } = gridData;
 
   return (
-    <View style={styles.gridWrapper}>
+    <View style={[
+      styles.gridWrapper, 
+      { 
+        height: actualGridHeight,
+        width: actualGridWidth,
+      }
+    ]}>
       {gridRows.map((row, rowIdx) => (
         <View key={rowIdx} style={[styles.gridRow, { gap }]}>
           {row.map((cell, cellIdx) => (
@@ -253,7 +266,7 @@ const styles = StyleSheet.create({
   gridWrapper: {
     flexDirection: "column",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
   gridRow: {
     flexDirection: "row",

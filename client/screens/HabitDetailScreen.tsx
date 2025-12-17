@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from "react";
-import { View, ScrollView, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform } from "react-native";
+import React, { useMemo, useCallback, useState } from "react";
+import { View, ScrollView, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -315,28 +315,26 @@ export default function HabitDetailScreen() {
       <ThemedText type="h4" style={styles.sectionTitle}>
         Daily Goal
       </ThemedText>
-      <View style={styles.incrementRow}>
-        <Pressable
-          onPress={() => {
-            const newGoal = Math.max(1, habit.dailyGoal - 1);
-            updateHabit(habit.id, { dailyGoal: newGoal });
+      <View style={styles.inputRow}>
+        <TextInput
+          style={[styles.numberInput, { 
+            backgroundColor: theme.backgroundDefault, 
+            color: theme.text,
+            borderColor: theme.border,
+          }]}
+          value={String(habit.dailyGoal)}
+          onChangeText={(text) => {
+            const num = parseInt(text.replace(/[^0-9]/g, ""), 10);
+            if (!isNaN(num) && num >= 1) {
+              updateHabit(habit.id, { dailyGoal: num });
+            } else if (text === "" || text === "0") {
+              updateHabit(habit.id, { dailyGoal: 1 });
+            }
           }}
-          style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
-        >
-          <Feather name="minus" size={20} color={theme.text} />
-        </Pressable>
-        <View style={[styles.incrementDisplay, { backgroundColor: theme.backgroundDefault }]}>
-          <ThemedText type="h4">{habit.dailyGoal}</ThemedText>
-        </View>
-        <Pressable
-          onPress={() => {
-            const newGoal = habit.dailyGoal + 1;
-            updateHabit(habit.id, { dailyGoal: newGoal });
-          }}
-          style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
-        >
-          <Feather name="plus" size={20} color={theme.text} />
-        </Pressable>
+          keyboardType="number-pad"
+          maxLength={6}
+          selectTextOnFocus
+        />
         <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
           {habit.habitType === "time" ? "min" : habit.unitName} per day
         </ThemedText>
@@ -345,42 +343,33 @@ export default function HabitDetailScreen() {
       <ThemedText type="h4" style={styles.sectionTitle}>
         Tap Increment
       </ThemedText>
-      <View style={styles.incrementRow}>
-        <Pressable
-          onPress={() => {
-            const newIncrement = Math.max(1, (habit.tapIncrement || 1) - 1);
-            updateHabit(habit.id, { tapIncrement: newIncrement });
-          }}
-          style={[styles.incrementButton, { backgroundColor: theme.backgroundDefault }]}
-        >
-          <Feather name="minus" size={20} color={theme.text} />
-        </Pressable>
-        <View style={[styles.incrementDisplay, { backgroundColor: theme.backgroundDefault }]}>
-          <ThemedText type="h4">+{habit.tapIncrement || 1}</ThemedText>
-        </View>
-        <Pressable
-          onPress={() => {
-            const currentIncrement = habit.tapIncrement || 1;
-            if (currentIncrement > 499) {
-              Alert.alert("Limit Reached", "Maximum tap increment is 500.");
-              return;
-            }
-            updateHabit(habit.id, { tapIncrement: currentIncrement + 1 });
-          }}
-          style={[styles.incrementButton, { 
-            backgroundColor: theme.backgroundDefault,
-            opacity: (habit.tapIncrement || 1) > 499 ? 0.5 : 1,
+      <View style={styles.inputRow}>
+        <TextInput
+          style={[styles.numberInput, { 
+            backgroundColor: theme.backgroundDefault, 
+            color: theme.text,
+            borderColor: theme.border,
           }]}
-        >
-          <Feather name="plus" size={20} color={theme.text} />
-        </Pressable>
+          value={String(habit.tapIncrement || 1)}
+          onChangeText={(text) => {
+            const num = parseInt(text.replace(/[^0-9]/g, ""), 10);
+            if (!isNaN(num) && num >= 1 && num <= 500) {
+              updateHabit(habit.id, { tapIncrement: num });
+            } else if (num > 500) {
+              Alert.alert("Limit Reached", "Maximum tap increment is 500.");
+              updateHabit(habit.id, { tapIncrement: 500 });
+            } else if (text === "" || text === "0") {
+              updateHabit(habit.id, { tapIncrement: 1 });
+            }
+          }}
+          keyboardType="number-pad"
+          maxLength={3}
+          selectTextOnFocus
+        />
         <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-          {habit.habitType === "time" ? "min" : habit.unitName} per tap
+          {habit.habitType === "time" ? "min" : habit.unitName} per tap (max 500)
         </ThemedText>
       </View>
-      <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.xl }}>
-        Limit 500
-      </ThemedText>
 
       <View style={styles.statsRow}>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
@@ -502,6 +491,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginHorizontal: Spacing.sm,
+  },
+  inputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: Spacing.xl,
+  },
+  numberInput: {
+    width: 80,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
   },
   statsRow: {
     flexDirection: "row",
