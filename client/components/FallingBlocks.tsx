@@ -5,12 +5,9 @@ import { useTheme } from "@/hooks/useTheme";
 import { LinearGradient } from "expo-linear-gradient";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PILE_HEIGHT = 140;
-const CONTAINER_PADDING = 12;
-const BLOCK_GAP = 3;
-const MIN_BLOCK_SIZE = 8;
-const MAX_BLOCK_SIZE = 36;
-const MAX_VISUAL_BLOCKS = 500;
+const PILE_HEIGHT = 200;
+const CONTAINER_PADDING = 8;
+const MAX_VISUAL_BLOCKS = 15000;
 
 interface BlockData {
   id: string;
@@ -23,48 +20,96 @@ interface FallingBlocksProps {
   containerWidth?: number;
 }
 
+function calculateGridLayout(
+  totalBlocks: number,
+  availableWidth: number,
+  availableHeight: number
+): { columns: number; rows: number; blockSize: number; gap: number } {
+  if (totalBlocks === 0) {
+    return { columns: 0, rows: 0, blockSize: 0, gap: 0 };
+  }
+
+  let bestConfig = { columns: 1, rows: totalBlocks, blockSize: 1, gap: 0 };
+  let maxBlockSize = 0;
+
+  const gapOptions = [3, 2, 1, 0];
+
+  for (const gap of gapOptions) {
+    const maxCols = Math.min(totalBlocks, Math.floor(availableWidth / (1 + gap)));
+    
+    for (let cols = 1; cols <= maxCols; cols++) {
+      const rows = Math.ceil(totalBlocks / cols);
+      
+      const totalGapWidth = (cols - 1) * gap;
+      const totalGapHeight = (rows - 1) * gap;
+      
+      const blockWidth = (availableWidth - totalGapWidth) / cols;
+      const blockHeight = (availableHeight - totalGapHeight) / rows;
+      const blockSize = Math.floor(Math.min(blockWidth, blockHeight));
+      
+      if (blockSize >= 1) {
+        const totalHeight = rows * blockSize + (rows - 1) * gap;
+        const totalWidth = cols * blockSize + (cols - 1) * gap;
+        
+        if (totalHeight <= availableHeight && totalWidth <= availableWidth) {
+          if (blockSize > maxBlockSize) {
+            maxBlockSize = blockSize;
+            bestConfig = { columns: cols, rows, blockSize, gap };
+          }
+        }
+      }
+    }
+    
+    if (maxBlockSize >= 1) break;
+  }
+
+  if (maxBlockSize < 1) {
+    const aspectRatio = availableWidth / availableHeight;
+    const cols = Math.ceil(Math.sqrt(totalBlocks * aspectRatio));
+    const rows = Math.ceil(totalBlocks / cols);
+    bestConfig = { columns: cols, rows, blockSize: 1, gap: 0 };
+  }
+
+  return bestConfig;
+}
+
 const UnitBlock = memo(function UnitBlock({
   color,
   size,
   isTimeBlock,
+  showEffects,
 }: {
   color: string;
   size: number;
   isTimeBlock: boolean;
+  showEffects: boolean;
 }) {
-  const borderRadius = Math.max(2, Math.min(size * 0.25, 8));
-  const showDetails = size >= 10;
+  const borderRadius = size >= 3 ? Math.max(1, Math.min(size * 0.2, 6)) : 0;
   
   return (
     <View
-      style={[
-        styles.block,
-        {
-          width: size,
-          height: size,
-          borderRadius,
-          backgroundColor: color,
-          borderWidth: isTimeBlock ? 1.5 : 0,
-          borderColor: isTimeBlock ? "#FFD700" : undefined,
-          shadowColor: color,
-          shadowOffset: { width: 0, height: size >= 16 ? 2 : 1 },
-          shadowOpacity: 0.4,
-          shadowRadius: size >= 16 ? 3 : 2,
-          elevation: 3,
-        },
-      ]}
+      style={{
+        width: size,
+        height: size,
+        borderRadius,
+        backgroundColor: color,
+        borderWidth: isTimeBlock && size >= 4 ? 1 : 0,
+        borderColor: isTimeBlock ? "#FFD700" : undefined,
+      }}
     >
-      {showDetails ? (
+      {showEffects ? (
         <LinearGradient
-          colors={["rgba(255,255,255,0.4)", "transparent"]}
+          colors={["rgba(255,255,255,0.35)", "transparent"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={[
-            styles.blockGradient,
-            {
-              borderRadius: borderRadius - 1,
-            },
-          ]}
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderRadius: borderRadius > 0 ? borderRadius - 1 : 0,
+          }}
         />
       ) : null}
     </View>
@@ -84,38 +129,8 @@ const BlockGrid = memo(function BlockGrid({
     const totalUnits = blocks.length;
     if (totalUnits === 0) return null;
 
-    const availableWidth = containerWidth;
-    const availableHeight = containerHeight;
-
-    let bestConfig = { columns: 1, rows: totalUnits, blockSize: MIN_BLOCK_SIZE };
-    let maxBlockSize = 0;
-
-    for (let cols = 1; cols <= Math.min(totalUnits, 80); cols++) {
-      const rows = Math.ceil(totalUnits / cols);
-      
-      const blockWidth = (availableWidth - (cols - 1) * BLOCK_GAP) / cols;
-      const blockHeight = (availableHeight - (rows - 1) * BLOCK_GAP) / rows;
-      const blockSize = Math.floor(Math.min(blockWidth, blockHeight));
-      
-      if (blockSize > maxBlockSize && blockSize >= 2) {
-        maxBlockSize = blockSize;
-        bestConfig = { columns: cols, rows, blockSize: Math.min(blockSize, MAX_BLOCK_SIZE) };
-      }
-    }
-    
-    if (maxBlockSize < 2) {
-      const cols = Math.ceil(Math.sqrt(totalUnits * (availableWidth / availableHeight)));
-      const rows = Math.ceil(totalUnits / cols);
-      const blockWidth = (availableWidth - (cols - 1) * BLOCK_GAP) / cols;
-      const blockHeight = (availableHeight - (rows - 1) * BLOCK_GAP) / rows;
-      bestConfig = { 
-        columns: cols, 
-        rows, 
-        blockSize: Math.max(2, Math.floor(Math.min(blockWidth, blockHeight)))
-      };
-    }
-
-    const { columns, rows, blockSize } = bestConfig;
+    const layout = calculateGridLayout(totalUnits, containerWidth, containerHeight);
+    const { columns, rows, blockSize, gap } = layout;
     
     const gridRows: { color: string; isTimeBlock: boolean }[][] = [];
     let blockIndex = 0;
@@ -130,23 +145,26 @@ const BlockGrid = memo(function BlockGrid({
       gridRows.push(row);
     }
     
-    return { gridRows, blockSize, columns };
+    const showEffects = blockSize >= 8;
+    
+    return { gridRows, blockSize, gap, showEffects };
   }, [blocks, containerWidth, containerHeight]);
 
   if (!gridData || gridData.gridRows.length === 0) return null;
 
-  const { gridRows, blockSize } = gridData;
+  const { gridRows, blockSize, gap, showEffects } = gridData;
 
   return (
     <View style={styles.gridWrapper}>
       {gridRows.map((row, rowIdx) => (
-        <View key={rowIdx} style={[styles.gridRow, { gap: BLOCK_GAP }]}>
+        <View key={rowIdx} style={[styles.gridRow, { gap }]}>
           {row.map((cell, cellIdx) => (
             <UnitBlock
               key={cellIdx}
               color={cell.color}
               size={blockSize}
               isTimeBlock={cell.isTimeBlock}
+              showEffects={showEffects}
             />
           ))}
         </View>
@@ -165,7 +183,7 @@ function OverflowBadge({ extraUnits }: { extraUnits: number }) {
         style={styles.badgeGradient}
       >
         <ThemedText style={styles.badgeText}>
-          +{extraUnits.toLocaleString()} more
+          +{extraUnits.toLocaleString()}
         </ThemedText>
       </LinearGradient>
     </View>
@@ -233,26 +251,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   gridWrapper: {
-    flex: 1,
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    gap: BLOCK_GAP,
   },
   gridRow: {
     flexDirection: "row",
     justifyContent: "center",
-  },
-  block: {
-    position: "relative",
-    overflow: "hidden",
-  },
-  blockGradient: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
   },
   overflowBadge: {
     position: "absolute",
