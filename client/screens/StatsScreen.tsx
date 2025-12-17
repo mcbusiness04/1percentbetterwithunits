@@ -125,40 +125,50 @@ export default function StatsScreen() {
   }, [getDayStats, currentDate, getDateString]);
 
   const totalImprovement = useMemo(() => {
-    let cumulativePercent = 0;
     let goodDays = 0;
     let trackedDays = 0;
     
-    // Create set of active habit IDs for efficient lookup
     const habitIds = new Set(activeHabits.map((h) => h.id));
     
-    // Calculate for all days including today (i=0 is today)
+    // Calculate TODAY's progress - this becomes the improvement percentage
+    const todayLogs = logs.filter((l) => l.date === currentDate && habitIds.has(l.habitId));
+    const todayBadLogs = badHabitLogs.filter((l) => l.date === currentDate && !l.isUndone);
+    
+    const todayActiveHabits = activeHabits.filter((h) => {
+      const createdDate = getLocalDateFromISO(h.createdAt);
+      return createdDate <= currentDate;
+    });
+    
+    const totalGoal = todayActiveHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
+    const totalUnits = todayLogs.reduce((sum, l) => sum + l.count, 0);
+    
+    // Progress = (units / goal) as percentage improvement
+    // 40% complete = +0.4%, 100% complete = +1%, 200% complete = +2%
+    // Subtract 0.1% per bad habit tap
+    let improvementPercent = 0;
+    if (totalGoal > 0) {
+      improvementPercent = (totalUnits / totalGoal); // 0.4 means 40% of goal = +0.4%
+    }
+    
+    // Subtract bad habit penalty: -0.1% per bad habit tap (0.001 in decimal form)
+    const badHabitPenalty = todayBadLogs.length * 0.001;
+    improvementPercent = improvementPercent - badHabitPenalty;
+    
+    // Count good days over last 30 days
     for (let i = 0; i < 30; i++) {
       const dateStr = getDateString(i);
-      // Only count logs for habits that still exist
       const dayLogs = logs.filter((l) => l.date === dateStr && habitIds.has(l.habitId));
       const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
       
-      // Get habits that existed on this date
       const dayActiveHabits = activeHabits.filter((h) => {
         const createdDate = getLocalDateFromISO(h.createdAt);
         return createdDate <= dateStr;
       });
       
-      const totalGoal = dayActiveHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
-      const totalUnits = dayLogs.reduce((sum, l) => sum + l.count, 0);
+      const dayGoal = dayActiveHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
       
-      if (totalGoal > 0) {
+      if (dayGoal > 0) {
         trackedDays++;
-        
-        // Scale: 100% of goal = +1%, 40% of goal = +0.4%, etc.
-        // Units in logs already have bad habit penalty deductions applied
-        // So if Today shows 68%, this adds +0.68 to cumulative
-        const goalProgress = (totalUnits / totalGoal); // 0 to 1+ (can exceed 1 if over goal)
-        
-        cumulativePercent += goalProgress;
-        
-        // Check if all goals met AND no bad habits
         const allGoalsMet = dayActiveHabits.every((h) => {
           const habitUnits = dayLogs.filter((l) => l.habitId === h.id).reduce((sum, l) => sum + l.count, 0);
           return habitUnits >= h.dailyGoal;
@@ -167,36 +177,39 @@ export default function StatsScreen() {
       }
     }
     
-    // Format: round to 2 decimals max, show as whole number if no decimal needed
-    const roundedValue = Math.round(cumulativePercent * 100) / 100;
+    // Format the display percentage - always show sign
+    const roundedValue = Math.round(improvementPercent * 100) / 100;
     const absValue = Math.abs(roundedValue);
     let displayPercent: string;
-    if (absValue === Math.floor(absValue)) {
-      // Whole number
-      displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(0);
+    const sign = roundedValue >= 0 ? "+" : "";
+    if (absValue === 0) {
+      displayPercent = "+0";
+    } else if (absValue < 0.01) {
+      displayPercent = sign + roundedValue.toFixed(2);
+    } else if (absValue === Math.floor(absValue)) {
+      displayPercent = sign + roundedValue.toFixed(0);
     } else {
-      // Up to 2 decimals
-      displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(2).replace(/\.?0+$/, "");
+      displayPercent = sign + roundedValue.toFixed(2).replace(/\.?0+$/, "");
     }
     const isPositive = roundedValue >= 0;
     
     let message = "";
-    if (trackedDays === 0) {
+    if (totalGoal === 0) {
       message = "Start tracking to see progress!";
-    } else if (cumulativePercent >= 5) {
+    } else if (improvementPercent >= 2) {
       message = "You're crushing it!";
-    } else if (cumulativePercent >= 2) {
+    } else if (improvementPercent >= 1) {
       message = "Amazing progress!";
-    } else if (cumulativePercent >= 0) {
-      message = "On track!";
-    } else if (cumulativePercent >= -1) {
-      message = "Almost there, keep going!";
+    } else if (improvementPercent >= 0.5) {
+      message = "Great work!";
+    } else if (improvementPercent >= 0) {
+      message = "Keep going!";
     } else {
       message = "Time to bounce back!";
     }
     
     return { displayPercent, isPositive, message, goodDays, trackedDays };
-  }, [logs, badHabitLogs, activeHabits, getDateString]);
+  }, [logs, badHabitLogs, activeHabits, getDateString, currentDate]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;

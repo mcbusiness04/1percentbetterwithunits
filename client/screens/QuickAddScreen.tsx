@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo } from "react";
-import { View, StyleSheet, Pressable, Alert } from "react-native";
+import React, { useState, useCallback, useMemo, useRef } from "react";
+import { View, StyleSheet, Pressable, Alert, TextInput, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -10,6 +10,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
+import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -30,7 +31,10 @@ export default function QuickAddScreen() {
 
   const { habits, addUnits, removeUnits, canAddUnits, getTodayUnits } = useUnits();
   const [count, setCount] = useState(1);
+  const [inputValue, setInputValue] = useState("1");
+  const [inputError, setInputError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const habit = useMemo(
     () => habits.find((h) => h.id === habitId),
@@ -40,22 +44,68 @@ export default function QuickAddScreen() {
   const todayUnits = habit ? getTodayUnits(habit.id) : 0;
   const maxRemovable = todayUnits;
 
-  const handleIncrement = useCallback(() => {
+  const validateAndSetCount = useCallback((text: string) => {
+    setInputValue(text);
+    setInputError(null);
+    
+    if (text === "" || text === "0") {
+      setCount(0);
+      return;
+    }
+    
+    const num = parseInt(text, 10);
+    if (isNaN(num)) {
+      setInputError("Enter a valid number");
+      return;
+    }
+    
+    if (num < 0) {
+      setInputError("Must be positive");
+      return;
+    }
+    
     const max = isRemoveMode ? maxRemovable : MAX_UNITS;
-    setCount((prev) => Math.min(prev + 1, max));
+    if (num > max) {
+      setInputError(`Max ${max}`);
+      setCount(max);
+      setInputValue(String(max));
+      return;
+    }
+    
+    setCount(num);
   }, [isRemoveMode, maxRemovable]);
 
+  const handleIncrement = useCallback(() => {
+    const max = isRemoveMode ? maxRemovable : MAX_UNITS;
+    const newCount = Math.min(count + 1, max);
+    setCount(newCount);
+    setInputValue(String(newCount));
+    setInputError(null);
+  }, [count, isRemoveMode, maxRemovable]);
+
   const handleDecrement = useCallback(() => {
-    setCount((prev) => Math.max(prev - 1, 0));
-  }, []);
+    const newCount = Math.max(count - 1, 0);
+    setCount(newCount);
+    setInputValue(String(newCount));
+    setInputError(null);
+  }, [count]);
 
   const handleQuickValue = useCallback((value: number) => {
     const max = isRemoveMode ? maxRemovable : MAX_UNITS;
-    setCount((prev) => Math.min(prev + value, max));
-  }, [isRemoveMode, maxRemovable]);
+    const newCount = Math.min(count + value, max);
+    setCount(newCount);
+    setInputValue(String(newCount));
+    setInputError(null);
+  }, [count, isRemoveMode, maxRemovable]);
 
   const handleSubmit = useCallback(async () => {
-    if (count === 0 || isSubmitting) return;
+    if (count === 0 || isSubmitting || inputError) {
+      if (count === 0 && !inputError) {
+        setInputError("Enter a number");
+      }
+      return;
+    }
+    Keyboard.dismiss();
 
     if (isRemoveMode) {
       if (count > todayUnits) {
@@ -92,7 +142,7 @@ export default function QuickAddScreen() {
         setIsSubmitting(false);
       }
     }
-  }, [count, isSubmitting, isRemoveMode, todayUnits, canAddUnits, addUnits, removeUnits, habitId, navigation]);
+  }, [count, isSubmitting, inputError, isRemoveMode, todayUnits, canAddUnits, addUnits, removeUnits, habitId, navigation]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
@@ -116,11 +166,16 @@ export default function QuickAddScreen() {
   }
 
   return (
-    <View
+    <KeyboardAwareScrollViewCompat
       style={[
         styles.container,
         {
           backgroundColor: theme.backgroundRoot,
+        },
+      ]}
+      contentContainerStyle={[
+        styles.scrollContent,
+        {
           paddingTop: headerHeight + Spacing.xl,
           paddingBottom: insets.bottom + Spacing.xl,
         },
@@ -150,12 +205,32 @@ export default function QuickAddScreen() {
           </Pressable>
 
           <View style={styles.countDisplay}>
-            <ThemedText type="h1" style={[styles.countValue, { color: habit.color }]}>
-              {count}
-            </ThemedText>
+            <TextInput
+              ref={inputRef}
+              value={inputValue}
+              onChangeText={validateAndSetCount}
+              keyboardType="number-pad"
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
+              selectTextOnFocus
+              style={[
+                styles.countInput,
+                {
+                  color: habit.color,
+                  borderColor: inputError ? "#FF4444" : "transparent",
+                  backgroundColor: theme.backgroundDefault,
+                },
+              ]}
+              maxLength={4}
+            />
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               {habit.unitName}
             </ThemedText>
+            {inputError ? (
+              <ThemedText type="small" style={{ color: "#FF4444", marginTop: 4 }}>
+                {inputError}
+              </ThemedText>
+            ) : null}
           </View>
 
           <Pressable
@@ -212,18 +287,21 @@ export default function QuickAddScreen() {
 
       <Button
         onPress={handleSubmit}
-        disabled={count === 0 || isSubmitting || (isRemoveMode && todayUnits === 0)}
+        disabled={count === 0 || isSubmitting || !!inputError || (isRemoveMode && todayUnits === 0)}
         style={[styles.addButton, { backgroundColor: isRemoveMode ? "#FF4444" : habit.color }]}
       >
         {isRemoveMode ? `Remove ${count}` : `Add ${count}`} {habit.unitName}
       </Button>
-    </View>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: Spacing.lg,
   },
   content: {
@@ -255,10 +333,17 @@ const styles = StyleSheet.create({
   },
   countDisplay: {
     alignItems: "center",
-    paddingHorizontal: Spacing["3xl"],
+    paddingHorizontal: Spacing.xl,
   },
-  countValue: {
-    fontSize: 64,
+  countInput: {
+    fontSize: 56,
+    fontWeight: "700",
+    textAlign: "center",
+    minWidth: 120,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 16,
+    borderWidth: 2,
   },
   quickValues: {
     flexDirection: "row",
