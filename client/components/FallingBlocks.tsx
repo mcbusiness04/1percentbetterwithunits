@@ -1,11 +1,10 @@
-import React, { useMemo, memo } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
+import React, { useMemo, memo, useState, useCallback } from "react";
+import { View, StyleSheet, LayoutChangeEvent } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { LinearGradient } from "expo-linear-gradient";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const PILE_HEIGHT = 200;
+export const PILE_HEIGHT = 200;
 const CONTAINER_PADDING = 8;
 const MAX_VISUAL_BLOCKS = 15000;
 const MIN_BLOCK_SIZE = 1;
@@ -19,7 +18,6 @@ interface BlockData {
 
 interface FallingBlocksProps {
   blocks: BlockData[];
-  containerWidth?: number;
 }
 
 interface GridLayout {
@@ -36,7 +34,7 @@ function calculateOptimalLayout(
   availableWidth: number,
   availableHeight: number
 ): GridLayout {
-  if (totalBlocks === 0) {
+  if (totalBlocks === 0 || availableWidth <= 0 || availableHeight <= 0) {
     return { columns: 0, rows: 0, blockSize: 0, gap: 0, totalGridWidth: 0, totalGridHeight: 0 };
   }
 
@@ -53,7 +51,7 @@ function calculateOptimalLayout(
 
   for (const gap of gapOptions) {
     let low = MIN_BLOCK_SIZE;
-    let high = MAX_BLOCK_SIZE;
+    let high = Math.min(MAX_BLOCK_SIZE, Math.floor(availableWidth), Math.floor(availableHeight));
 
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
@@ -220,13 +218,19 @@ function OverflowBadge({ extraUnits }: { extraUnits: number }) {
   );
 }
 
-export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBlocksProps) {
-  const containerWidth = propWidth || SCREEN_WIDTH - 32;
+export function FallingBlocks({ blocks }: FallingBlocksProps) {
   const { theme } = useTheme();
   const totalBlocks = blocks.length;
+  const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
 
-  const innerWidth = containerWidth - CONTAINER_PADDING * 2;
-  const innerHeight = PILE_HEIGHT - CONTAINER_PADDING * 2;
+  const handleLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    const innerWidth = Math.floor(width - CONTAINER_PADDING * 2);
+    const innerHeight = Math.floor(height - CONTAINER_PADDING * 2);
+    if (innerWidth > 0 && innerHeight > 0) {
+      setDimensions({ width: innerWidth, height: innerHeight });
+    }
+  }, []);
 
   const visualBlocks = useMemo(() => {
     if (totalBlocks <= MAX_VISUAL_BLOCKS) {
@@ -239,7 +243,10 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
 
   if (totalBlocks === 0) {
     return (
-      <View style={[styles.container, styles.emptyContainer, { backgroundColor: theme.backgroundDefault + "40" }]}>
+      <View 
+        style={[styles.container, styles.emptyContainer, { backgroundColor: theme.backgroundDefault + "40" }]}
+        onLayout={handleLayout}
+      >
         <ThemedText type="small" style={{ color: theme.textSecondary, opacity: 0.6 }}>
           Tap habits to add units
         </ThemedText>
@@ -248,13 +255,18 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundDefault + "30" }]}>
+    <View 
+      style={[styles.container, { backgroundColor: theme.backgroundDefault + "30" }]}
+      onLayout={handleLayout}
+    >
       <View style={styles.innerContainer}>
-        <BlockGrid
-          blocks={visualBlocks}
-          containerWidth={innerWidth}
-          containerHeight={innerHeight}
-        />
+        {dimensions ? (
+          <BlockGrid
+            blocks={visualBlocks}
+            containerWidth={dimensions.width}
+            containerHeight={dimensions.height}
+          />
+        ) : null}
       </View>
       {extraUnits > 0 ? <OverflowBadge extraUnits={extraUnits} /> : null}
     </View>

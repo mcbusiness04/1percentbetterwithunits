@@ -11,7 +11,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { HabitRow } from "@/components/HabitRow";
-import { FallingBlocks } from "@/components/FallingBlocks";
+import { FallingBlocks, PILE_HEIGHT } from "@/components/FallingBlocks";
 import { BadHabitsSection } from "@/components/BadHabitsSection";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: Spacing.md,
     right: Spacing.md,
-    height: 190,
+    height: PILE_HEIGHT + 50,
   },
   statsStrip: {
     flexDirection: "row",
@@ -334,7 +334,7 @@ const styles = StyleSheet.create({
     height: 32,
   },
   pileContainer: {
-    flex: 1,
+    height: PILE_HEIGHT,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     overflow: "hidden",
