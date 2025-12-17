@@ -1,22 +1,14 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSpring,
-  Easing,
-} from "react-native-reanimated";
+import React, { useMemo, memo } from "react";
+import { View, StyleSheet, Dimensions, Platform } from "react-native";
+import { Canvas, Rect, Group, RoundedRect } from "@shopify/react-native-skia";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
+const CONTAINER_PADDING = 4;
 const MIN_BLOCK_SIZE = 1;
 const MAX_BLOCK_SIZE = 20;
-const BLOCK_GAP = 1;
-const CONTAINER_PADDING = 4;
-const MAX_VISIBLE_BLOCKS = 5000;
 
 interface BlockData {
   id: string;
@@ -36,7 +28,7 @@ function calculateOptimalBlockSize(count: number, containerWidth: number, contai
   const availableHeight = containerHeight - CONTAINER_PADDING * 2;
   
   for (let size = MAX_BLOCK_SIZE; size >= MIN_BLOCK_SIZE; size--) {
-    const gap = size > 6 ? BLOCK_GAP : 0;
+    const gap = size > 6 ? 1 : 0;
     const columns = Math.floor(availableWidth / (size + gap));
     if (columns < 1) continue;
     const rows = Math.ceil(count / columns);
@@ -50,131 +42,99 @@ function calculateOptimalBlockSize(count: number, containerWidth: number, contai
   return MIN_BLOCK_SIZE;
 }
 
-function PileBlock({ 
-  x, 
-  y, 
-  size, 
-  color, 
-  isNew,
-  glowing 
-}: { 
-  x: number; 
-  y: number; 
-  size: number; 
-  color: string;
-  isNew: boolean;
-  glowing?: boolean;
-}) {
-  const scale = useSharedValue(isNew ? 0 : 1);
-  const translateY = useSharedValue(isNew ? -50 : 0);
+interface SkiaBlocksProps {
+  blocks: BlockData[];
+  containerWidth: number;
+}
 
-  useEffect(() => {
-    if (isNew) {
-      scale.value = withSpring(1, { damping: 12, stiffness: 200 });
-      translateY.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
-    }
-  }, [isNew, scale, translateY]);
+const SkiaBlocks = memo(function SkiaBlocks({ blocks, containerWidth }: SkiaBlocksProps) {
+  const totalBlocks = blocks.length;
+  
+  const { blockSize, gap, columns, positions } = useMemo(() => {
+    const size = calculateOptimalBlockSize(totalBlocks, containerWidth, PILE_HEIGHT);
+    const gapSize = size > 6 ? 1 : 0;
+    const availableWidth = containerWidth - CONTAINER_PADDING * 2;
+    const cols = Math.max(1, Math.floor(availableWidth / (size + gapSize)));
+    
+    const posArr: { x: number; y: number; color: string; isTimeBlock: boolean }[] = [];
+    blocks.forEach((block, idx) => {
+      const col = idx % cols;
+      const row = Math.floor(idx / cols);
+      posArr.push({
+        x: CONTAINER_PADDING + col * (size + gapSize),
+        y: CONTAINER_PADDING + row * (size + gapSize),
+        color: block.color,
+        isTimeBlock: !!block.isTimeBlock,
+      });
+    });
+    
+    return { blockSize: size, gap: gapSize, columns: cols, positions: posArr };
+  }, [blocks, totalBlocks, containerWidth]);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateY: translateY.value },
-      { scale: scale.value },
-    ],
-  }));
-
-  const glowingStyle = glowing ? {
-    borderWidth: 1,
-    borderColor: "#FFD700",
-    backgroundColor: `${color}`,
-  } : undefined;
+  const radius = Math.max(1, blockSize / 5);
 
   return (
-    <Animated.View
-      style={[
-        styles.pileBlock,
-        animatedStyle,
-        {
-          left: x,
-          top: y,
-          width: size,
-          height: size,
-          borderRadius: Math.max(1, size / 5),
-          backgroundColor: color,
-        },
-        glowingStyle,
-      ]}
-    >
-      {glowing && size > 4 ? (
-        <View style={{
-          position: "absolute",
-          top: -1,
-          left: -1,
-          right: -1,
-          bottom: -1,
-          borderRadius: Math.max(1, size / 5) + 1,
-          borderWidth: 1,
-          borderColor: "#FFD70090",
-        }} />
-      ) : null}
-    </Animated.View>
+    <Canvas style={{ width: containerWidth, height: PILE_HEIGHT }}>
+      <Group>
+        {positions.map((pos, i) => (
+          <RoundedRect
+            key={i}
+            x={pos.x}
+            y={pos.y}
+            width={blockSize}
+            height={blockSize}
+            r={radius}
+            color={pos.color}
+          />
+        ))}
+      </Group>
+    </Canvas>
   );
-}
+});
+
+const FallbackBlocks = memo(function FallbackBlocks({ blocks, containerWidth }: SkiaBlocksProps) {
+  const totalBlocks = blocks.length;
+  
+  const colorCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    blocks.forEach((block) => {
+      counts.set(block.color, (counts.get(block.color) || 0) + 1);
+    });
+    return counts;
+  }, [blocks]);
+
+  const segments = useMemo(() => {
+    const result: { color: string; percent: number }[] = [];
+    colorCounts.forEach((count, color) => {
+      result.push({ color, percent: (count / totalBlocks) * 100 });
+    });
+    return result;
+  }, [colorCounts, totalBlocks]);
+
+  return (
+    <View style={[styles.colorBar, { width: containerWidth - CONTAINER_PADDING * 2 }]}>
+      {segments.map((seg, i) => (
+        <View
+          key={`${seg.color}-${i}`}
+          style={[
+            styles.colorSegment,
+            {
+              width: `${seg.percent}%`,
+              backgroundColor: seg.color,
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+});
 
 export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBlocksProps) {
   const containerWidth = propWidth || SCREEN_WIDTH - 32;
-  const prevCountRef = useRef(0);
-  const [newBlockIds, setNewBlockIds] = useState<Set<string>>(new Set());
   const { theme } = useTheme();
 
   const totalBlocks = blocks.length;
-  const displayBlocks = totalBlocks > MAX_VISIBLE_BLOCKS 
-    ? blocks.slice(0, MAX_VISIBLE_BLOCKS) 
-    : blocks;
-  const hasOverflow = totalBlocks > MAX_VISIBLE_BLOCKS;
-
-  const blockSize = useMemo(() => {
-    return calculateOptimalBlockSize(displayBlocks.length, containerWidth, PILE_HEIGHT);
-  }, [displayBlocks.length, containerWidth]);
-
-  const gap = blockSize > 6 ? BLOCK_GAP : 0;
-  const availableWidth = containerWidth - CONTAINER_PADDING * 2;
-  const columns = Math.max(1, Math.floor(availableWidth / (blockSize + gap)));
-
-  useEffect(() => {
-    if (blocks.length > prevCountRef.current) {
-      const newIds = new Set<string>();
-      blocks.slice(prevCountRef.current).forEach(b => newIds.add(b.id));
-      setNewBlockIds(newIds);
-      
-      const timer = setTimeout(() => {
-        setNewBlockIds(new Set());
-      }, 400);
-      
-      prevCountRef.current = blocks.length;
-      return () => clearTimeout(timer);
-    }
-    prevCountRef.current = blocks.length;
-  }, [blocks.length, blocks]);
-
-  const positionedBlocks = useMemo(() => {
-    return displayBlocks.map((block, idx) => {
-      const col = idx % columns;
-      const row = Math.floor(idx / columns);
-      return {
-        ...block,
-        x: CONTAINER_PADDING + col * (blockSize + gap),
-        y: CONTAINER_PADDING + row * (blockSize + gap),
-      };
-    });
-  }, [displayBlocks, columns, blockSize, gap]);
-
-  const colorGroups = useMemo(() => {
-    const groups: Record<string, number> = {};
-    blocks.forEach(b => {
-      groups[b.color] = (groups[b.color] || 0) + 1;
-    });
-    return Object.entries(groups).sort((a, b) => b[1] - a[1]);
-  }, [blocks]);
+  const useSkia = Platform.OS !== "web";
 
   if (totalBlocks === 0) {
     return (
@@ -188,24 +148,11 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
 
   return (
     <View style={styles.container}>
-      {positionedBlocks.map((block) => (
-        <PileBlock
-          key={block.id}
-          x={block.x}
-          y={block.y}
-          size={blockSize}
-          color={block.color}
-          isNew={newBlockIds.has(block.id)}
-          glowing={block.isTimeBlock}
-        />
-      ))}
-      {hasOverflow ? (
-        <View style={styles.overflowBadge}>
-          <ThemedText type="small" style={{ color: theme.text, fontWeight: "600", fontSize: 10 }}>
-            +{(totalBlocks - MAX_VISIBLE_BLOCKS).toLocaleString()}
-          </ThemedText>
-        </View>
-      ) : null}
+      {useSkia ? (
+        <SkiaBlocks blocks={blocks} containerWidth={containerWidth} />
+      ) : (
+        <FallbackBlocks blocks={blocks} containerWidth={containerWidth} />
+      )}
       <View style={styles.totalBadge}>
         <ThemedText type="body" style={{ color: theme.text, fontWeight: "700", fontSize: 14 }}>
           {totalBlocks.toLocaleString()}
@@ -225,17 +172,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  pileBlock: {
-    position: "absolute",
-  },
-  overflowBadge: {
-    position: "absolute",
-    bottom: 4,
-    left: 4,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+  colorBar: {
+    flexDirection: "row",
+    margin: CONTAINER_PADDING,
+    height: PILE_HEIGHT - CONTAINER_PADDING * 2,
     borderRadius: 8,
+    overflow: "hidden",
+  },
+  colorSegment: {
+    height: "100%",
   },
   totalBadge: {
     position: "absolute",
