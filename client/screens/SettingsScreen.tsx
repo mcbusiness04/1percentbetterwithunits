@@ -32,13 +32,6 @@ export default function SettingsScreen() {
     [updateSettings]
   );
 
-  const handleShowGeneralEffortToggle = useCallback(
-    (value: boolean) => {
-      updateSettings({ showGeneralEffort: value });
-    },
-    [updateSettings]
-  );
-
   const handleUpgradePress = useCallback(() => {
     navigation.navigate("Paywall", { reason: "settings" });
   }, [navigation]);
@@ -152,13 +145,6 @@ export default function SettingsScreen() {
           toggle
           toggleValue={settings.hapticsEnabled}
           onToggle={handleHapticsToggle}
-        />
-        <SettingsRow
-          icon="eye"
-          title="Show General Effort Habit"
-          toggle
-          toggleValue={settings.showGeneralEffort}
-          onToggle={handleShowGeneralEffortToggle}
         />
       </View>
 

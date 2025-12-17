@@ -1,12 +1,12 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { View, ScrollView, StyleSheet, Pressable, Dimensions } from "react-native";
+import { View, ScrollView, StyleSheet, Pressable, Dimensions, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
-import { Spacing } from "@/constants/theme";
+import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { useUnits } from "@/lib/UnitsContext";
 
@@ -32,9 +32,10 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, badHabits, badHabitLogs, currentDate } = useUnits();
+  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   const activeHabits = useMemo(
     () => habits.filter((h) => !h.isArchived),
@@ -413,24 +414,20 @@ export default function StatsScreen() {
         ]}>
           {trendData.data.map((day, i) => {
             const isToday = i === trendData.data.length - 1;
-            // Color logic:
-            // Gray: no habits for this day (goal === 0)
-            // Red: any bad habit pressed
-            // Green: all goals met AND no bad habits
-            // Yellow: no bad habits but goals not all met (even if one left)
-            let bgColor = theme.textSecondary + "20"; // gray default
+            let bgColor = theme.textSecondary + "20";
             if (day.goal > 0) {
               if (day.hadBadHabits) {
-                bgColor = RED; // Red: any bad habit pressed
+                bgColor = RED;
               } else if (day.allGoalsMet) {
-                bgColor = GREEN; // Green: all goals met, no bad habits
+                bgColor = GREEN;
               } else {
-                bgColor = YELLOW; // Yellow: no bad habits but goals not all met
+                bgColor = YELLOW;
               }
             }
             return (
-              <View
+              <Pressable
                 key={i}
+                onPress={() => setSelectedDate(day.dateStr)}
                 style={[
                   timeRange === "week" ? styles.weekSquare : 
                   timeRange === "month" ? styles.monthSquare : styles.yearSquare,
@@ -563,6 +560,82 @@ export default function StatsScreen() {
           ))}
         </>
       ) : null}
+
+      <Modal
+        visible={selectedDate !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedDate(null)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setSelectedDate(null)}
+        >
+          <Pressable 
+            style={[styles.modalContent, { backgroundColor: theme.backgroundDefault }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalHeader}>
+              <ThemedText type="h4">
+                Edit {selectedDate ? new Date(selectedDate + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }) : ""}
+              </ThemedText>
+              <Pressable onPress={() => setSelectedDate(null)} style={styles.modalClose}>
+                <Feather name="x" size={24} color={theme.text} />
+              </Pressable>
+            </View>
+            
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {selectedDate && activeHabits.filter(h => {
+                const createdDate = getLocalDateFromISO(h.createdAt);
+                return createdDate <= selectedDate;
+              }).map((habit) => {
+                const habitLogs = logs.filter(l => l.habitId === habit.id && l.date === selectedDate);
+                const units = habitLogs.reduce((sum, l) => sum + l.count, 0);
+                
+                return (
+                  <View key={habit.id} style={[styles.editHabitRow, { borderColor: theme.border }]}>
+                    <View style={[styles.editHabitIcon, { backgroundColor: habit.color + "20" }]}>
+                      <Feather name={habit.icon as any} size={18} color={habit.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText type="body" style={{ fontWeight: "500" }}>{habit.name}</ThemedText>
+                      <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                        {units} / {habit.dailyGoal} {habit.unitName}
+                      </ThemedText>
+                    </View>
+                    <View style={styles.editButtons}>
+                      <Pressable
+                        onPress={() => removeUnitsForDate(habit.id, habit.tapIncrement, selectedDate)}
+                        style={[styles.editButton, { backgroundColor: RED + "20" }]}
+                      >
+                        <Feather name="minus" size={16} color={RED} />
+                      </Pressable>
+                      <ThemedText type="body" style={{ fontWeight: "600", minWidth: 32, textAlign: "center" }}>
+                        {units}
+                      </ThemedText>
+                      <Pressable
+                        onPress={() => addUnitsForDate(habit.id, habit.tapIncrement, selectedDate)}
+                        style={[styles.editButton, { backgroundColor: GREEN + "20" }]}
+                      >
+                        <Feather name="plus" size={16} color={GREEN} />
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+              
+              {selectedDate && activeHabits.filter(h => {
+                const createdDate = getLocalDateFromISO(h.createdAt);
+                return createdDate <= selectedDate;
+              }).length === 0 ? (
+                <ThemedText type="body" style={{ color: theme.textSecondary, textAlign: "center", padding: Spacing.xl }}>
+                  No habits existed on this date
+                </ThemedText>
+              ) : null}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -720,6 +793,57 @@ const styles = StyleSheet.create({
     justifyContent: "space-around",
   },
   habitStatItem: {
+    alignItems: "center",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.lg,
+  },
+  modalContent: {
+    width: "100%",
+    maxHeight: "80%",
+    borderRadius: 20,
+    padding: Spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: Spacing.lg,
+  },
+  modalClose: {
+    padding: Spacing.xs,
+  },
+  modalScroll: {
+    maxHeight: 400,
+  },
+  editHabitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    gap: Spacing.md,
+  },
+  editHabitIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  editButtons: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  editButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: "center",
     alignItems: "center",
   },
 });
