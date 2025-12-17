@@ -115,6 +115,12 @@ export default function NewHabitScreen() {
         return;
       }
 
+      const tapIncrementValue = parseInt(tapIncrement) || 1;
+      if (tapIncrementValue > 500) {
+        Alert.alert("Invalid Tap Increment", "Maximum tap increment is 500. Please enter a lower value.");
+        return;
+      }
+
       setIsSubmitting(true);
 
       try {
@@ -124,7 +130,7 @@ export default function NewHabitScreen() {
           color: selectedColor,
           unitName: unitName.trim(),
           dailyGoal: parseInt(dailyGoal) || 5,
-          tapIncrement: Math.min(parseInt(tapIncrement) || 1, 500),
+          tapIncrement: tapIncrementValue,
           habitType,
         });
 
@@ -338,13 +344,19 @@ export default function NewHabitScreen() {
               </Pressable>
               <TextInput
                 value={tapIncrement}
-                onChangeText={setTapIncrement}
+                onChangeText={(text) => {
+                  setTapIncrement(text);
+                  const val = parseInt(text);
+                  if (val > 500) {
+                    Alert.alert("Limit Exceeded", "Maximum tap increment is 500. Please enter a lower value.");
+                  }
+                }}
                 keyboardType="number-pad"
                 style={[
                   styles.goalInput,
                   {
                     backgroundColor: theme.backgroundDefault,
-                    color: theme.text,
+                    color: parseInt(tapIncrement) > 500 ? "#FF6B6B" : theme.text,
                   },
                 ]}
               />
