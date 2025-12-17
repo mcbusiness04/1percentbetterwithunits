@@ -53,6 +53,8 @@ interface UnitsContextType {
   
   addUnits: (habitId: string, count: number) => Promise<boolean>;
   removeUnits: (habitId: string, count: number) => Promise<boolean>;
+  addUnitsForDate: (habitId: string, count: number, date: string) => Promise<boolean>;
+  removeUnitsForDate: (habitId: string, count: number, date: string) => Promise<boolean>;
   undoLastAdd: () => Promise<void>;
   clearUndo: () => void;
   
@@ -322,6 +324,69 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return true;
   }, [logs, triggerHaptic]);
 
+  const handleAddUnitsForDate = useCallback(async (habitId: string, count: number, date: string) => {
+    const habit = habits.find((h) => h.id === habitId);
+    if (!habit) return false;
+
+    const newLog: UnitLog = {
+      id: generateId(),
+      habitId,
+      count: Math.max(1, Math.min(count, 9999)),
+      date,
+      createdAt: new Date().toISOString(),
+    };
+
+    const updated = [...logs, newLog];
+    setLogs(updated);
+    await saveLogs(updated);
+    triggerHaptic("medium");
+    return true;
+  }, [habits, logs, triggerHaptic]);
+
+  const handleRemoveUnitsForDate = useCallback(async (habitId: string, count: number, date: string) => {
+    const dateLogs = logs
+      .filter((l) => l.habitId === habitId && l.date === date)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    if (dateLogs.length === 0) return false;
+
+    const totalAvailable = dateLogs.reduce((sum, l) => sum + l.count, 0);
+    if (totalAvailable <= 0) return false;
+
+    const actualCountToRemove = Math.min(count, totalAvailable);
+
+    let remaining = actualCountToRemove;
+    const logsToRemove: string[] = [];
+    const logsToUpdate: { id: string; newCount: number }[] = [];
+
+    for (const log of dateLogs) {
+      if (remaining <= 0) break;
+      
+      if (log.count <= remaining) {
+        logsToRemove.push(log.id);
+        remaining -= log.count;
+      } else {
+        logsToUpdate.push({ id: log.id, newCount: log.count - remaining });
+        remaining = 0;
+      }
+    }
+
+    const updated = logs
+      .filter((l) => !logsToRemove.includes(l.id))
+      .map((l) => {
+        const update = logsToUpdate.find((u) => u.id === l.id);
+        if (update) {
+          return { ...l, count: update.newCount };
+        }
+        return l;
+      });
+
+    setLogs(updated);
+    await saveLogs(updated);
+    triggerHaptic("light");
+    return true;
+  }, [logs, triggerHaptic]);
+
   const handleUndoLastAdd = useCallback(async () => {
     if (!undoAction) return;
 
@@ -362,7 +427,10 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const getMonthUnits = useCallback((habitId: string) => {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
+    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+    const y = first.getFullYear();
+    const m = String(first.getMonth() + 1).padStart(2, "0");
+    const startOfMonth = `${y}-${m}-01`;
     return logs
       .filter((l) => l.habitId === habitId && l.date >= startOfMonth)
       .reduce((sum, l) => sum + l.count, 0);
@@ -648,6 +716,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         deleteHabit: handleDeleteHabit,
         addUnits: handleAddUnits,
         removeUnits: handleRemoveUnits,
+        addUnitsForDate: handleAddUnitsForDate,
+        removeUnitsForDate: handleRemoveUnitsForDate,
         undoLastAdd: handleUndoLastAdd,
         clearUndo,
         addBadHabit: handleAddBadHabit,

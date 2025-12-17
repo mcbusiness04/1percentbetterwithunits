@@ -30,7 +30,10 @@ export function HabitWall({ habit, logs, onDayPress }: HabitWallProps) {
     for (let i = daysToShow - 1; i >= 0; i--) {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
-      const dateStr = date.toISOString().split("T")[0];
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const dateStr = `${y}-${m}-${d}`;
       
       const dayLogs = logs.filter((l) => l.date === dateStr);
       const units = dayLogs.reduce((sum, l) => sum + l.count, 0);

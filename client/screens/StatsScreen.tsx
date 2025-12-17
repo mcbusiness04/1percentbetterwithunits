@@ -35,7 +35,10 @@ export default function StatsScreen() {
     const [year, month, day] = currentDate.split("-").map(Number);
     const date = new Date(year, month - 1, day);
     date.setDate(date.getDate() - daysAgo);
-    return date.toISOString().split("T")[0];
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }, [currentDate]);
 
   const getDayStats = useMemo(() => {
@@ -229,8 +232,6 @@ export default function StatsScreen() {
     });
   }, [badHabits, badHabitLogs, currentDate, getDateString]);
 
-  const maxTrendValue = Math.max(...trendData.data.map(d => d.total), 1);
-
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
@@ -354,48 +355,31 @@ export default function StatsScreen() {
             </ThemedText>
           </View>
         </View>
-        {timeRange === "year" ? (
-          <View style={styles.yearGrid}>
-            {trendData.data.map((day, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.yearSquare,
-                  {
-                    backgroundColor: day.goal === 0 
-                      ? theme.textSecondary + "20" 
-                      : day.isGood 
-                        ? GREEN 
-                        : day.allGoalsMet && day.hadBadHabits
-                          ? RED + "80"
-                          : RED + "40",
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.trendChart}>
-            {trendData.data.map((day, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.trendBar,
-                  {
-                    height: Math.max((day.total / maxTrendValue) * 60, 2),
-                    backgroundColor: day.goal === 0 
-                      ? theme.textSecondary + "30" 
-                      : day.isGood 
-                        ? GREEN 
-                        : day.allGoalsMet && day.hadBadHabits
-                          ? RED + "80"
-                          : RED + "40",
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        )}
+        <View style={[
+          styles.heatmapGrid,
+          timeRange === "week" && styles.heatmapWeek,
+          timeRange === "month" && styles.heatmapMonth,
+          timeRange === "year" && styles.heatmapYear,
+        ]}>
+          {trendData.data.map((day, i) => (
+            <View
+              key={i}
+              style={[
+                timeRange === "week" ? styles.weekSquare : 
+                timeRange === "month" ? styles.monthSquare : styles.yearSquare,
+                {
+                  backgroundColor: day.goal === 0 
+                    ? theme.textSecondary + "20" 
+                    : day.isGood 
+                      ? GREEN 
+                      : day.allGoalsMet && day.hadBadHabits
+                        ? RED + "80"
+                        : RED + "40",
+                },
+              ]}
+            />
+          ))}
+        </View>
       </Animated.View>
 
       <ThemedText type="h4" style={styles.sectionTitle}>Habits</ThemedText>
@@ -578,10 +562,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.md,
   },
-  yearGrid: {
+  heatmapGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
+  },
+  heatmapWeek: {
+    gap: 8,
+    justifyContent: "flex-start",
+  },
+  heatmapMonth: {
+    gap: 4,
+    justifyContent: "flex-start",
+  },
+  heatmapYear: {
     gap: 2,
+    justifyContent: "flex-start",
+  },
+  weekSquare: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+  },
+  monthSquare: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
   },
   yearSquare: {
     width: 14,
@@ -597,18 +602,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  trendChart: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    minHeight: 60,
-    height: 60,
-    overflow: "hidden",
-  },
-  trendBar: {
-    flex: 1,
-    borderRadius: 2,
-    marginHorizontal: 1,
   },
   sectionTitle: {
     marginBottom: Spacing.md,

@@ -70,15 +70,22 @@ export function generateId(): string {
 }
 
 export function getTodayDate(): string {
-  return new Date().toISOString().split("T")[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function getStartOfWeek(): string {
   const now = new Date();
   const dayOfWeek = now.getDay();
   const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
-  const startOfWeek = new Date(now.setDate(diff));
-  return startOfWeek.toISOString().split("T")[0];
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), diff);
+  const year = startOfWeek.getFullYear();
+  const month = String(startOfWeek.getMonth() + 1).padStart(2, "0");
+  const day = String(startOfWeek.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export async function getHabits(): Promise<Habit[]> {

@@ -142,6 +142,7 @@ export const Typography = {
 export const FREE_LIMITS = {
   MAX_HABITS: 3,
   MAX_UNITS_PER_DAY: 50,
+  WALL_HISTORY_DAYS: 7,
 } as const;
 
 export const HABIT_ICONS = [

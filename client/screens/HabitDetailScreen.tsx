@@ -32,6 +32,8 @@ export default function HabitDetailScreen() {
     logs,
     addUnits,
     removeUnits,
+    addUnitsForDate,
+    removeUnitsForDate,
     deleteHabit,
     updateHabit,
     getTodayUnits,
@@ -59,7 +61,10 @@ export default function HabitDetailScreen() {
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const dateStr = sevenDaysAgo.toISOString().split("T")[0];
+    const y = sevenDaysAgo.getFullYear();
+    const m = String(sevenDaysAgo.getMonth() + 1).padStart(2, "0");
+    const d = String(sevenDaysAgo.getDate()).padStart(2, "0");
+    const dateStr = `${y}-${m}-${d}`;
     const recentLogs = habitLogs.filter((l) => l.date >= dateStr);
     const total = recentLogs.reduce((sum, l) => sum + l.count, 0);
     return Math.round((total / 7) * 10) / 10;
@@ -168,11 +173,32 @@ export default function HabitDetailScreen() {
   }, [habit, updateHabit, deleteHabit, navigation]);
 
   const handleDayPress = useCallback((date: string, units: number) => {
+    if (!habit) return;
+    
+    const displayDate = formatDisplayDate(date);
+    const unitLabel = habit.habitType === "time" ? "min" : habit.unitName || "units";
+    
     Alert.alert(
-      formatDisplayDate(date),
-      `${units} unit${units !== 1 ? "s" : ""} logged`
+      displayDate,
+      `${units} ${unitLabel} logged (Goal: ${habit.dailyGoal})`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "+1",
+          onPress: () => addUnitsForDate(habit.id, 1, date),
+        },
+        {
+          text: "+5",
+          onPress: () => addUnitsForDate(habit.id, 5, date),
+        },
+        ...(units > 0 ? [{
+          text: "-1",
+          style: "destructive" as const,
+          onPress: () => removeUnitsForDate(habit.id, 1, date),
+        }] : []),
+      ]
     );
-  }, []);
+  }, [habit, addUnitsForDate, removeUnitsForDate]);
 
   if (!habit) {
     return (
