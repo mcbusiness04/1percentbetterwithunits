@@ -142,14 +142,11 @@ export default function StatsScreen() {
       if (totalGoal > 0) {
         trackedDays++;
         
-        // Calculate percentage (e.g., 67% of goal = 67, 100% = 100, 200% = 200)
+        // Calculate percentage from logged units (already includes penalty deductions)
+        // Units are removed from logs when bad habit is tapped, so no need to subtract penalty again
         const dayPercent = (totalUnits / totalGoal) * 100;
         
-        // Each bad habit tap subtracts 10%
-        const badHabitPenalty = dayBadLogs.length * 10;
-        
-        const dayTotal = dayPercent - badHabitPenalty;
-        cumulativePercent += dayTotal;
+        cumulativePercent += dayPercent;
         
         // Check if all goals met AND no bad habits
         const allGoalsMet = dayActiveHabits.every((h) => {
