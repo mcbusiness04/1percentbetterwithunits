@@ -5,7 +5,7 @@ import { useTheme } from "@/hooks/useTheme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
-const CONTAINER_PADDING = 4;
+const CONTAINER_PADDING = 8;
 
 interface BlockData {
   id: string;
@@ -18,44 +18,133 @@ interface FallingBlocksProps {
   containerWidth?: number;
 }
 
-interface HabitSegment {
-  color: string;
-  count: number;
-  isTimeBlock: boolean;
+function calculateGridLayout(
+  totalUnits: number,
+  containerWidth: number,
+  containerHeight: number
+): { blockSize: number; gap: number; columns: number; rows: number } {
+  if (totalUnits === 0) {
+    return { blockSize: 8, gap: 1, columns: 1, rows: 0 };
+  }
+
+  const availableWidth = containerWidth;
+  const availableHeight = containerHeight;
+  const totalArea = availableWidth * availableHeight;
+  
+  const areaPerUnit = totalArea / totalUnits;
+  let blockSize = Math.sqrt(areaPerUnit);
+  
+  blockSize = Math.max(1, Math.floor(blockSize));
+  
+  if (blockSize > 16) blockSize = 16;
+  
+  const gap = blockSize >= 4 ? 1 : 0;
+  const effectiveBlockSize = blockSize + gap;
+  
+  const columns = Math.floor(availableWidth / effectiveBlockSize);
+  const rows = Math.floor(availableHeight / effectiveBlockSize);
+  
+  const maxCapacity = columns * rows;
+  
+  if (totalUnits > maxCapacity && blockSize > 1) {
+    return calculateGridLayout(totalUnits, containerWidth, containerHeight);
+  }
+  
+  return { blockSize, gap, columns, rows };
 }
 
-const SegmentedBar = memo(function SegmentedBar({ 
-  segments, 
-  totalUnits,
+const BlockGrid = memo(function BlockGrid({
+  blocks,
+  containerWidth,
   containerHeight,
-}: { 
-  segments: HabitSegment[];
-  totalUnits: number;
+}: {
+  blocks: BlockData[];
+  containerWidth: number;
   containerHeight: number;
 }) {
-  if (totalUnits === 0 || segments.length === 0) return null;
-  
+  const gridData = useMemo(() => {
+    const totalUnits = blocks.length;
+    if (totalUnits === 0) return null;
+
+    const availableWidth = containerWidth;
+    const availableHeight = containerHeight;
+    const totalArea = availableWidth * availableHeight;
+    
+    let areaPerUnit = totalArea / totalUnits;
+    let blockSize = Math.floor(Math.sqrt(areaPerUnit));
+    
+    blockSize = Math.max(1, Math.min(blockSize, 20));
+    
+    let gap = blockSize >= 6 ? 1 : 0;
+    let effectiveSize = blockSize + gap;
+    
+    let columns = Math.max(1, Math.floor(availableWidth / effectiveSize));
+    let rows = Math.max(1, Math.floor(availableHeight / effectiveSize));
+    let capacity = columns * rows;
+    
+    while (capacity < totalUnits && blockSize > 1) {
+      blockSize--;
+      gap = blockSize >= 6 ? 1 : 0;
+      effectiveSize = blockSize + gap;
+      columns = Math.max(1, Math.floor(availableWidth / effectiveSize));
+      rows = Math.max(1, Math.floor(availableHeight / effectiveSize));
+      capacity = columns * rows;
+    }
+    
+    if (capacity < totalUnits) {
+      columns = Math.max(1, Math.floor(availableWidth / 1));
+      rows = Math.max(1, Math.floor(availableHeight / 1));
+      capacity = columns * rows;
+      blockSize = 1;
+      gap = 0;
+      effectiveSize = 1;
+    }
+    
+    const displayBlocks = blocks.slice(0, capacity);
+    
+    const gridRows: { color: string; isTimeBlock: boolean }[][] = [];
+    let currentRow: { color: string; isTimeBlock: boolean }[] = [];
+    
+    displayBlocks.forEach((block, idx) => {
+      currentRow.push({ color: block.color, isTimeBlock: !!block.isTimeBlock });
+      if (currentRow.length >= columns) {
+        gridRows.push(currentRow);
+        currentRow = [];
+      }
+    });
+    if (currentRow.length > 0) {
+      gridRows.push(currentRow);
+    }
+    
+    return { gridRows, blockSize, gap, columns };
+  }, [blocks, containerWidth, containerHeight]);
+
+  if (!gridData || gridData.gridRows.length === 0) return null;
+
+  const { gridRows, blockSize, gap } = gridData;
+  const borderRadius = blockSize >= 3 ? Math.max(1, Math.floor(blockSize / 4)) : 0;
+
   return (
-    <View style={[styles.segmentedBar, { height: containerHeight }]}>
-      {segments.map((segment, i) => {
-        const widthPercent = (segment.count / totalUnits) * 100;
-        if (widthPercent < 0.1) return null;
-        
-        return (
-          <View
-            key={`${segment.color}-${i}`}
-            style={[
-              styles.segment,
-              {
-                width: `${widthPercent}%`,
-                backgroundColor: segment.color,
-                borderWidth: segment.isTimeBlock ? 2 : 0,
-                borderColor: segment.isTimeBlock ? "#FFD700" : undefined,
-              },
-            ]}
-          />
-        );
-      })}
+    <View style={styles.gridWrapper}>
+      {gridRows.map((row, rowIdx) => (
+        <View key={rowIdx} style={styles.gridRow}>
+          {row.map((cell, cellIdx) => (
+            <View
+              key={cellIdx}
+              style={{
+                width: blockSize,
+                height: blockSize,
+                backgroundColor: cell.color,
+                borderRadius: borderRadius,
+                marginRight: gap,
+                marginBottom: gap,
+                borderWidth: cell.isTimeBlock && blockSize >= 4 ? 1 : 0,
+                borderColor: cell.isTimeBlock ? "#FFD700" : undefined,
+              }}
+            />
+          ))}
+        </View>
+      ))}
     </View>
   );
 });
@@ -63,27 +152,10 @@ const SegmentedBar = memo(function SegmentedBar({
 export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBlocksProps) {
   const containerWidth = propWidth || SCREEN_WIDTH - 32;
   const { theme } = useTheme();
-
   const totalBlocks = blocks.length;
 
-  const segments = useMemo(() => {
-    const counts = new Map<string, { count: number; isTimeBlock: boolean }>();
-    blocks.forEach((block) => {
-      const existing = counts.get(block.color);
-      if (existing) {
-        existing.count++;
-      } else {
-        counts.set(block.color, { count: 1, isTimeBlock: !!block.isTimeBlock });
-      }
-    });
-    
-    const segs: HabitSegment[] = [];
-    counts.forEach((data, color) => {
-      segs.push({ color, count: data.count, isTimeBlock: data.isTimeBlock });
-    });
-    
-    return segs;
-  }, [blocks]);
+  const innerWidth = containerWidth - CONTAINER_PADDING * 2;
+  const innerHeight = PILE_HEIGHT - CONTAINER_PADDING * 2;
 
   if (totalBlocks === 0) {
     return (
@@ -97,11 +169,13 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
 
   return (
     <View style={styles.container}>
-      <SegmentedBar 
-        segments={segments} 
-        totalUnits={totalBlocks} 
-        containerHeight={PILE_HEIGHT - CONTAINER_PADDING * 2}
-      />
+      <View style={styles.innerContainer}>
+        <BlockGrid
+          blocks={blocks}
+          containerWidth={innerWidth}
+          containerHeight={innerHeight}
+        />
+      </View>
     </View>
   );
 }
@@ -110,20 +184,24 @@ const styles = StyleSheet.create({
   container: {
     height: PILE_HEIGHT,
     width: "100%",
-    padding: CONTAINER_PADDING,
     overflow: "hidden",
   },
   emptyContainer: {
     justifyContent: "center",
     alignItems: "center",
   },
-  segmentedBar: {
-    flexDirection: "row",
-    borderRadius: 12,
+  innerContainer: {
+    flex: 1,
+    margin: CONTAINER_PADDING,
     overflow: "hidden",
-    width: "100%",
   },
-  segment: {
-    height: "100%",
+  gridWrapper: {
+    flex: 1,
+    flexDirection: "column",
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+  },
+  gridRow: {
+    flexDirection: "row",
   },
 });
