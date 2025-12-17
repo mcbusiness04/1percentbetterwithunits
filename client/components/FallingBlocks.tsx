@@ -1,4 +1,4 @@
-import React, { useMemo, memo } from "react";
+import React, { useMemo, memo, useRef } from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
@@ -129,11 +129,29 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   const innerWidth = containerWidth - CONTAINER_PADDING * 2;
   const innerHeight = PILE_HEIGHT - CONTAINER_PADDING * 2;
 
+  // Freeze the visual blocks once we hit 15,000 - use ref to preserve snapshot
+  const frozenBlocksRef = useRef<BlockData[] | null>(null);
+  const wasFrozenRef = useRef(false);
+
   const visualBlocks = useMemo(() => {
-    // Simply take the first 15,000 blocks - once we hit the cap, visual stays fixed
-    // Only the +X badge updates as more units are added
-    return blocks.slice(0, MAX_VISUAL_BLOCKS);
-  }, [blocks]);
+    // If we previously froze and still have more than 15,000, keep the frozen snapshot
+    if (wasFrozenRef.current && totalBlocks >= MAX_VISUAL_BLOCKS && frozenBlocksRef.current) {
+      return frozenBlocksRef.current;
+    }
+    
+    // If under the cap, show all blocks and clear frozen state
+    if (totalBlocks <= MAX_VISUAL_BLOCKS) {
+      wasFrozenRef.current = false;
+      frozenBlocksRef.current = null;
+      return blocks;
+    }
+    
+    // First time hitting the cap - freeze the first 15,000 blocks
+    const frozen = blocks.slice(0, MAX_VISUAL_BLOCKS);
+    frozenBlocksRef.current = frozen;
+    wasFrozenRef.current = true;
+    return frozen;
+  }, [blocks, totalBlocks]);
 
   const extraUnits = totalBlocks > MAX_VISUAL_BLOCKS ? totalBlocks - MAX_VISUAL_BLOCKS : 0;
 
