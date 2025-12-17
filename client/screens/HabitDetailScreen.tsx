@@ -1,5 +1,5 @@
-import React, { useMemo, useCallback } from "react";
-import { View, ScrollView, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform } from "react-native";
+import React, { useMemo, useCallback, useState } from "react";
+import { View, ScrollView, StyleSheet, Pressable, Alert, ActionSheetIOS, Platform, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -38,6 +38,8 @@ export default function HabitDetailScreen() {
     getMonthUnits,
     canAddUnits,
   } = useUnits();
+
+  const [customAmount, setCustomAmount] = useState("");
 
   const habit = useMemo(
     () => habits.find((h) => h.id === habitId),
@@ -97,6 +99,42 @@ export default function HabitDetailScreen() {
     },
     [habit, todayUnits, removeUnits]
   );
+
+  const handleCustomAdd = useCallback(async () => {
+    if (!habit) return;
+    const amount = parseInt(customAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a positive number.");
+      return;
+    }
+    const MAX_PER_TAP = 500;
+    const clampedAmount = Math.min(amount, MAX_PER_TAP);
+    if (!canAddUnits(clampedAmount)) {
+      navigation.navigate("Paywall", { reason: "units" });
+      return;
+    }
+    await addUnits(habit.id, clampedAmount);
+    setCustomAmount("");
+    if (amount > MAX_PER_TAP) {
+      Alert.alert("Limit Applied", `Added ${clampedAmount} units (max ${MAX_PER_TAP} per tap).`);
+    }
+  }, [habit, customAmount, addUnits, canAddUnits, navigation]);
+
+  const handleCustomRemove = useCallback(async () => {
+    if (!habit) return;
+    const amount = parseInt(customAmount, 10);
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert("Invalid Amount", "Please enter a positive number.");
+      return;
+    }
+    if (todayUnits === 0) {
+      Alert.alert("No Units", "You haven't logged any units today to remove.");
+      return;
+    }
+    const clampedAmount = Math.min(amount, todayUnits);
+    await removeUnits(habit.id, clampedAmount);
+    setCustomAmount("");
+  }, [habit, customAmount, todayUnits, removeUnits]);
 
   const handleMenuPress = useCallback(() => {
     if (!habit) return;
@@ -299,6 +337,46 @@ export default function HabitDetailScreen() {
       </View>
 
       <ThemedText type="h4" style={styles.sectionTitle}>
+        Custom Amount
+      </ThemedText>
+      <View style={styles.customInputRow}>
+        <TextInput
+          style={[styles.customInput, { 
+            backgroundColor: theme.backgroundDefault,
+            color: theme.text,
+            borderColor: theme.border,
+          }]}
+          value={customAmount}
+          onChangeText={(text) => {
+            const cleaned = text.replace(/[^0-9]/g, "");
+            setCustomAmount(cleaned);
+          }}
+          placeholder="Enter amount"
+          placeholderTextColor={theme.textSecondary}
+          keyboardType="number-pad"
+          maxLength={4}
+        />
+        <Pressable
+          onPress={handleCustomAdd}
+          style={[styles.customButton, { backgroundColor: habit.color }]}
+        >
+          <Feather name="plus" size={20} color="white" />
+        </Pressable>
+        <Pressable
+          onPress={handleCustomRemove}
+          style={[styles.customButton, styles.removeButton, { 
+            backgroundColor: todayUnits > 0 ? "#FF444420" : theme.backgroundDefault,
+            borderColor: todayUnits > 0 ? "#FF4444" : theme.border,
+          }]}
+        >
+          <Feather name="minus" size={20} color={todayUnits > 0 ? "#FF4444" : theme.textSecondary} />
+        </Pressable>
+      </View>
+      <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.xl }}>
+        Max 500 per tap. Cannot go below 0.
+      </ThemedText>
+
+      <ThemedText type="h4" style={styles.sectionTitle}>
         Daily Goal
       </ThemedText>
       <View style={styles.incrementRow}>
@@ -489,5 +567,26 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: 14,
     alignItems: "center",
+  },
+  customInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  customInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    fontSize: 16,
+  },
+  customButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
