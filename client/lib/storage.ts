@@ -36,6 +36,7 @@ export interface UnitLog {
 export interface AppSettings {
   soundEnabled: boolean;
   hapticsEnabled: boolean;
+  showGeneralEffort?: boolean;
 }
 
 export interface BadHabit {

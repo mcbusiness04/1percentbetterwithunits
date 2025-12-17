@@ -1,8 +1,9 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import { View, StyleSheet, Pressable, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
@@ -13,20 +14,11 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 type ScreenRouteProp = RouteProp<RootStackParamList, "Paywall">;
 
 const FEATURES = [
-  { icon: "layers", text: "Unlimited habits and history" },
-  { icon: "grid", text: "Widgets + share cards" },
-  { icon: "trending-up", text: "Rolling averages (30/90)" },
-  { icon: "download", text: "Export + iCloud sync (soon)" },
+  { icon: "layers", text: "Unlimited habits" },
+  { icon: "trending-up", text: "Track every day, forever" },
+  { icon: "bar-chart-2", text: "Deep insights & analytics" },
+  { icon: "shield", text: "Stay accountable daily" },
 ];
-
-const REASON_MESSAGES: Record<string, string> = {
-  habits: "Free allows 3 habits. Pro unlocks unlimited.",
-  units: "Free allows 50 units/day. Pro unlocks unlimited.",
-  history: "Free shows 7 days of history. Pro shows all time.",
-  export: "Export is a Pro feature.",
-  sync: "iCloud sync is a Pro feature.",
-  settings: "Upgrade to unlock all features.",
-};
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
@@ -36,14 +28,12 @@ export default function PaywallScreen() {
   const { setIsPro } = useUnits();
   const { reason } = route.params;
 
-  const handleStartPro = useCallback(async () => {
+  const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
+
+  const handleSubscribe = useCallback(async () => {
     await setIsPro(true);
     navigation.goBack();
   }, [setIsPro, navigation]);
-
-  const handleNotNow = useCallback(() => {
-    navigation.goBack();
-  }, [navigation]);
 
   const handleRestorePurchases = useCallback(async () => {
     await setIsPro(true);
@@ -58,6 +48,8 @@ export default function PaywallScreen() {
     Linking.openURL("https://example.com/terms");
   }, []);
 
+  const isFromOnboarding = reason === "onboarding";
+
   return (
     <View
       style={[
@@ -65,73 +57,110 @@ export default function PaywallScreen() {
         {
           backgroundColor: theme.backgroundRoot,
           paddingTop: insets.top + Spacing.xl,
-          paddingBottom: insets.bottom + Spacing.xl,
+          paddingBottom: insets.bottom + Spacing.lg,
         },
       ]}
     >
-      <Pressable onPress={handleNotNow} style={styles.closeButton}>
-        <Feather name="x" size={24} color={theme.text} />
-      </Pressable>
-
-      <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: theme.accentLight }]}>
+      <Animated.View entering={FadeIn} style={styles.content}>
+        <View style={[styles.iconContainer, { backgroundColor: theme.accent + "20" }]}>
           <Feather name="star" size={48} color={theme.accent} />
         </View>
 
         <ThemedText type="h2" style={styles.title}>
-          Make Units unlimited.
+          Unlock Your{"\n"}Full Potential
         </ThemedText>
 
-        {reason && REASON_MESSAGES[reason] ? (
-          <ThemedText
-            type="body"
-            style={[styles.reasonText, { color: theme.textSecondary }]}
-          >
-            {REASON_MESSAGES[reason]}
-          </ThemedText>
-        ) : null}
+        <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
+          {isFromOnboarding
+            ? "Start your journey to better habits with Units"
+            : "Get unlimited access to track every habit, every day"}
+        </ThemedText>
 
-        <View style={styles.features}>
+        <Animated.View entering={FadeInUp.delay(100)} style={styles.features}>
           {FEATURES.map((feature, index) => (
-            <View key={index} style={styles.featureRow}>
-              <View style={[styles.featureIcon, { backgroundColor: theme.accentLight }]}>
+            <Animated.View key={feature.text} entering={FadeInDown.delay(150 + index * 50)} style={styles.featureRow}>
+              <View style={[styles.featureIcon, { backgroundColor: theme.accent + "15" }]}>
                 <Feather name={feature.icon as any} size={18} color={theme.accent} />
               </View>
               <ThemedText type="body">{feature.text}</ThemedText>
-            </View>
+            </Animated.View>
           ))}
-        </View>
+        </Animated.View>
 
-        <View style={[styles.priceCard, { backgroundColor: theme.backgroundDefault }]}>
-          <View style={styles.priceOption}>
-            <ThemedText type="body" style={{ fontWeight: "600" }}>
-              Annual
-            </ThemedText>
-            <ThemedText type="h4" style={{ color: theme.accent }}>
-              $29.99/year
-            </ThemedText>
+        <Animated.View entering={FadeInUp.delay(300)} style={styles.plansContainer}>
+          <Pressable
+            onPress={() => setSelectedPlan("annual")}
+            style={[
+              styles.planCard,
+              {
+                backgroundColor: selectedPlan === "annual" ? theme.accent + "15" : theme.backgroundDefault,
+                borderColor: selectedPlan === "annual" ? theme.accent : theme.border,
+                borderWidth: selectedPlan === "annual" ? 2 : 1,
+              },
+            ]}
+          >
+            <View style={styles.planHeader}>
+              <ThemedText type="body" style={{ fontWeight: "700" }}>
+                Annual
+              </ThemedText>
+              <View style={[styles.bestValueBadge, { backgroundColor: theme.accent }]}>
+                <ThemedText type="small" style={{ color: "white", fontWeight: "700", fontSize: 10 }}>
+                  BEST VALUE
+                </ThemedText>
+              </View>
+            </View>
+            <View style={styles.planPricing}>
+              <ThemedText type="h3" style={{ color: selectedPlan === "annual" ? theme.accent : theme.text }}>
+                $9.99
+              </ThemedText>
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>/year</ThemedText>
+            </View>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              $2.50/month
+              Just $0.83/month - Save 83%
             </ThemedText>
-          </View>
-          <View style={[styles.priceDivider, { backgroundColor: theme.border }]} />
-          <View style={styles.priceOption}>
-            <ThemedText type="body" style={{ fontWeight: "600" }}>
+            {selectedPlan === "annual" ? (
+              <View style={[styles.checkCircle, { backgroundColor: theme.accent }]}>
+                <Feather name="check" size={14} color="white" />
+              </View>
+            ) : null}
+          </Pressable>
+
+          <Pressable
+            onPress={() => setSelectedPlan("monthly")}
+            style={[
+              styles.planCard,
+              {
+                backgroundColor: selectedPlan === "monthly" ? theme.accent + "15" : theme.backgroundDefault,
+                borderColor: selectedPlan === "monthly" ? theme.accent : theme.border,
+                borderWidth: selectedPlan === "monthly" ? 2 : 1,
+              },
+            ]}
+          >
+            <ThemedText type="body" style={{ fontWeight: "700" }}>
               Monthly
             </ThemedText>
-            <ThemedText type="h4">$4.99/month</ThemedText>
-          </View>
-        </View>
-      </View>
+            <View style={styles.planPricing}>
+              <ThemedText type="h3" style={{ color: selectedPlan === "monthly" ? theme.accent : theme.text }}>
+                $4.99
+              </ThemedText>
+              <ThemedText type="small" style={{ color: theme.textSecondary }}>/month</ThemedText>
+            </View>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              Flexible, cancel anytime
+            </ThemedText>
+            {selectedPlan === "monthly" ? (
+              <View style={[styles.checkCircle, { backgroundColor: theme.accent }]}>
+                <Feather name="check" size={14} color="white" />
+              </View>
+            ) : null}
+          </Pressable>
+        </Animated.View>
+      </Animated.View>
 
       <View style={styles.footer}>
-        <Button onPress={handleStartPro}>Start Pro</Button>
-
-        <Pressable onPress={handleNotNow} style={styles.notNowButton}>
-          <ThemedText type="body" style={{ color: theme.textSecondary }}>
-            Not now
-          </ThemedText>
-        </Pressable>
+        <Button onPress={handleSubscribe}>
+          {selectedPlan === "annual" ? "Start for $9.99/year" : "Start for $4.99/month"}
+        </Button>
 
         <View style={styles.legalRow}>
           <Pressable onPress={handleTerms}>
@@ -139,17 +168,13 @@ export default function PaywallScreen() {
               Terms
             </ThemedText>
           </Pressable>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            {" | "}
-          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
           <Pressable onPress={handlePrivacy}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Privacy
             </ThemedText>
           </Pressable>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            {" | "}
-          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
           <Pressable onPress={handleRestorePurchases}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Restore
@@ -157,11 +182,8 @@ export default function PaywallScreen() {
           </Pressable>
         </View>
 
-        <ThemedText
-          type="small"
-          style={[styles.disclaimer, { color: theme.textSecondary }]}
-        >
-          Subscription auto-renews unless cancelled. Manage in Apple ID Settings.
+        <ThemedText type="small" style={[styles.disclaimer, { color: theme.textSecondary }]}>
+          Subscription auto-renews. Cancel anytime in App Store settings.
         </ThemedText>
       </View>
     </View>
@@ -173,40 +195,33 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.lg,
   },
-  closeButton: {
-    position: "absolute",
-    top: Spacing["5xl"],
-    right: Spacing.lg,
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 10,
-  },
   content: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
   iconContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
   },
   title: {
     textAlign: "center",
     marginBottom: Spacing.md,
+    lineHeight: 36,
   },
-  reasonText: {
+  subtitle: {
     textAlign: "center",
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    lineHeight: 22,
   },
   features: {
     alignSelf: "stretch",
-    marginBottom: Spacing["2xl"],
+    marginBottom: Spacing.xl,
   },
   featureRow: {
     flexDirection: "row",
@@ -221,32 +236,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  priceCard: {
+  plansContainer: {
     flexDirection: "row",
-    borderRadius: BorderRadius.lg,
-    overflow: "hidden",
+    gap: Spacing.md,
     alignSelf: "stretch",
   },
-  priceOption: {
+  planCard: {
     flex: 1,
     padding: Spacing.lg,
-    alignItems: "center",
+    borderRadius: BorderRadius.lg,
+    position: "relative",
   },
-  priceDivider: {
-    width: 1,
+  planHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  bestValueBadge: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.xs,
+  },
+  planPricing: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: 2,
+    marginBottom: Spacing.xs,
+  },
+  checkCircle: {
+    position: "absolute",
+    top: Spacing.md,
+    right: Spacing.md,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
   },
   footer: {
     paddingTop: Spacing.lg,
-  },
-  notNowButton: {
-    alignItems: "center",
-    paddingVertical: Spacing.lg,
+    gap: Spacing.md,
   },
   legalRow: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: Spacing.md,
   },
   disclaimer: {
     textAlign: "center",

@@ -25,13 +25,6 @@ export default function SettingsScreen() {
   const [eraseText, setEraseText] = useState("");
   const [showEraseInput, setShowEraseInput] = useState(false);
 
-  const handleSoundToggle = useCallback(
-    (value: boolean) => {
-      updateSettings({ soundEnabled: value });
-    },
-    [updateSettings]
-  );
-
   const handleHapticsToggle = useCallback(
     (value: boolean) => {
       updateSettings({ hapticsEnabled: value });
@@ -153,13 +146,6 @@ export default function SettingsScreen() {
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Preferences
         </ThemedText>
-        <SettingsRow
-          icon="volume-2"
-          title="Sound Effects"
-          toggle
-          toggleValue={settings.soundEnabled}
-          onToggle={handleSoundToggle}
-        />
         <SettingsRow
           icon="smartphone"
           title="Haptics"
