@@ -142,11 +142,12 @@ export default function StatsScreen() {
       if (totalGoal > 0) {
         trackedDays++;
         
-        // Calculate percentage from logged units (already includes penalty deductions)
-        // Units are removed from logs when bad habit is tapped, so no need to subtract penalty again
-        const dayPercent = (totalUnits / totalGoal) * 100;
+        // Scale: 100% of goal = +1%, 40% of goal = +0.4%, etc.
+        // Units in logs already have bad habit penalty deductions applied
+        // So if Today shows 68%, this adds +0.68 to cumulative
+        const goalProgress = (totalUnits / totalGoal); // 0 to 1+ (can exceed 1 if over goal)
         
-        cumulativePercent += dayPercent;
+        cumulativePercent += goalProgress;
         
         // Check if all goals met AND no bad habits
         const allGoalsMet = dayActiveHabits.every((h) => {
@@ -173,13 +174,13 @@ export default function StatsScreen() {
     let message = "";
     if (trackedDays === 0) {
       message = "Start tracking to see progress!";
-    } else if (cumulativePercent >= 200) {
+    } else if (cumulativePercent >= 5) {
       message = "You're crushing it!";
-    } else if (cumulativePercent >= 100) {
+    } else if (cumulativePercent >= 2) {
       message = "Amazing progress!";
     } else if (cumulativePercent >= 0) {
       message = "On track!";
-    } else if (cumulativePercent >= -50) {
+    } else if (cumulativePercent >= -1) {
       message = "Almost there, keep going!";
     } else {
       message = "Time to bounce back!";
