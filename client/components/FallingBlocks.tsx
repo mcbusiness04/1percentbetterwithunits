@@ -2,17 +2,7 @@ import React, { useMemo, memo } from "react";
 import { View, StyleSheet, Dimensions } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
-import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import Animated, { 
-  useAnimatedStyle, 
-  withRepeat, 
-  withSequence, 
-  withTiming,
-  useSharedValue,
-  withDelay,
-} from "react-native-reanimated";
-import { useEffect } from "react";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
@@ -115,47 +105,19 @@ const BlockGrid = memo(function BlockGrid({
 });
 
 function OverflowBadge({ extraUnits }: { extraUnits: number }) {
-  const scale = useSharedValue(1);
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    scale.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 800 }),
-        withTiming(1, { duration: 800 })
-      ),
-      -1,
-      true
-    );
-    opacity.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 800 }),
-        withTiming(0.85, { duration: 800 })
-      ),
-      -1,
-      true
-    );
-  }, []);
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity: opacity.value,
-  }));
-
   return (
-    <Animated.View style={[styles.overflowBadge, animatedStyle]}>
+    <View style={styles.overflowBadge}>
       <LinearGradient
-        colors={["#FFD700", "#FFA500", "#FF8C00"]}
+        colors={["#FFD700", "#FFA500"]}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        end={{ x: 1, y: 0 }}
         style={styles.badgeGradient}
       >
-        <Feather name="alert-circle" size={14} color="#FFF" style={styles.badgeIcon} />
         <ThemedText style={styles.badgeText}>
           +{extraUnits.toLocaleString()}
         </ThemedText>
       </LinearGradient>
-    </Animated.View>
+    </View>
   );
 }
 
@@ -267,24 +229,18 @@ const styles = StyleSheet.create({
     zIndex: 10,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 4,
   },
   badgeGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 16,
-    gap: 4,
-  },
-  badgeIcon: {
-    marginRight: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 12,
   },
   badgeText: {
     color: "#FFF",
     fontWeight: "700",
-    fontSize: 13,
+    fontSize: 14,
   },
 });
