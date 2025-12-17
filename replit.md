@@ -141,6 +141,9 @@ server/
 - **New: Heatmap grids** - Week=7, Month=28, Year=365 squares with today indicator (border on last square)
 - **New: Cumulative % improvement** - Each day adds: (units/goal) multiplier minus 0.1 per bad habit tap, accumulates over 30 days
 - **New: Historical data editing** - addUnitsForDate/removeUnitsForDate allow editing any previous day through HabitWall tap
+- **Fixed: Heatmap colors** - Now shows green (all goals + no bad habits), yellow (in progress, no bad habits), red (bad habits OR missed goals), gray (no habits)
+- **Fixed: Real-time progress %** - Calculates from raw logs, updates instantly as units are logged throughout the day
+- **Fixed: Progress % formatting** - Rounds to whole numbers or 1 decimal max (e.g., +1, +0.4, +2.5)
 
 ## User Preferences
 - No emojis in the UI
