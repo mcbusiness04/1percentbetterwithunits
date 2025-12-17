@@ -16,6 +16,7 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 const GREEN = "#06D6A0";
 const RED = "#EF476F";
 const GOLD = "#FFD700";
+const YELLOW = "#FFD93D";
 
 export default function StatsScreen() {
   const insets = useSafeAreaInsets();
@@ -114,32 +115,56 @@ export default function StatsScreen() {
     let goodDays = 0;
     let trackedDays = 0;
     
+    // Calculate for all days including today (i=0 is today)
     for (let i = 0; i < 30; i++) {
       const dateStr = getDateString(i);
-      const stats = getDayStats(dateStr);
+      const dayLogs = logs.filter((l) => l.date === dateStr);
       const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
       
-      if (stats.totalGoal > 0) {
+      // Get habits that existed on this date
+      const dayActiveHabits = activeHabits.filter((h) => {
+        const createdDate = h.createdAt.split("T")[0];
+        return createdDate <= dateStr;
+      });
+      
+      const totalGoal = dayActiveHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
+      const totalUnits = dayLogs.reduce((sum, l) => sum + l.count, 0);
+      
+      if (totalGoal > 0) {
         trackedDays++;
-        if (stats.isGoodDay) goodDays++;
         
-        const multiplier = stats.totalGoal > 0 ? stats.total / stats.totalGoal : 0;
-        const dayPercent = multiplier * 1;
+        // Calculate multiplier (e.g., 40% of goals = 0.4, 100% = 1.0, 200% = 2.0)
+        const multiplier = totalUnits / totalGoal;
+        // Each day adds: multiplier as percentage (40% of goals = 0.4% improvement)
+        const dayPercent = multiplier;
         
+        // Each bad habit tap subtracts 0.1%
         const badHabitPenalty = dayBadLogs.length * 0.1;
         
-        cumulativePercent += dayPercent - badHabitPenalty;
+        const dayTotal = dayPercent - badHabitPenalty;
+        cumulativePercent += dayTotal;
+        
+        // Check if all goals met AND no bad habits
+        const allGoalsMet = dayActiveHabits.every((h) => {
+          const habitUnits = dayLogs.filter((l) => l.habitId === h.id).reduce((sum, l) => sum + l.count, 0);
+          return habitUnits >= h.dailyGoal;
+        });
+        if (allGoalsMet && dayBadLogs.length === 0) goodDays++;
       }
     }
     
-    const displayValue = Math.abs(cumulativePercent);
+    // Format: round to 1 decimal max, show as whole number if no decimal needed
+    const roundedValue = Math.round(cumulativePercent * 10) / 10;
+    const absValue = Math.abs(roundedValue);
     let displayPercent: string;
-    if (displayValue < 1 && displayValue !== 0) {
-      displayPercent = (cumulativePercent >= 0 ? "+" : "-") + displayValue.toFixed(1);
+    if (absValue === Math.floor(absValue)) {
+      // Whole number
+      displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(0);
     } else {
-      displayPercent = (cumulativePercent >= 0 ? "+" : "") + cumulativePercent.toFixed(1);
+      // One decimal
+      displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(1);
     }
-    const isPositive = cumulativePercent >= 0;
+    const isPositive = roundedValue >= 0;
     
     let message = "";
     if (trackedDays === 0) {
@@ -157,11 +182,11 @@ export default function StatsScreen() {
     }
     
     return { displayPercent, isPositive, message, goodDays, trackedDays };
-  }, [getDayStats, getDateString, badHabitLogs]);
+  }, [logs, badHabitLogs, activeHabits, getDateString]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;
-    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean; dateStr: string }[] = [];
+    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean; hasStarted: boolean; dateStr: string }[] = [];
     
     for (let i = days - 1; i >= 0; i--) {
       const dateStr = getDateString(i);
@@ -173,6 +198,7 @@ export default function StatsScreen() {
         goal: stats.totalGoal,
         allGoalsMet: stats.allGoalsMet,
         hadBadHabits: dayBadLogs.length > 0,
+        hasStarted: stats.total > 0,
         dateStr,
       });
     }
@@ -374,21 +400,30 @@ export default function StatsScreen() {
         ]}>
           {trendData.data.map((day, i) => {
             const isToday = i === trendData.data.length - 1;
+            // Color logic:
+            // Gray: no habits for this day (goal === 0)
+            // Green: all goals met AND no bad habits
+            // Yellow: started but not all goals met, no bad habits
+            // Red: hit bad habits OR didn't start at all (goal > 0 but no progress)
+            let bgColor = theme.textSecondary + "20"; // gray default
+            if (day.goal > 0) {
+              if (day.allGoalsMet && !day.hadBadHabits) {
+                bgColor = GREEN; // Green: all goals met, no bad habits
+              } else if (day.hadBadHabits) {
+                bgColor = RED; // Red: had bad habits
+              } else if (day.hasStarted && !day.allGoalsMet) {
+                bgColor = YELLOW; // Yellow: in progress (started but not all goals)
+              } else {
+                bgColor = RED + "40"; // Light red: didn't start
+              }
+            }
             return (
               <View
                 key={i}
                 style={[
                   timeRange === "week" ? styles.weekSquare : 
                   timeRange === "month" ? styles.monthSquare : styles.yearSquare,
-                  {
-                    backgroundColor: day.goal === 0 
-                      ? theme.textSecondary + "20" 
-                      : day.isGood 
-                        ? GREEN 
-                        : day.allGoalsMet && day.hadBadHabits
-                          ? RED + "80"
-                          : RED + "40",
-                  },
+                  { backgroundColor: bgColor },
                   isToday && {
                     borderWidth: 2,
                     borderColor: theme.text,
