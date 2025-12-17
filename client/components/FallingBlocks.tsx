@@ -1,13 +1,12 @@
 import React, { useMemo, memo } from "react";
-import { View, StyleSheet, Dimensions, Platform } from "react-native";
-import { Canvas, Rect, Group, RoundedRect } from "@shopify/react-native-skia";
+import { View, StyleSheet, Dimensions } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
 const CONTAINER_PADDING = 4;
-const MIN_BLOCK_SIZE = 1;
+const MIN_BLOCK_SIZE = 2;
 const MAX_BLOCK_SIZE = 20;
 
 interface BlockData {
@@ -42,85 +41,68 @@ function calculateOptimalBlockSize(count: number, containerWidth: number, contai
   return MIN_BLOCK_SIZE;
 }
 
-interface SkiaBlocksProps {
-  blocks: BlockData[];
-  containerWidth: number;
+interface ColorSegment {
+  color: string;
+  count: number;
+  isTimeBlock: boolean;
 }
 
-const SkiaBlocks = memo(function SkiaBlocks({ blocks, containerWidth }: SkiaBlocksProps) {
-  const totalBlocks = blocks.length;
+const ColorBar = memo(function ColorBar({ 
+  segments, 
+  totalUnits,
+}: { 
+  segments: ColorSegment[];
+  totalUnits: number;
+}) {
+  if (totalUnits === 0) return null;
   
-  const { blockSize, gap, columns, positions } = useMemo(() => {
-    const size = calculateOptimalBlockSize(totalBlocks, containerWidth, PILE_HEIGHT);
-    const gapSize = size > 6 ? 1 : 0;
-    const availableWidth = containerWidth - CONTAINER_PADDING * 2;
-    const cols = Math.max(1, Math.floor(availableWidth / (size + gapSize)));
-    
-    const posArr: { x: number; y: number; color: string; isTimeBlock: boolean }[] = [];
-    blocks.forEach((block, idx) => {
-      const col = idx % cols;
-      const row = Math.floor(idx / cols);
-      posArr.push({
-        x: CONTAINER_PADDING + col * (size + gapSize),
-        y: CONTAINER_PADDING + row * (size + gapSize),
-        color: block.color,
-        isTimeBlock: !!block.isTimeBlock,
-      });
-    });
-    
-    return { blockSize: size, gap: gapSize, columns: cols, positions: posArr };
-  }, [blocks, totalBlocks, containerWidth]);
-
-  const radius = Math.max(1, blockSize / 5);
-
   return (
-    <Canvas style={{ width: containerWidth, height: PILE_HEIGHT }}>
-      <Group>
-        {positions.map((pos, i) => (
-          <RoundedRect
-            key={i}
-            x={pos.x}
-            y={pos.y}
-            width={blockSize}
-            height={blockSize}
-            r={radius}
-            color={pos.color}
+    <View style={styles.colorBar}>
+      {segments.map((segment, i) => {
+        const widthPercent = (segment.count / totalUnits) * 100;
+        return (
+          <View
+            key={`${segment.color}-${i}`}
+            style={[
+              styles.colorSegment,
+              {
+                width: `${widthPercent}%`,
+                backgroundColor: segment.color,
+                borderWidth: segment.isTimeBlock ? 1 : 0,
+                borderColor: segment.isTimeBlock ? "#FFD700" : undefined,
+              },
+            ]}
           />
-        ))}
-      </Group>
-    </Canvas>
+        );
+      })}
+    </View>
   );
 });
 
-const FallbackBlocks = memo(function FallbackBlocks({ blocks, containerWidth }: SkiaBlocksProps) {
-  const totalBlocks = blocks.length;
-  
-  const colorCounts = useMemo(() => {
-    const counts = new Map<string, number>();
-    blocks.forEach((block) => {
-      counts.set(block.color, (counts.get(block.color) || 0) + 1);
-    });
-    return counts;
-  }, [blocks]);
-
-  const segments = useMemo(() => {
-    const result: { color: string; percent: number }[] = [];
-    colorCounts.forEach((count, color) => {
-      result.push({ color, percent: (count / totalBlocks) * 100 });
-    });
-    return result;
-  }, [colorCounts, totalBlocks]);
-
+const GridRow = memo(function GridRow({
+  blocks,
+  blockSize,
+  gap,
+}: {
+  blocks: { color: string; isTimeBlock: boolean }[];
+  blockSize: number;
+  gap: number;
+}) {
   return (
-    <View style={[styles.colorBar, { width: containerWidth - CONTAINER_PADDING * 2 }]}>
-      {segments.map((seg, i) => (
+    <View style={[styles.row, { height: blockSize + gap }]}>
+      {blocks.map((block, i) => (
         <View
-          key={`${seg.color}-${i}`}
+          key={i}
           style={[
-            styles.colorSegment,
+            styles.block,
             {
-              width: `${seg.percent}%`,
-              backgroundColor: seg.color,
+              width: blockSize,
+              height: blockSize,
+              marginRight: gap,
+              backgroundColor: block.color,
+              borderRadius: Math.max(1, blockSize / 5),
+              borderWidth: block.isTimeBlock && blockSize > 4 ? 1 : 0,
+              borderColor: block.isTimeBlock ? "#FFD700" : undefined,
             },
           ]}
         />
@@ -134,7 +116,58 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   const { theme } = useTheme();
 
   const totalBlocks = blocks.length;
-  const useSkia = Platform.OS !== "web";
+
+  const { colorCounts, segments } = useMemo(() => {
+    const counts = new Map<string, { count: number; isTimeBlock: boolean }>();
+    blocks.forEach((block) => {
+      const existing = counts.get(block.color);
+      if (existing) {
+        existing.count++;
+      } else {
+        counts.set(block.color, { count: 1, isTimeBlock: !!block.isTimeBlock });
+      }
+    });
+    
+    const segs: ColorSegment[] = [];
+    counts.forEach((data, color) => {
+      segs.push({ color, count: data.count, isTimeBlock: data.isTimeBlock });
+    });
+    
+    return { colorCounts: counts, segments: segs };
+  }, [blocks]);
+
+  const { blockSize, gap, rows, showColorBar } = useMemo(() => {
+    const MAX_VIEWS = 500;
+    
+    if (totalBlocks > MAX_VIEWS) {
+      return { blockSize: 0, gap: 0, rows: [], showColorBar: true };
+    }
+    
+    const size = calculateOptimalBlockSize(totalBlocks, containerWidth, PILE_HEIGHT);
+    const gapSize = size > 6 ? 1 : 0;
+    const availableWidth = containerWidth - CONTAINER_PADDING * 2;
+    const columns = Math.max(1, Math.floor(availableWidth / (size + gapSize)));
+    
+    const rowsArr: { rowIndex: number; blocks: { color: string; isTimeBlock: boolean }[] }[] = [];
+    let blockIndex = 0;
+    let currentRow: { color: string; isTimeBlock: boolean }[] = [];
+    
+    blocks.forEach((block) => {
+      currentRow.push({ color: block.color, isTimeBlock: !!block.isTimeBlock });
+      blockIndex++;
+      
+      if (currentRow.length >= columns) {
+        rowsArr.push({ rowIndex: rowsArr.length, blocks: currentRow });
+        currentRow = [];
+      }
+    });
+    
+    if (currentRow.length > 0) {
+      rowsArr.push({ rowIndex: rowsArr.length, blocks: currentRow });
+    }
+    
+    return { blockSize: size, gap: gapSize, rows: rowsArr, showColorBar: false };
+  }, [blocks, totalBlocks, containerWidth]);
 
   if (totalBlocks === 0) {
     return (
@@ -148,10 +181,19 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
 
   return (
     <View style={styles.container}>
-      {useSkia ? (
-        <SkiaBlocks blocks={blocks} containerWidth={containerWidth} />
+      {showColorBar ? (
+        <ColorBar segments={segments} totalUnits={totalBlocks} />
       ) : (
-        <FallbackBlocks blocks={blocks} containerWidth={containerWidth} />
+        <View style={styles.gridContainer}>
+          {rows.map((row) => (
+            <GridRow
+              key={row.rowIndex}
+              blocks={row.blocks}
+              blockSize={blockSize}
+              gap={gap}
+            />
+          ))}
+        </View>
       )}
       <View style={styles.totalBadge}>
         <ThemedText type="body" style={{ color: theme.text, fontWeight: "700", fontSize: 14 }}>
@@ -172,6 +214,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  gridContainer: {
+    flex: 1,
+    padding: CONTAINER_PADDING,
+    flexDirection: "column",
+  },
+  row: {
+    flexDirection: "row",
+  },
+  block: {},
   colorBar: {
     flexDirection: "row",
     margin: CONTAINER_PADDING,
