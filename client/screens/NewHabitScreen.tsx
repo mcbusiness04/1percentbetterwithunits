@@ -363,9 +363,12 @@ export default function NewHabitScreen() {
                 <Feather name="plus" size={20} color={theme.text} />
               </Pressable>
               <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-                {creationMode === "time" ? "min" : unitName || "units"} per tap (max 500)
+                {creationMode === "time" ? "min" : unitName || "units"} per tap
               </ThemedText>
             </View>
+            <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.xs }}>
+              Limit is 500 per tap increment
+            </ThemedText>
           </View>
 
           <View style={styles.inputGroup}>
