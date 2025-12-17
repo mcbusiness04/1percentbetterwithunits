@@ -136,6 +136,11 @@ server/
 - **New: Bad habits stats** - Stats screen shows clean days (respects creation date), total slips per bad habit
 - **Fixed: Habit stats simplified** - Only shows "daily avg" and "best" (removed X/Y goals format)
 - **Fixed: Bad habit clean days** - Now counts from habit creation date, not arbitrary 30 days
+- **Fixed: All date handling uses local time** - All date formatting and calculations use local time (not UTC) to prevent premature day resets
+- **New: FallingBlocks 5000 visible limit** - Now displays up to 5000 blocks with 1px minimum size, shows +X overflow badge
+- **New: Heatmap grids** - Week=7, Month=28, Year=365 squares with today indicator (border on last square)
+- **New: Cumulative % improvement** - Each day adds: (units/goal) multiplier minus 0.1 per bad habit tap, accumulates over 30 days
+- **New: Historical data editing** - addUnitsForDate/removeUnitsForDate allow editing any previous day through HabitWall tap
 
 ## User Preferences
 - No emojis in the UI

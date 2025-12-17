@@ -110,48 +110,58 @@ export default function StatsScreen() {
   }, [getDayStats, currentDate, getDateString]);
 
   const totalImprovement = useMemo(() => {
-    let totalUnits = 0;
-    let totalGoals = 0;
+    let cumulativePercent = 0;
     let goodDays = 0;
     let trackedDays = 0;
     
     for (let i = 0; i < 30; i++) {
-      const stats = getDayStats(getDateString(i));
+      const dateStr = getDateString(i);
+      const stats = getDayStats(dateStr);
+      const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
+      
       if (stats.totalGoal > 0) {
-        totalUnits += stats.total;
-        totalGoals += stats.totalGoal;
         trackedDays++;
         if (stats.isGoodDay) goodDays++;
+        
+        const multiplier = stats.totalGoal > 0 ? stats.total / stats.totalGoal : 0;
+        const dayPercent = multiplier * 1;
+        
+        const badHabitPenalty = dayBadLogs.length * 0.1;
+        
+        cumulativePercent += dayPercent - badHabitPenalty;
       }
     }
     
-    const rawPercent = totalGoals > 0 ? ((totalUnits - totalGoals) / totalGoals) * 100 : 0;
-    const displayPercent = Math.abs(rawPercent) < 1 && rawPercent !== 0 
-      ? (rawPercent > 0 ? "+" : "") + rawPercent.toFixed(1)
-      : (rawPercent >= 0 ? "+" : "") + Math.round(rawPercent);
-    const isPositive = rawPercent >= 0;
+    const displayValue = Math.abs(cumulativePercent);
+    let displayPercent: string;
+    if (displayValue < 1 && displayValue !== 0) {
+      displayPercent = (cumulativePercent >= 0 ? "+" : "-") + displayValue.toFixed(1);
+    } else {
+      displayPercent = (cumulativePercent >= 0 ? "+" : "") + cumulativePercent.toFixed(1);
+    }
+    const isPositive = cumulativePercent >= 0;
     
     let message = "";
     if (trackedDays === 0) {
       message = "Start tracking to see progress!";
-    } else if (rawPercent >= 50) {
+    } else if (cumulativePercent >= 20) {
       message = "You're crushing it!";
-    } else if (rawPercent >= 20) {
+    } else if (cumulativePercent >= 10) {
       message = "Amazing progress!";
-    } else if (rawPercent >= 0) {
+    } else if (cumulativePercent >= 0) {
       message = "On track!";
-    } else if (rawPercent >= -20) {
+    } else if (cumulativePercent >= -5) {
       message = "Almost there, keep going!";
     } else {
       message = "Time to bounce back!";
     }
     
     return { displayPercent, isPositive, message, goodDays, trackedDays };
-  }, [getDayStats, getDateString]);
+  }, [getDayStats, getDateString, badHabitLogs]);
 
   const trendData = useMemo(() => {
-    const days = timeRange === "week" ? 7 : timeRange === "month" ? 30 : 365;
-    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean }[] = [];
+    const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;
+    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean; dateStr: string }[] = [];
     
     for (let i = days - 1; i >= 0; i--) {
       const dateStr = getDateString(i);
@@ -163,6 +173,7 @@ export default function StatsScreen() {
         goal: stats.totalGoal,
         allGoalsMet: stats.allGoalsMet,
         hadBadHabits: dayBadLogs.length > 0,
+        dateStr,
       });
     }
     
@@ -361,24 +372,31 @@ export default function StatsScreen() {
           timeRange === "month" && styles.heatmapMonth,
           timeRange === "year" && styles.heatmapYear,
         ]}>
-          {trendData.data.map((day, i) => (
-            <View
-              key={i}
-              style={[
-                timeRange === "week" ? styles.weekSquare : 
-                timeRange === "month" ? styles.monthSquare : styles.yearSquare,
-                {
-                  backgroundColor: day.goal === 0 
-                    ? theme.textSecondary + "20" 
-                    : day.isGood 
-                      ? GREEN 
-                      : day.allGoalsMet && day.hadBadHabits
-                        ? RED + "80"
-                        : RED + "40",
-                },
-              ]}
-            />
-          ))}
+          {trendData.data.map((day, i) => {
+            const isToday = i === trendData.data.length - 1;
+            return (
+              <View
+                key={i}
+                style={[
+                  timeRange === "week" ? styles.weekSquare : 
+                  timeRange === "month" ? styles.monthSquare : styles.yearSquare,
+                  {
+                    backgroundColor: day.goal === 0 
+                      ? theme.textSecondary + "20" 
+                      : day.isGood 
+                        ? GREEN 
+                        : day.allGoalsMet && day.hadBadHabits
+                          ? RED + "80"
+                          : RED + "40",
+                  },
+                  isToday && {
+                    borderWidth: 2,
+                    borderColor: theme.text,
+                  },
+                ]}
+              />
+            );
+          })}
         </View>
       </Animated.View>
 

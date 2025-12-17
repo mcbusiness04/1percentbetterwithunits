@@ -12,11 +12,11 @@ import { useTheme } from "@/hooks/useTheme";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
-const MIN_BLOCK_SIZE = 2;
+const MIN_BLOCK_SIZE = 1;
 const MAX_BLOCK_SIZE = 20;
 const BLOCK_GAP = 1;
 const CONTAINER_PADDING = 4;
-const MAX_VISIBLE_BLOCKS = 2000;
+const MAX_VISIBLE_BLOCKS = 5000;
 
 interface BlockData {
   id: string;
