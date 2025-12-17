@@ -130,46 +130,10 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   const innerHeight = PILE_HEIGHT - CONTAINER_PADDING * 2;
 
   const visualBlocks = useMemo(() => {
-    if (totalBlocks <= MAX_VISUAL_BLOCKS) {
-      return blocks;
-    }
-    
-    // Sample blocks proportionally from all habits to represent the distribution
-    const sampleRatio = MAX_VISUAL_BLOCKS / totalBlocks;
-    
-    // Count blocks per color to maintain proportions
-    const colorGroups: Record<string, BlockData[]> = {};
-    blocks.forEach((block) => {
-      if (!colorGroups[block.color]) {
-        colorGroups[block.color] = [];
-      }
-      colorGroups[block.color].push(block);
-    });
-    
-    // Sample proportionally from each color and interleave
-    const sampled: BlockData[] = [];
-    const colors = Object.keys(colorGroups);
-    const targetCounts = colors.map(c => Math.max(1, Math.round(colorGroups[c].length * sampleRatio)));
-    const indices = colors.map(() => 0);
-    
-    // Interleave colors for better visual distribution
-    let added = 0;
-    while (added < MAX_VISUAL_BLOCKS) {
-      let addedThisRound = false;
-      for (let i = 0; i < colors.length && added < MAX_VISUAL_BLOCKS; i++) {
-        const color = colors[i];
-        if (indices[i] < targetCounts[i] && indices[i] < colorGroups[color].length) {
-          sampled.push(colorGroups[color][indices[i]]);
-          indices[i]++;
-          added++;
-          addedThisRound = true;
-        }
-      }
-      if (!addedThisRound) break;
-    }
-    
-    return sampled;
-  }, [blocks, totalBlocks]);
+    // Simply take the first 15,000 blocks - once we hit the cap, visual stays fixed
+    // Only the +X badge updates as more units are added
+    return blocks.slice(0, MAX_VISUAL_BLOCKS);
+  }, [blocks]);
 
   const extraUnits = totalBlocks > MAX_VISUAL_BLOCKS ? totalBlocks - MAX_VISUAL_BLOCKS : 0;
 
