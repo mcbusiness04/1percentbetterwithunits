@@ -144,6 +144,7 @@ server/
 - **Fixed: Heatmap colors** - Now shows green (all goals + no bad habits), yellow (in progress, no bad habits), red (bad habits OR missed goals), gray (no habits)
 - **Fixed: Real-time progress %** - Calculates from raw logs, updates instantly as units are logged throughout the day
 - **Fixed: Progress % formatting** - Rounds to whole numbers or 1 decimal max (e.g., +1, +0.4, +2.5)
+- **Fixed: UTC/local timezone mismatch** - Added getLocalDateFromISO helper to convert habit createdAt timestamps to local dates; ensures habits created today appear in stats immediately
 
 ## User Preferences
 - No emojis in the UI
