@@ -48,20 +48,12 @@ export default function TodayScreen() {
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    // When all goals met and no bad habits - show congratulations with improvement
-    if (dailyProgress.allGoalsMet && !dailyProgress.hasBadHabits) {
-      if (dailyProgress.improvementPercent > 0) {
-        return `Congratulations! ${dailyProgress.improvementPercent}% better today`;
-      }
-      return "Congratulations! All goals met";
-    }
-    
-    // When there are bad habits, the penalty is already reflected in the percentage
+    // Show percentage with penalty indicator if needed
     if (dailyProgress.hasBadHabits) {
-      return `${dailyProgress.percentage}% (penalty applied)`;
+      return `${dailyProgress.percentage}%`;
     }
     
-    return `${dailyProgress.percentage}% complete`;
+    return `${dailyProgress.percentage}%`;
   }, [dailyProgress, activeHabits.length]);
 
   const todayBlocks = useMemo(() => {
@@ -177,8 +169,13 @@ export default function TodayScreen() {
           style={[styles.statsStrip, { backgroundColor: theme.backgroundDefault }]}
         >
           <View style={styles.statItem}>
-            <ThemedText type="h3" style={{ color: theme.accent }}>
-              {todayTotal}
+            <ThemedText 
+              type="h3" 
+              style={{ color: theme.accent }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {todayTotal.toLocaleString()}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Today
@@ -186,8 +183,13 @@ export default function TodayScreen() {
           </View>
           <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
           <View style={styles.statItem}>
-            <ThemedText type="h3" style={{ color: theme.text }}>
-              {highestTotal}
+            <ThemedText 
+              type="h3" 
+              style={{ color: theme.text }}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+            >
+              {highestTotal.toLocaleString()}
             </ThemedText>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Best Day
@@ -198,17 +200,21 @@ export default function TodayScreen() {
               <View style={[styles.statDivider, { backgroundColor: theme.border }]} />
               <View style={styles.statItem}>
                 <ThemedText 
-                  type="small" 
+                  type="h3"
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
                   style={{ 
                     color: dailyProgress.allGoalsMet && !dailyProgress.hasBadHabits 
                       ? theme.success 
                       : dailyProgress.hasBadHabits 
                         ? theme.danger 
                         : theme.textSecondary,
-                    fontWeight: "600",
                   }}
                 >
                   {progressMessage}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  Progress
                 </ThemedText>
               </View>
             </>
@@ -296,15 +302,16 @@ const styles = StyleSheet.create({
   statsStrip: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-evenly",
     paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.xl,
+    paddingHorizontal: Spacing.md,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    gap: Spacing.xl,
   },
   statItem: {
+    flex: 1,
     alignItems: "center",
+    minWidth: 0,
   },
   statDivider: {
     width: 1,
