@@ -264,7 +264,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const newLog: UnitLog = {
       id: generateId(),
       habitId,
-      count: Math.min(count, 999),
+      count,
       date: today,
       createdAt: new Date().toISOString(),
     };

@@ -6,6 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
 const CONTAINER_PADDING = 8;
+const MAX_VISUAL_BLOCKS = 15000;
 
 interface BlockData {
   id: string;
@@ -16,41 +17,6 @@ interface BlockData {
 interface FallingBlocksProps {
   blocks: BlockData[];
   containerWidth?: number;
-}
-
-function calculateGridLayout(
-  totalUnits: number,
-  containerWidth: number,
-  containerHeight: number
-): { blockSize: number; gap: number; columns: number; rows: number } {
-  if (totalUnits === 0) {
-    return { blockSize: 8, gap: 1, columns: 1, rows: 0 };
-  }
-
-  const availableWidth = containerWidth;
-  const availableHeight = containerHeight;
-  const totalArea = availableWidth * availableHeight;
-  
-  const areaPerUnit = totalArea / totalUnits;
-  let blockSize = Math.sqrt(areaPerUnit);
-  
-  blockSize = Math.max(1, Math.floor(blockSize));
-  
-  if (blockSize > 16) blockSize = 16;
-  
-  const gap = blockSize >= 4 ? 1 : 0;
-  const effectiveBlockSize = blockSize + gap;
-  
-  const columns = Math.floor(availableWidth / effectiveBlockSize);
-  const rows = Math.floor(availableHeight / effectiveBlockSize);
-  
-  const maxCapacity = columns * rows;
-  
-  if (totalUnits > maxCapacity && blockSize > 1) {
-    return calculateGridLayout(totalUnits, containerWidth, containerHeight);
-  }
-  
-  return { blockSize, gap, columns, rows };
 }
 
 const BlockGrid = memo(function BlockGrid({
@@ -97,7 +63,6 @@ const BlockGrid = memo(function BlockGrid({
       capacity = columns * rows;
       blockSize = 1;
       gap = 0;
-      effectiveSize = 1;
     }
     
     const displayBlocks = blocks.slice(0, capacity);
@@ -105,7 +70,7 @@ const BlockGrid = memo(function BlockGrid({
     const gridRows: { color: string; isTimeBlock: boolean }[][] = [];
     let currentRow: { color: string; isTimeBlock: boolean }[] = [];
     
-    displayBlocks.forEach((block, idx) => {
+    displayBlocks.forEach((block) => {
       currentRow.push({ color: block.color, isTimeBlock: !!block.isTimeBlock });
       if (currentRow.length >= columns) {
         gridRows.push(currentRow);
@@ -157,6 +122,15 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   const innerWidth = containerWidth - CONTAINER_PADDING * 2;
   const innerHeight = PILE_HEIGHT - CONTAINER_PADDING * 2;
 
+  const visualBlocks = useMemo(() => {
+    if (totalBlocks <= MAX_VISUAL_BLOCKS) {
+      return blocks;
+    }
+    return blocks.slice(0, MAX_VISUAL_BLOCKS);
+  }, [blocks, totalBlocks]);
+
+  const extraUnits = totalBlocks > MAX_VISUAL_BLOCKS ? totalBlocks - MAX_VISUAL_BLOCKS : 0;
+
   if (totalBlocks === 0) {
     return (
       <View style={[styles.container, styles.emptyContainer]}>
@@ -168,19 +142,31 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.innerContainer}>
-        <BlockGrid
-          blocks={blocks}
-          containerWidth={innerWidth}
-          containerHeight={innerHeight}
-        />
+    <View style={styles.outerContainer}>
+      <View style={styles.container}>
+        <View style={styles.innerContainer}>
+          <BlockGrid
+            blocks={visualBlocks}
+            containerWidth={innerWidth}
+            containerHeight={innerHeight}
+          />
+        </View>
       </View>
+      {extraUnits > 0 ? (
+        <View style={styles.extraUnitsContainer}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            +{extraUnits.toLocaleString()} units
+          </ThemedText>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    width: "100%",
+  },
   container: {
     height: PILE_HEIGHT,
     width: "100%",
@@ -203,5 +189,9 @@ const styles = StyleSheet.create({
   },
   gridRow: {
     flexDirection: "row",
+  },
+  extraUnitsContainer: {
+    alignItems: "center",
+    paddingVertical: 4,
   },
 });
