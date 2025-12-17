@@ -124,7 +124,7 @@ export default function NewHabitScreen() {
           color: selectedColor,
           unitName: unitName.trim(),
           dailyGoal: parseInt(dailyGoal) || 5,
-          tapIncrement: parseInt(tapIncrement) || 1,
+          tapIncrement: Math.min(parseInt(tapIncrement) || 1, 500),
           habitType,
         });
 
@@ -349,13 +349,21 @@ export default function NewHabitScreen() {
                 ]}
               />
               <Pressable
-                onPress={() => setTapIncrement(String(parseInt(tapIncrement) + 1))}
-                style={[styles.goalButton, { backgroundColor: theme.backgroundDefault }]}
+                onPress={() => {
+                  const current = parseInt(tapIncrement) || 1;
+                  if (current < 500) {
+                    setTapIncrement(String(current + 1));
+                  }
+                }}
+                style={[styles.goalButton, { 
+                  backgroundColor: theme.backgroundDefault,
+                  opacity: parseInt(tapIncrement) >= 500 ? 0.5 : 1,
+                }]}
               >
                 <Feather name="plus" size={20} color={theme.text} />
               </Pressable>
               <ThemedText type="body" style={{ marginLeft: Spacing.sm, color: theme.textSecondary }}>
-                {creationMode === "time" ? "min" : unitName || "units"} per tap
+                {creationMode === "time" ? "min" : unitName || "units"} per tap (max 500)
               </ThemedText>
             </View>
           </View>

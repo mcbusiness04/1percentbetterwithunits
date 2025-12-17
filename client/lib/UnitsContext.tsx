@@ -261,14 +261,10 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return false;
 
-    // Limit to 500 units per tap
-    const MAX_PER_TAP = 500;
-    const actualCount = Math.min(count, MAX_PER_TAP);
-
     const newLog: UnitLog = {
       id: generateId(),
       habitId,
-      count: actualCount,
+      count,
       date: today,
       createdAt: new Date().toISOString(),
     };
@@ -279,9 +275,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
     const newTotal = logs
       .filter((l) => l.habitId === habitId && l.date === today)
-      .reduce((sum, l) => sum + l.count, 0) + actualCount;
+      .reduce((sum, l) => sum + l.count, 0) + count;
     
-    if (newTotal >= habit.dailyGoal && newTotal - actualCount < habit.dailyGoal) {
+    if (newTotal >= habit.dailyGoal && newTotal - count < habit.dailyGoal) {
       triggerSuccess();
     } else {
       triggerHaptic("medium");

@@ -14,7 +14,7 @@ export type RootStackParamList = {
   Main: undefined;
   Onboarding: undefined;
   NewHabit: undefined;
-  QuickAdd: { habitId: string };
+  QuickAdd: { habitId: string; mode?: "add" | "remove" };
   Paywall: { reason: string };
 };
 

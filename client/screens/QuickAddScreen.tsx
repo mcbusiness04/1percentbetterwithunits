@@ -25,9 +25,10 @@ export default function QuickAddScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
-  const { habitId } = route.params;
+  const { habitId, mode = "add" } = route.params;
+  const isRemoveMode = mode === "remove";
 
-  const { habits, addUnits, canAddUnits } = useUnits();
+  const { habits, addUnits, removeUnits, canAddUnits, getTodayUnits } = useUnits();
   const [count, setCount] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,45 +37,66 @@ export default function QuickAddScreen() {
     [habits, habitId]
   );
 
+  const todayUnits = habit ? getTodayUnits(habit.id) : 0;
+  const maxRemovable = todayUnits;
+
   const handleIncrement = useCallback(() => {
-    setCount((prev) => Math.min(prev + 1, MAX_UNITS));
-  }, []);
+    const max = isRemoveMode ? maxRemovable : MAX_UNITS;
+    setCount((prev) => Math.min(prev + 1, max));
+  }, [isRemoveMode, maxRemovable]);
 
   const handleDecrement = useCallback(() => {
     setCount((prev) => Math.max(prev - 1, 0));
   }, []);
 
   const handleQuickValue = useCallback((value: number) => {
-    setCount((prev) => Math.min(prev + value, MAX_UNITS));
-  }, []);
+    const max = isRemoveMode ? maxRemovable : MAX_UNITS;
+    setCount((prev) => Math.min(prev + value, max));
+  }, [isRemoveMode, maxRemovable]);
 
-  const handleAdd = useCallback(async () => {
+  const handleSubmit = useCallback(async () => {
     if (count === 0 || isSubmitting) return;
 
-    if (!canAddUnits(count)) {
-      navigation.navigate("Paywall", { reason: "units" });
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const success = await addUnits(habitId, count);
-      if (success) {
-        navigation.goBack();
-      } else {
-        Alert.alert("Limit Reached", "You've reached the daily unit limit. Upgrade to Pro for unlimited units.");
+    if (isRemoveMode) {
+      if (count > todayUnits) {
+        Alert.alert("Not Enough Units", `You only have ${todayUnits} units to remove.`);
+        return;
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to add units. Please try again.");
-    } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(true);
+      try {
+        const success = await removeUnits(habitId, count);
+        if (success) {
+          navigation.goBack();
+        }
+      } catch (error) {
+        Alert.alert("Error", "Failed to remove units. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      if (!canAddUnits(count)) {
+        navigation.navigate("Paywall", { reason: "units" });
+        return;
+      }
+      setIsSubmitting(true);
+      try {
+        const success = await addUnits(habitId, count);
+        if (success) {
+          navigation.goBack();
+        } else {
+          Alert.alert("Limit Reached", "You've reached the daily unit limit. Upgrade to Pro for unlimited units.");
+        }
+      } catch (error) {
+        Alert.alert("Error", "Failed to add units. Please try again.");
+      } finally {
+        setIsSubmitting(false);
+      }
     }
-  }, [count, isSubmitting, canAddUnits, addUnits, habitId, navigation]);
+  }, [count, isSubmitting, isRemoveMode, todayUnits, canAddUnits, addUnits, removeUnits, habitId, navigation]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
-      headerTitle: habit?.name || "Quick Add",
+      headerTitle: isRemoveMode ? "Remove Units" : (habit?.name || "Quick Add"),
       headerLeft: () => (
         <HeaderButton onPress={() => navigation.goBack()}>
           <ThemedText type="body" style={{ color: theme.link }}>
@@ -83,7 +105,7 @@ export default function QuickAddScreen() {
         </HeaderButton>
       ),
     });
-  }, [navigation, theme, habit]);
+  }, [navigation, theme, habit, isRemoveMode]);
 
   if (!habit) {
     return (
@@ -156,16 +178,21 @@ export default function QuickAddScreen() {
             <Pressable
               key={value}
               onPress={() => handleQuickValue(value)}
-              style={[styles.quickButton, { backgroundColor: theme.backgroundDefault }]}
+              style={[styles.quickButton, { 
+                backgroundColor: isRemoveMode ? "#FF444420" : theme.backgroundDefault,
+              }]}
             >
-              <ThemedText type="body" style={{ fontWeight: "500" }}>
-                +{value}
+              <ThemedText type="body" style={{ 
+                fontWeight: "500",
+                color: isRemoveMode ? "#FF4444" : theme.text,
+              }}>
+                {isRemoveMode ? "-" : "+"}{value}
               </ThemedText>
             </Pressable>
           ))}
         </View>
 
-        {count > MAX_UNITS ? (
+        {!isRemoveMode && count > MAX_UNITS ? (
           <ThemedText
             type="small"
             style={{ color: theme.warning, textAlign: "center", marginTop: Spacing.md }}
@@ -173,14 +200,22 @@ export default function QuickAddScreen() {
             Max 999 per add
           </ThemedText>
         ) : null}
+        {isRemoveMode && todayUnits === 0 ? (
+          <ThemedText
+            type="small"
+            style={{ color: theme.textSecondary, textAlign: "center", marginTop: Spacing.md }}
+          >
+            No units to remove today
+          </ThemedText>
+        ) : null}
       </View>
 
       <Button
-        onPress={handleAdd}
-        disabled={count === 0 || isSubmitting}
-        style={[styles.addButton, { backgroundColor: habit.color }]}
+        onPress={handleSubmit}
+        disabled={count === 0 || isSubmitting || (isRemoveMode && todayUnits === 0)}
+        style={[styles.addButton, { backgroundColor: isRemoveMode ? "#FF4444" : habit.color }]}
       >
-        Add {count} {habit.unitName}
+        {isRemoveMode ? `Remove ${count}` : `Add ${count}`} {habit.unitName}
       </Button>
     </View>
   );
