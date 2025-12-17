@@ -126,7 +126,30 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
     if (totalBlocks <= MAX_VISUAL_BLOCKS) {
       return blocks;
     }
-    return blocks.slice(0, MAX_VISUAL_BLOCKS);
+    
+    // Sample blocks proportionally from all habits to represent the distribution
+    const sampleRatio = MAX_VISUAL_BLOCKS / totalBlocks;
+    const sampled: BlockData[] = [];
+    
+    // Count blocks per color to maintain proportions
+    const colorCounts: Record<string, { blocks: BlockData[]; count: number }> = {};
+    blocks.forEach((block) => {
+      if (!colorCounts[block.color]) {
+        colorCounts[block.color] = { blocks: [], count: 0 };
+      }
+      colorCounts[block.color].blocks.push(block);
+      colorCounts[block.color].count++;
+    });
+    
+    // Sample proportionally from each color
+    Object.values(colorCounts).forEach(({ blocks: colorBlocks, count }) => {
+      const sampleCount = Math.max(1, Math.round(count * sampleRatio));
+      for (let i = 0; i < sampleCount && i < colorBlocks.length; i++) {
+        sampled.push(colorBlocks[i]);
+      }
+    });
+    
+    return sampled.slice(0, MAX_VISUAL_BLOCKS);
   }, [blocks, totalBlocks]);
 
   const extraUnits = totalBlocks > MAX_VISUAL_BLOCKS ? totalBlocks - MAX_VISUAL_BLOCKS : 0;

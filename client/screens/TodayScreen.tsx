@@ -58,7 +58,6 @@ export default function TodayScreen() {
 
   const todayBlocks = useMemo(() => {
     const todayLogs = logs.filter((l) => l.date === currentDate);
-    const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
     
     // Aggregate units per habit first (handles positive and negative logs)
     const habitTotals: Record<string, number> = {};
@@ -66,18 +65,29 @@ export default function TodayScreen() {
       habitTotals[log.habitId] = (habitTotals[log.habitId] || 0) + log.count;
     });
     
-    // Create blocks based on net totals (which reflect penalties)
+    // Build habit data with colors - sorted by count descending
+    const habitData: { habitId: string; color: string; count: number; isTimeBlock: boolean }[] = [];
     Object.entries(habitTotals).forEach(([habitId, netCount]) => {
       const habit = habits.find((h) => h.id === habitId);
       if (habit && netCount > 0) {
-        const isTimeBlock = habit.habitType === "time";
-        for (let i = 0; i < netCount; i++) {
-          blocks.push({
-            id: `${habitId}-${i}`,
-            color: habit.color,
-            isTimeBlock,
-          });
-        }
+        habitData.push({
+          habitId,
+          color: habit.color,
+          count: netCount,
+          isTimeBlock: habit.habitType === "time",
+        });
+      }
+    });
+    
+    // Create all blocks sequentially per habit (efficient)
+    const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
+    habitData.forEach((h) => {
+      for (let i = 0; i < h.count; i++) {
+        blocks.push({
+          id: `${h.habitId}-${i}`,
+          color: h.color,
+          isTimeBlock: h.isTimeBlock,
+        });
       }
     });
     
