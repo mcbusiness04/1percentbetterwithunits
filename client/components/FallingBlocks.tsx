@@ -6,7 +6,7 @@ import { useTheme } from "@/hooks/useTheme";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PILE_HEIGHT = 130;
 const CONTAINER_PADDING = 4;
-const MIN_BLOCK_SIZE = 2;
+const MIN_BLOCK_SIZE = 1;
 const MAX_BLOCK_SIZE = 20;
 
 interface BlockData {
@@ -20,8 +20,17 @@ interface FallingBlocksProps {
   containerWidth?: number;
 }
 
-function calculateOptimalBlockSize(count: number, containerWidth: number, containerHeight: number): number {
-  if (count === 0) return MAX_BLOCK_SIZE;
+function calculateBlockLayout(count: number, containerWidth: number, containerHeight: number): {
+  blockSize: number;
+  gap: number;
+  columns: number;
+  rows: number;
+  maxBlocks: number;
+  overflow: number;
+} {
+  if (count === 0) {
+    return { blockSize: MAX_BLOCK_SIZE, gap: 1, columns: 1, rows: 0, maxBlocks: 0, overflow: 0 };
+  }
   
   const availableWidth = containerWidth - CONTAINER_PADDING * 2;
   const availableHeight = containerHeight - CONTAINER_PADDING * 2;
@@ -30,15 +39,36 @@ function calculateOptimalBlockSize(count: number, containerWidth: number, contai
     const gap = size > 6 ? 1 : 0;
     const columns = Math.floor(availableWidth / (size + gap));
     if (columns < 1) continue;
-    const rows = Math.ceil(count / columns);
-    const requiredHeight = rows * (size + gap);
+    
+    const rowsNeeded = Math.ceil(count / columns);
+    const requiredHeight = rowsNeeded * (size + gap);
     
     if (requiredHeight <= availableHeight) {
-      return size;
+      return { 
+        blockSize: size, 
+        gap, 
+        columns, 
+        rows: rowsNeeded, 
+        maxBlocks: count, 
+        overflow: 0 
+      };
     }
   }
   
-  return MIN_BLOCK_SIZE;
+  const gap = 0;
+  const columns = Math.floor(availableWidth / MIN_BLOCK_SIZE);
+  const maxRows = Math.floor(availableHeight / MIN_BLOCK_SIZE);
+  const maxBlocks = columns * maxRows;
+  const overflow = Math.max(0, count - maxBlocks);
+  
+  return { 
+    blockSize: MIN_BLOCK_SIZE, 
+    gap, 
+    columns, 
+    rows: maxRows, 
+    maxBlocks, 
+    overflow 
+  };
 }
 
 interface ColorSegment {
@@ -100,7 +130,7 @@ const GridRow = memo(function GridRow({
               height: blockSize,
               marginRight: gap,
               backgroundColor: block.color,
-              borderRadius: Math.max(1, blockSize / 5),
+              borderRadius: blockSize > 3 ? Math.max(1, blockSize / 5) : 0,
               borderWidth: block.isTimeBlock && blockSize > 4 ? 1 : 0,
               borderColor: block.isTimeBlock ? "#FFD700" : undefined,
             },
@@ -136,27 +166,25 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
     return { colorCounts: counts, segments: segs };
   }, [blocks]);
 
-  const { blockSize, gap, rows, showColorBar } = useMemo(() => {
-    const MAX_VIEWS = 500;
+  const { blockSize, gap, rows, showColorBar, overflow } = useMemo(() => {
+    const MAX_RENDER_BLOCKS = 2000;
     
-    if (totalBlocks > MAX_VIEWS) {
-      return { blockSize: 0, gap: 0, rows: [], showColorBar: true };
+    if (totalBlocks > MAX_RENDER_BLOCKS) {
+      return { blockSize: 0, gap: 0, rows: [], showColorBar: true, overflow: 0 };
     }
     
-    const size = calculateOptimalBlockSize(totalBlocks, containerWidth, PILE_HEIGHT);
-    const gapSize = size > 6 ? 1 : 0;
-    const availableWidth = containerWidth - CONTAINER_PADDING * 2;
-    const columns = Math.max(1, Math.floor(availableWidth / (size + gapSize)));
+    const layout = calculateBlockLayout(totalBlocks, containerWidth, PILE_HEIGHT);
+    
+    const blocksToShow = Math.min(totalBlocks, layout.maxBlocks);
+    const displayBlocks = blocks.slice(0, blocksToShow);
     
     const rowsArr: { rowIndex: number; blocks: { color: string; isTimeBlock: boolean }[] }[] = [];
-    let blockIndex = 0;
     let currentRow: { color: string; isTimeBlock: boolean }[] = [];
     
-    blocks.forEach((block) => {
+    displayBlocks.forEach((block) => {
       currentRow.push({ color: block.color, isTimeBlock: !!block.isTimeBlock });
-      blockIndex++;
       
-      if (currentRow.length >= columns) {
+      if (currentRow.length >= layout.columns) {
         rowsArr.push({ rowIndex: rowsArr.length, blocks: currentRow });
         currentRow = [];
       }
@@ -166,7 +194,13 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
       rowsArr.push({ rowIndex: rowsArr.length, blocks: currentRow });
     }
     
-    return { blockSize: size, gap: gapSize, rows: rowsArr, showColorBar: false };
+    return { 
+      blockSize: layout.blockSize, 
+      gap: layout.gap, 
+      rows: rowsArr, 
+      showColorBar: false,
+      overflow: layout.overflow
+    };
   }, [blocks, totalBlocks, containerWidth]);
 
   if (totalBlocks === 0) {
@@ -195,10 +229,19 @@ export function FallingBlocks({ blocks, containerWidth: propWidth }: FallingBloc
           ))}
         </View>
       )}
-      <View style={styles.totalBadge}>
-        <ThemedText type="body" style={{ color: theme.text, fontWeight: "700", fontSize: 14 }}>
-          {totalBlocks.toLocaleString()}
-        </ThemedText>
+      <View style={styles.badgeContainer}>
+        {overflow > 0 ? (
+          <View style={styles.overflowBadge}>
+            <ThemedText type="body" style={{ color: "#fff", fontWeight: "700", fontSize: 12 }}>
+              +{overflow.toLocaleString()} more
+            </ThemedText>
+          </View>
+        ) : null}
+        <View style={styles.totalBadge}>
+          <ThemedText type="body" style={{ color: theme.text, fontWeight: "700", fontSize: 14 }}>
+            {totalBlocks.toLocaleString()}
+          </ThemedText>
+        </View>
       </View>
     </View>
   );
@@ -209,6 +252,7 @@ const styles = StyleSheet.create({
     height: PILE_HEIGHT,
     width: "100%",
     position: "relative",
+    overflow: "hidden",
   },
   emptyContainer: {
     justifyContent: "center",
@@ -218,6 +262,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: CONTAINER_PADDING,
     flexDirection: "column",
+    overflow: "hidden",
   },
   row: {
     flexDirection: "row",
@@ -233,10 +278,21 @@ const styles = StyleSheet.create({
   colorSegment: {
     height: "100%",
   },
-  totalBadge: {
+  badgeContainer: {
     position: "absolute",
     bottom: 4,
     right: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  overflowBadge: {
+    backgroundColor: "rgba(255,149,0,0.9)",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  totalBadge: {
     backgroundColor: "rgba(0,0,0,0.5)",
     paddingHorizontal: 8,
     paddingVertical: 3,
