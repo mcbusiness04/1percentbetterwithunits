@@ -162,16 +162,16 @@ export default function StatsScreen() {
       }
     }
     
-    // Format: round to 1 decimal max, show as whole number if no decimal needed
-    const roundedValue = Math.round(cumulativePercent * 10) / 10;
+    // Format: round to 2 decimals max, show as whole number if no decimal needed
+    const roundedValue = Math.round(cumulativePercent * 100) / 100;
     const absValue = Math.abs(roundedValue);
     let displayPercent: string;
     if (absValue === Math.floor(absValue)) {
       // Whole number
       displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(0);
     } else {
-      // One decimal
-      displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(1);
+      // Up to 2 decimals
+      displayPercent = (roundedValue >= 0 ? "+" : "") + roundedValue.toFixed(2).replace(/\.?0+$/, "");
     }
     const isPositive = roundedValue >= 0;
     
@@ -411,19 +411,17 @@ export default function StatsScreen() {
             const isToday = i === trendData.data.length - 1;
             // Color logic:
             // Gray: no habits for this day (goal === 0)
+            // Red: any bad habit pressed
             // Green: all goals met AND no bad habits
-            // Yellow: started but not all goals met, no bad habits
-            // Red: hit bad habits OR didn't start at all (goal > 0 but no progress)
+            // Yellow: no bad habits but goals not all met (even if one left)
             let bgColor = theme.textSecondary + "20"; // gray default
             if (day.goal > 0) {
-              if (day.allGoalsMet && !day.hadBadHabits) {
+              if (day.hadBadHabits) {
+                bgColor = RED; // Red: any bad habit pressed
+              } else if (day.allGoalsMet) {
                 bgColor = GREEN; // Green: all goals met, no bad habits
-              } else if (day.hadBadHabits) {
-                bgColor = RED; // Red: had bad habits
-              } else if (day.hasStarted && !day.allGoalsMet) {
-                bgColor = YELLOW; // Yellow: in progress (started but not all goals)
               } else {
-                bgColor = RED + "40"; // Light red: didn't start
+                bgColor = YELLOW; // Yellow: no bad habits but goals not all met
               }
             }
             return (
