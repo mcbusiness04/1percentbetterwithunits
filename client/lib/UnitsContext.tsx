@@ -179,8 +179,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         await saveHabits(normalizedHabits);
       }
       
+      // Clean up orphaned logs (logs for habits that no longer exist)
+      const habitIds = new Set(normalizedHabits.map((h) => h.id));
+      const cleanedLogs = loadedLogs.filter((l) => habitIds.has(l.habitId));
+      if (cleanedLogs.length !== loadedLogs.length) {
+        await saveLogs(cleanedLogs);
+      }
+      
       setHabits(normalizedHabits);
-      setLogs(loadedLogs);
+      setLogs(cleanedLogs);
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
       setHasCompletedOnboarding(loadedOnboarding);
@@ -437,28 +444,38 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [logs]);
 
   const getTodayTotalUnits = useCallback(() => {
-    return logs.filter((l) => l.date === currentDate).reduce((sum, l) => sum + l.count, 0);
-  }, [logs, currentDate]);
+    // Only count logs for habits that still exist
+    const habitIds = new Set(habits.map((h) => h.id));
+    return logs
+      .filter((l) => l.date === currentDate && habitIds.has(l.habitId))
+      .reduce((sum, l) => sum + l.count, 0);
+  }, [logs, currentDate, habits]);
 
   const getWeekTotalUnits = useCallback(() => {
     const startOfWeek = getStartOfWeek();
-    return logs.filter((l) => l.date >= startOfWeek).reduce((sum, l) => sum + l.count, 0);
-  }, [logs]);
+    const habitIds = new Set(habits.map((h) => h.id));
+    return logs
+      .filter((l) => l.date >= startOfWeek && habitIds.has(l.habitId))
+      .reduce((sum, l) => sum + l.count, 0);
+  }, [logs, habits]);
 
   const getLogsForDate = useCallback((date: string) => {
-    return logs.filter((l) => l.date === date);
-  }, [logs]);
+    const habitIds = new Set(habits.map((h) => h.id));
+    return logs.filter((l) => l.date === date && habitIds.has(l.habitId));
+  }, [logs, habits]);
 
   const getHighestDailyTotal = useCallback(() => {
+    // Only count logs for habits that still exist
+    const habitIds = new Set(habits.map((h) => h.id));
     const dailyTotals: Record<string, number> = {};
     logs.forEach((log) => {
-      if (log.date !== currentDate) {
+      if (log.date !== currentDate && habitIds.has(log.habitId)) {
         dailyTotals[log.date] = (dailyTotals[log.date] || 0) + log.count;
       }
     });
     const totals = Object.values(dailyTotals);
     return totals.length > 0 ? Math.max(...totals) : 0;
-  }, [logs, currentDate]);
+  }, [logs, currentDate, habits]);
 
   const canAddHabit = useCallback(() => {
     if (isPro) return true;

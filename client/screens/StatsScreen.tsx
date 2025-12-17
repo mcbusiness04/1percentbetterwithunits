@@ -52,8 +52,12 @@ export default function StatsScreen() {
   }, [currentDate]);
 
   const getDayStats = useMemo(() => {
+    // Create set of active habit IDs for efficient lookup
+    const habitIds = new Set(activeHabits.map((h) => h.id));
+    
     return (dateStr: string) => {
-      const dayLogs = logs.filter((l) => l.date === dateStr);
+      // Only count logs for habits that still exist
+      const dayLogs = logs.filter((l) => l.date === dateStr && habitIds.has(l.habitId));
       const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
       const total = dayLogs.reduce((sum, l) => sum + l.count, 0);
       
@@ -124,10 +128,14 @@ export default function StatsScreen() {
     let goodDays = 0;
     let trackedDays = 0;
     
+    // Create set of active habit IDs for efficient lookup
+    const habitIds = new Set(activeHabits.map((h) => h.id));
+    
     // Calculate for all days including today (i=0 is today)
     for (let i = 0; i < 30; i++) {
       const dateStr = getDateString(i);
-      const dayLogs = logs.filter((l) => l.date === dateStr);
+      // Only count logs for habits that still exist
+      const dayLogs = logs.filter((l) => l.date === dateStr && habitIds.has(l.habitId));
       const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
       
       // Get habits that existed on this date
