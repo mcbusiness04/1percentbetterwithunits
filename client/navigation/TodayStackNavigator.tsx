@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { HeaderButton } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
-import { Alert } from "react-native";
+import { Alert, View, Text, StyleSheet } from "react-native";
 import TodayScreen from "@/screens/TodayScreen";
 import HabitDetailScreen from "@/screens/HabitDetailScreen";
 import { HeaderTitle } from "@/components/HeaderTitle";
@@ -42,10 +42,25 @@ function AddHabitButton() {
 
   return (
     <HeaderButton onPress={handlePress}>
-      <Feather name="plus" size={24} color={theme.accent} />
+      <View style={styles.addButton}>
+        <Feather name="plus" size={18} color={theme.accent} />
+        <Text style={[styles.addButtonText, { color: theme.accent }]}>Add Habit</Text>
+      </View>
     </HeaderButton>
   );
 }
+
+const styles = StyleSheet.create({
+  addButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  addButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+});
 
 export default function TodayStackNavigator() {
   const screenOptions = useScreenOptions();
