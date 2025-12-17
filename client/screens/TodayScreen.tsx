@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from "react";
-import { View, ScrollView, StyleSheet, Pressable, Alert } from "react-native";
+import React, { useMemo } from "react";
+import { View, ScrollView, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -29,7 +29,6 @@ export default function TodayScreen() {
     habits,
     logs,
     loading,
-    canAddHabit,
     getTodayTotalUnits,
     getHighestDailyTotal,
     getDailyProgress,
@@ -100,20 +99,6 @@ export default function TodayScreen() {
     return blocks;
   }, [logs, habits, currentDate]);
 
-  const handleAddPress = useCallback(() => {
-    if (canAddHabit()) {
-      navigation.navigate("NewHabit");
-    } else {
-      Alert.alert(
-        "Limit Reached",
-        "Free tier allows 3 habits. Upgrade to Pro for unlimited habits.",
-        [
-          { text: "Not Now", style: "cancel" },
-          { text: "Upgrade", onPress: () => navigation.navigate("Paywall", { reason: "habits" }) },
-        ]
-      );
-    }
-  }, [canAddHabit, navigation]);
 
   if (loading) {
     return (
@@ -133,7 +118,7 @@ export default function TodayScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + 220,
+            paddingBottom: tabBarHeight + PILE_HEIGHT + 80,
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
@@ -161,7 +146,7 @@ export default function TodayScreen() {
                 Tap below to add your first habit and start tracking your progress.
               </ThemedText>
               <Button
-                onPress={handleAddPress}
+                onPress={() => navigation.navigate("NewHabit")}
                 style={styles.emptyButton}
               >
                 Add your first habit
@@ -241,21 +226,6 @@ export default function TodayScreen() {
           <FallingBlocks blocks={todayBlocks} />
         </View>
       </View>
-
-      <Pressable
-        onPress={handleAddPress}
-        style={({ pressed }) => [
-          styles.fab,
-          {
-            backgroundColor: theme.accent,
-            bottom: tabBarHeight + 210,
-            opacity: pressed ? 0.8 : 1,
-            transform: [{ scale: pressed ? 0.95 : 1 }],
-          },
-        ]}
-      >
-        <Feather name="plus" size={24} color="white" />
-      </Pressable>
     </View>
   );
 }
@@ -338,19 +308,5 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     overflow: "hidden",
-  },
-  fab: {
-    position: "absolute",
-    right: Spacing.lg,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
 });
