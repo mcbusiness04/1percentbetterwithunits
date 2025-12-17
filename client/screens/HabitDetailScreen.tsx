@@ -10,7 +10,6 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
-import { HabitWall } from "@/components/HabitWall";
 import { useUnits } from "@/lib/UnitsContext";
 import { TodayStackParamList } from "@/navigation/TodayStackNavigator";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
@@ -32,8 +31,6 @@ export default function HabitDetailScreen() {
     logs,
     addUnits,
     removeUnits,
-    addUnitsForDate,
-    removeUnitsForDate,
     deleteHabit,
     updateHabit,
     getTodayUnits,
@@ -171,34 +168,6 @@ export default function HabitDetailScreen() {
       ]);
     }
   }, [habit, updateHabit, deleteHabit, navigation]);
-
-  const handleDayPress = useCallback((date: string, units: number) => {
-    if (!habit) return;
-    
-    const displayDate = formatDisplayDate(date);
-    const unitLabel = habit.habitType === "time" ? "min" : habit.unitName || "units";
-    
-    Alert.alert(
-      displayDate,
-      `${units} ${unitLabel} logged (Goal: ${habit.dailyGoal})`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "+1",
-          onPress: () => addUnitsForDate(habit.id, 1, date),
-        },
-        {
-          text: "+5",
-          onPress: () => addUnitsForDate(habit.id, 5, date),
-        },
-        ...(units > 0 ? [{
-          text: "-1",
-          style: "destructive" as const,
-          onPress: () => removeUnitsForDate(habit.id, 1, date),
-        }] : []),
-      ]
-    );
-  }, [habit, addUnitsForDate, removeUnitsForDate]);
 
   if (!habit) {
     return (
@@ -410,23 +379,8 @@ export default function HabitDetailScreen() {
         </View>
       </View>
 
-      <View style={styles.wallSection}>
-        <ThemedText type="h4" style={styles.sectionTitle}>
-          Activity
-        </ThemedText>
-        <HabitWall habit={habit} logs={habitLogs} onDayPress={handleDayPress} />
-      </View>
     </ScrollView>
   );
-}
-
-function formatDisplayDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 const styles = StyleSheet.create({
@@ -517,7 +471,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   incrementDisplay: {
-    width: 60,
+    minWidth: 60,
+    paddingHorizontal: Spacing.md,
     height: 44,
     borderRadius: 12,
     alignItems: "center",
@@ -534,8 +489,5 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: 14,
     alignItems: "center",
-  },
-  wallSection: {
-    marginBottom: Spacing["2xl"],
   },
 });

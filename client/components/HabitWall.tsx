@@ -14,8 +14,8 @@ interface HabitWallProps {
 
 const BLOCK_SIZE = 8;
 const COLUMN_WIDTH = 28;
-const MAX_VISIBLE_BLOCKS = 50;
-const BUNDLE_SIZE = 5;
+const MAX_BLOCKS_HEIGHT = 120;
+const MAX_VISIBLE_BLOCKS = Math.floor(MAX_BLOCKS_HEIGHT / (BLOCK_SIZE * 0.7 + 2));
 
 export function HabitWall({ habit, logs, onDayPress }: HabitWallProps) {
   const { theme } = useTheme();
@@ -53,49 +53,33 @@ export function HabitWall({ habit, logs, onDayPress }: HabitWallProps) {
   const renderBlocks = (units: number) => {
     if (units === 0) return null;
 
+    const blocksToShow = Math.min(units, MAX_VISIBLE_BLOCKS);
+    const overflow = units - blocksToShow;
+    
     const blocks: React.ReactNode[] = [];
-    let remainingUnits = units;
-    let blockIndex = 0;
-
-    if (units > MAX_VISIBLE_BLOCKS) {
-      while (remainingUnits > 0) {
-        const bundleUnits = Math.min(BUNDLE_SIZE, remainingUnits);
-        blocks.push(
-          <View
-            key={blockIndex}
-            style={[
-              styles.block,
-              {
-                width: BLOCK_SIZE,
-                height: BLOCK_SIZE * 0.7,
-                backgroundColor: habit.color,
-              },
-            ]}
-          >
-            {bundleUnits > 1 ? (
-              <ThemedText style={styles.bundleText}>{bundleUnits}</ThemedText>
-            ) : null}
-          </View>
-        );
-        remainingUnits -= bundleUnits;
-        blockIndex++;
-      }
-    } else {
-      for (let i = 0; i < units; i++) {
-        blocks.push(
-          <View
-            key={i}
-            style={[
-              styles.block,
-              {
-                width: BLOCK_SIZE,
-                height: BLOCK_SIZE * 0.7,
-                backgroundColor: habit.color,
-              },
-            ]}
-          />
-        );
-      }
+    
+    for (let i = 0; i < blocksToShow; i++) {
+      blocks.push(
+        <View
+          key={i}
+          style={[
+            styles.block,
+            {
+              width: BLOCK_SIZE,
+              height: BLOCK_SIZE * 0.7,
+              backgroundColor: habit.color,
+            },
+          ]}
+        />
+      );
+    }
+    
+    if (overflow > 0) {
+      blocks.push(
+        <View key="overflow" style={[styles.overflowBadge, { backgroundColor: habit.color }]}>
+          <ThemedText style={styles.overflowText}>+{overflow.toLocaleString()}</ThemedText>
+        </View>
+      );
     }
 
     return blocks;
@@ -174,9 +158,10 @@ const styles = StyleSheet.create({
     paddingLeft: Spacing.xs,
   },
   blocksContainer: {
-    minHeight: 80,
+    height: MAX_BLOCKS_HEIGHT,
     justifyContent: "flex-end",
     alignItems: "center",
+    overflow: "hidden",
   },
   block: {
     borderRadius: 2,
@@ -184,10 +169,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  bundleText: {
-    fontSize: 6,
+  overflowBadge: {
+    paddingHorizontal: 3,
+    paddingVertical: 2,
+    borderRadius: 3,
+    marginVertical: 1,
+  },
+  overflowText: {
+    fontSize: 7,
     color: "white",
-    fontWeight: "600",
+    fontWeight: "700",
   },
   dateLabel: {
     fontSize: 10,
