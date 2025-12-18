@@ -75,6 +75,7 @@ interface UnitsContextType {
   getTodayUnits: (habitId: string) => number;
   getEffectiveTodayUnits: (habitId: string) => number;
   getEffectiveTodayTotalUnits: () => number;
+  getEffectiveUnitsDistribution: () => Record<string, number>;
   getWeekUnits: (habitId: string) => number;
   getTodayTotalUnits: () => number;
   getWeekTotalUnits: () => number;
@@ -502,16 +503,59 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   // Get effective total units after penalty multiplier applied
   const getEffectiveTodayTotalUnits = useCallback(() => {
-    const habitIds = new Set(habits.map((h) => h.id));
+    const activeHabits = habits.filter((h) => !h.isArchived);
     const rawTotal = logs
-      .filter((l) => l.date === currentDate && habitIds.has(l.habitId))
+      .filter((l) => l.date === currentDate && activeHabits.some((h) => h.id === l.habitId))
       .reduce((sum, l) => sum + l.count, 0);
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     const multiplier = Math.pow(0.9, totalBadTaps);
+    // Use floor to ensure exact 10% reduction (40 * 0.9 = 36, not 39)
     return Math.floor(rawTotal * multiplier);
-  }, [logs, currentDate, habits, badHabitLogs]);
+  }, [logs, currentDate, badHabitLogs, habits]);
+
+  // Get effective distribution of units across all habits (for blocks visualization)
+  const getEffectiveUnitsDistribution = useCallback(() => {
+    const activeHabits = habits.filter((h) => !h.isArchived);
+    const habitCount = activeHabits.length;
+    
+    if (habitCount === 0) return {};
+    
+    // Calculate raw totals per habit
+    let rawTotal = 0;
+    const habitRawUnits: Record<string, number> = {};
+    
+    for (const h of activeHabits) {
+      const raw = logs
+        .filter((l) => l.habitId === h.id && l.date === currentDate)
+        .reduce((sum, l) => sum + l.count, 0);
+      habitRawUnits[h.id] = raw;
+      rawTotal += raw;
+    }
+    
+    // Get penalty
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === currentDate && !l.isUndone)
+      .reduce((sum, l) => sum + l.count, 0);
+    const multiplier = Math.pow(0.9, totalBadTaps);
+    
+    // Calculate effective total (floor for exact 10%)
+    const effectiveTotal = Math.floor(rawTotal * multiplier);
+    const penaltyAmount = rawTotal - effectiveTotal;
+    
+    // Distribute penalty evenly (round-robin for remainder)
+    const penaltyPerHabit = Math.floor(penaltyAmount / habitCount);
+    const remainder = penaltyAmount % habitCount;
+    
+    const result: Record<string, number> = {};
+    activeHabits.forEach((h, idx) => {
+      const extraPenalty = idx < remainder ? 1 : 0;
+      result[h.id] = Math.max(0, habitRawUnits[h.id] - penaltyPerHabit - extraPenalty);
+    });
+    
+    return result;
+  }, [logs, currentDate, badHabitLogs, habits]);
 
   const getWeekTotalUnits = useCallback(() => {
     const startOfWeek = getStartOfWeek();
@@ -685,8 +729,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    // Effective units after penalty
-    const effectiveTotalUnits = Math.round(rawTotalUnits * penaltyMultiplier);
+    // Effective units after penalty (use floor for exact 10% reduction)
+    const effectiveTotalUnits = Math.floor(rawTotalUnits * penaltyMultiplier);
     
     // Raw percentage (0-100 scale for completion)
     const rawPercent = totalGoal > 0 ? (rawTotalUnits / totalGoal) * 100 : 0;
@@ -753,6 +797,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getTodayUnits,
         getEffectiveTodayUnits,
         getEffectiveTodayTotalUnits,
+        getEffectiveUnitsDistribution,
         getWeekUnits,
         getMonthUnits,
         getTodayTotalUnits,

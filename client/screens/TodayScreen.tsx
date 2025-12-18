@@ -30,13 +30,11 @@ export default function TodayScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {
     habits,
-    logs,
     loading,
     getEffectiveTodayTotalUnits,
     getHighestDailyTotal,
     getDailyProgress,
-    getPenaltyMultiplier,
-    currentDate,
+    getEffectiveUnitsDistribution,
   } = useUnits();
 
   const activeHabits = useMemo(
@@ -64,52 +62,24 @@ export default function TodayScreen() {
     return "0%";
   }, [dailyProgress, activeHabits.length]);
 
-  const penaltyMultiplier = getPenaltyMultiplier();
-  
+  // Use centralized effective distribution to ensure all counts match
   const todayBlocks = useMemo(() => {
-    const todayLogs = logs.filter((l) => l.date === currentDate);
-    
-    // First compute total raw units
-    let totalRawUnits = 0;
-    const habitTotals: Record<string, number> = {};
-    todayLogs.forEach((log) => {
-      habitTotals[log.habitId] = (habitTotals[log.habitId] || 0) + log.count;
-      totalRawUnits += log.count;
-    });
-    
-    // Apply penalty to total, then distribute proportionally
-    const effectiveTotal = Math.floor(totalRawUnits * penaltyMultiplier);
-    const ratio = totalRawUnits > 0 ? effectiveTotal / totalRawUnits : 1;
-    
-    const habitData: { habitId: string; color: string; count: number; isTimeBlock: boolean }[] = [];
-    Object.entries(habitTotals).forEach(([habitId, netCount]) => {
-      const habit = habits.find((h) => h.id === habitId);
-      if (habit && netCount > 0) {
-        const effectiveCount = Math.max(0, Math.round(netCount * ratio));
-        if (effectiveCount > 0) {
-          habitData.push({
-            habitId,
-            color: habit.color,
-            count: effectiveCount,
-            isTimeBlock: habit.habitType === "time",
-          });
-        }
-      }
-    });
+    const effectiveDistribution = getEffectiveUnitsDistribution();
     
     const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
-    habitData.forEach((h) => {
-      for (let i = 0; i < h.count; i++) {
+    activeHabits.forEach((habit) => {
+      const count = effectiveDistribution[habit.id] || 0;
+      for (let i = 0; i < count; i++) {
         blocks.push({
-          id: `${h.habitId}-${i}`,
-          color: h.color,
-          isTimeBlock: h.isTimeBlock,
+          id: `${habit.id}-${i}`,
+          color: habit.color,
+          isTimeBlock: habit.habitType === "time",
         });
       }
     });
     
     return blocks;
-  }, [logs, habits, currentDate, penaltyMultiplier]);
+  }, [activeHabits, getEffectiveUnitsDistribution]);
 
   const bottomOffset = tabBarHeight + Spacing.lg;
   const overlayHeight = STATS_STRIP_HEIGHT + PILE_HEIGHT + PILE_SECTION_GAP;

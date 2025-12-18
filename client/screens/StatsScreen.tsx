@@ -294,21 +294,21 @@ export default function StatsScreen() {
         entering={FadeIn} 
         style={[
           styles.heroCard, 
-          { backgroundColor: totalImprovement.isPositive ? GREEN + "15" : RED + "15" }
+          { backgroundColor: GOLD + "15" }
         ]}
       >
         <View style={styles.heroContent}>
           <ThemedText 
             type="h1" 
             style={{ 
-              color: totalImprovement.isPositive ? GREEN : RED,
+              color: GOLD,
               fontSize: 48,
               fontWeight: "700",
             }}
           >
             {totalImprovement.displayPercent}%
           </ThemedText>
-          <ThemedText type="body" style={{ color: totalImprovement.isPositive ? GREEN : RED, fontWeight: "600" }}>
+          <ThemedText type="body" style={{ color: GOLD, fontWeight: "600" }}>
             {totalImprovement.message}
           </ThemedText>
           <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: 4 }}>
