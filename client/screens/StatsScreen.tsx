@@ -99,16 +99,18 @@ export default function StatsScreen() {
     }
     const weekDelta = weekTotal - lastWeekTotal;
     
-    
-    let perfectDays = 0;
+    let monthTotal = 0;
+    let lastMonthTotal = 0;
     for (let i = 0; i < 30; i++) {
-      if (getDayStats(getDateString(i)).isGoodDay) perfectDays++;
+      monthTotal += getDayStats(getDateString(i)).total;
+      lastMonthTotal += getDayStats(getDateString(i + 30)).total;
     }
+    const monthDelta = monthTotal - lastMonthTotal;
     
     return {
       todayTotal, todayDelta, todayIsGood: today.isGoodDay,
       weekTotal, weekDelta,
-      perfectDays,
+      monthTotal, monthDelta,
     };
   }, [getDayStats, currentDate, getDateString]);
 
@@ -336,18 +338,19 @@ export default function StatsScreen() {
           ) : null}
         </View>
         
-        <View style={[styles.statBox, { backgroundColor: overviewStats.perfectDays > 0 ? GOLD + "15" : theme.backgroundDefault }]}>
-          <ThemedText type="h2" style={{ color: overviewStats.perfectDays > 0 ? GOLD : theme.text }}>
-            {overviewStats.perfectDays}
+        <View style={[styles.statBox, { backgroundColor: overviewStats.monthDelta >= 0 ? GREEN + "15" : RED + "15" }]}>
+          <ThemedText type="h2" style={{ color: overviewStats.monthDelta >= 0 ? GREEN : RED }}>
+            {overviewStats.monthTotal}
           </ThemedText>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>Perfect (30d)</ThemedText>
-        </View>
-        
-        <View style={[styles.statBox, { backgroundColor: theme.backgroundDefault }]}>
-          <ThemedText type="h2" style={{ color: trendData.successRate >= 50 ? GREEN : theme.text }}>
-            {trendData.successRate}%
-          </ThemedText>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>Success</ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>This Month</ThemedText>
+          {overviewStats.monthDelta !== 0 ? (
+            <View style={[styles.deltaChip, { backgroundColor: overviewStats.monthDelta > 0 ? GREEN + "20" : RED + "20" }]}>
+              <Feather name={overviewStats.monthDelta > 0 ? "arrow-up" : "arrow-down"} size={10} color={overviewStats.monthDelta > 0 ? GREEN : RED} />
+              <ThemedText type="small" style={{ color: overviewStats.monthDelta > 0 ? GREEN : RED, fontSize: 10 }}>
+                {Math.abs(overviewStats.monthDelta)}
+              </ThemedText>
+            </View>
+          ) : null}
         </View>
       </Animated.View>
 

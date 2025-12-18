@@ -35,8 +35,6 @@ export default function HabitDetailScreen() {
     deleteHabit,
     updateHabit,
     getTodayUnits,
-    getWeekUnits,
-    getMonthUnits,
     getYearUnits,
   } = useUnits();
 
@@ -51,9 +49,11 @@ export default function HabitDetailScreen() {
   );
 
   const todayUnits = habit ? getTodayUnits(habit.id) : 0;
-  const weekUnits = habit ? getWeekUnits(habit.id) : 0;
-  const monthUnits = habit ? getMonthUnits(habit.id) : 0;
   const yearUnits = habit ? getYearUnits(habit.id) : 0;
+
+  const allTimeUnits = useMemo(() => {
+    return habitLogs.reduce((sum, l) => sum + l.count, 0);
+  }, [habitLogs]);
 
   const avg7d = useMemo(() => {
     if (!habit) return 0;
@@ -68,6 +68,14 @@ export default function HabitDetailScreen() {
     const total = recentLogs.reduce((sum, l) => sum + l.count, 0);
     return Math.round((total / 7) * 10) / 10;
   }, [habit, habitLogs]);
+
+  const bestDay = useMemo(() => {
+    const dailyTotals: Record<string, number> = {};
+    habitLogs.forEach((l) => {
+      dailyTotals[l.date] = (dailyTotals[l.date] || 0) + l.count;
+    });
+    return Math.max(0, ...Object.values(dailyTotals));
+  }, [habitLogs]);
 
   const statusColor = useMemo(() => {
     if (!habit) return theme.textSecondary;
@@ -321,31 +329,31 @@ export default function HabitDetailScreen() {
       <View style={styles.statsRow}>
         <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            This Week
-          </ThemedText>
-          <ThemedText type="h4">{weekUnits}</ThemedText>
-        </View>
-        <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            This Month
-          </ThemedText>
-          <ThemedText type="h4">{monthUnits}</ThemedText>
-        </View>
-        <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            Avg 7d
+            Daily Avg
           </ThemedText>
           <ThemedText type="h4">{avg7d}</ThemedText>
         </View>
+        <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            Best Day
+          </ThemedText>
+          <ThemedText type="h4">{bestDay}</ThemedText>
+        </View>
       </View>
 
-      <View style={[styles.yearTotalCard, { backgroundColor: theme.backgroundDefault }]}>
-        <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          {new Date().getFullYear()} Total
-        </ThemedText>
-        <ThemedText type="h2" style={{ color: habit.color }}>
-          {yearUnits.toLocaleString()} {habit.habitType === "time" ? "min" : habit.unitName}
-        </ThemedText>
+      <View style={styles.statsRow}>
+        <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {new Date().getFullYear()} Total
+          </ThemedText>
+          <ThemedText type="h3" style={{ color: habit.color }}>{yearUnits.toLocaleString()}</ThemedText>
+        </View>
+        <View style={[styles.statChip, { backgroundColor: theme.backgroundDefault }]}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            All Time
+          </ThemedText>
+          <ThemedText type="h3" style={{ color: habit.color }}>{allTimeUnits.toLocaleString()}</ThemedText>
+        </View>
       </View>
 
     </KeyboardAwareScrollViewCompat>
@@ -473,11 +481,5 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: 14,
     alignItems: "center",
-  },
-  yearTotalCard: {
-    padding: Spacing.lg,
-    borderRadius: 16,
-    alignItems: "center",
-    marginBottom: Spacing["2xl"],
   },
 });
