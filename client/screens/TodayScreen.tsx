@@ -113,7 +113,7 @@ export default function TodayScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <ScrollView
-        style={[styles.scrollView, { marginBottom: PILE_HEIGHT + 70 }]}
+        style={styles.scrollView}
         contentContainerStyle={[
           styles.content,
           {
@@ -162,6 +162,9 @@ export default function TodayScreen() {
         </View>
 
         <BadHabitsSection />
+        
+        {/* Spacer to ensure content ends above the pile section */}
+        <View style={{ height: PILE_HEIGHT + 100 }} />
       </ScrollView>
 
       <View style={[styles.pileSection, { bottom: tabBarHeight + 16 }]}>
