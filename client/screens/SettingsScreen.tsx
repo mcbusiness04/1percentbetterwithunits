@@ -10,7 +10,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsRow } from "@/components/SettingsRow";
 import { useUnits } from "@/lib/UnitsContext";
-import { clearAllData } from "@/lib/storage";
+import { clearAllData, resetOnboarding } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -180,6 +180,22 @@ export default function SettingsScreen() {
         <SettingsRow icon="shield" title="Privacy Policy" onPress={handlePrivacyPolicy} />
         <SettingsRow icon="file-text" title="Terms of Service" onPress={handleTerms} />
         <SettingsRow icon="mail" title="Contact Support" onPress={handleContactSupport} />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          Developer
+        </ThemedText>
+        <SettingsRow
+          icon="refresh-cw"
+          title="Reset Onboarding"
+          subtitle="View onboarding flow again"
+          onPress={async () => {
+            await resetOnboarding();
+            await refreshData();
+            Alert.alert("Reset", "Please restart the app to see the onboarding.");
+          }}
+        />
       </View>
 
       <View style={styles.footer}>

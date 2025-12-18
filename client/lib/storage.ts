@@ -154,6 +154,11 @@ export async function setOnboardingComplete(): Promise<void> {
   await AsyncStorage.setItem(KEYS.ONBOARDING_COMPLETE, "true");
 }
 
+export async function resetOnboarding(): Promise<void> {
+  await AsyncStorage.removeItem(KEYS.ONBOARDING_COMPLETE);
+  await AsyncStorage.removeItem(KEYS.IS_PRO);
+}
+
 export async function getBadHabits(): Promise<BadHabit[]> {
   try {
     const data = await AsyncStorage.getItem(KEYS.BAD_HABITS);
