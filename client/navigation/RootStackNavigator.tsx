@@ -6,11 +6,14 @@ import NewHabitScreen from "@/screens/NewHabitScreen";
 import QuickAddScreen from "@/screens/QuickAddScreen";
 import PaywallScreen from "@/screens/PaywallScreen";
 import OnboardingScreen from "@/screens/OnboardingScreen";
+import AuthScreen from "@/screens/AuthScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useUnits } from "@/lib/UnitsContext";
+import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 
 export type RootStackParamList = {
+  Auth: undefined;
   Main: undefined;
   Onboarding: undefined;
   NewHabit: undefined;
@@ -22,8 +25,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
-  const { hasCompletedOnboarding, loading } = useUnits();
+  const { hasCompletedOnboarding, loading: unitsLoading } = useUnits();
+  const { session, loading: authLoading, isPremium } = useAuth();
   const { theme } = useTheme();
+
+  const loading = unitsLoading || authLoading;
 
   if (loading) {
     return (
@@ -35,7 +41,25 @@ export default function RootStackNavigator() {
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      {hasCompletedOnboarding ? (
+      {!session ? (
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ headerShown: false }}
+        />
+      ) : !hasCompletedOnboarding ? (
+        <Stack.Screen
+          name="Onboarding"
+          component={OnboardingScreen}
+          options={{ headerShown: false }}
+        />
+      ) : !isPremium ? (
+        <Stack.Screen
+          name="Paywall"
+          component={PaywallScreen}
+          options={{ headerShown: false }}
+        />
+      ) : (
         <>
           <Stack.Screen
             name="Main"
@@ -67,12 +91,6 @@ export default function RootStackNavigator() {
             }}
           />
         </>
-      ) : (
-        <Stack.Screen
-          name="Onboarding"
-          component={OnboardingScreen}
-          options={{ headerShown: false }}
-        />
       )}
     </Stack.Navigator>
   );
