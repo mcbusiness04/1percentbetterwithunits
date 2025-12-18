@@ -37,6 +37,7 @@ export default function HabitDetailScreen() {
     getTodayUnits,
     getWeekUnits,
     getMonthUnits,
+    getYearUnits,
   } = useUnits();
 
   const habit = useMemo(
@@ -52,6 +53,7 @@ export default function HabitDetailScreen() {
   const todayUnits = habit ? getTodayUnits(habit.id) : 0;
   const weekUnits = habit ? getWeekUnits(habit.id) : 0;
   const monthUnits = habit ? getMonthUnits(habit.id) : 0;
+  const yearUnits = habit ? getYearUnits(habit.id) : 0;
 
   const avg7d = useMemo(() => {
     if (!habit) return 0;
@@ -337,6 +339,15 @@ export default function HabitDetailScreen() {
         </View>
       </View>
 
+      <View style={[styles.yearTotalCard, { backgroundColor: theme.backgroundDefault }]}>
+        <ThemedText type="small" style={{ color: theme.textSecondary }}>
+          {new Date().getFullYear()} Total
+        </ThemedText>
+        <ThemedText type="h2" style={{ color: habit.color }}>
+          {yearUnits.toLocaleString()} {habit.habitType === "time" ? "min" : habit.unitName}
+        </ThemedText>
+      </View>
+
     </KeyboardAwareScrollViewCompat>
   );
 }
@@ -462,5 +473,11 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: 14,
     alignItems: "center",
+  },
+  yearTotalCard: {
+    padding: Spacing.lg,
+    borderRadius: 16,
+    alignItems: "center",
+    marginBottom: Spacing["2xl"],
   },
 });

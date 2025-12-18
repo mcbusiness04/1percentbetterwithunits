@@ -99,17 +99,6 @@ export default function StatsScreen() {
     }
     const weekDelta = weekTotal - lastWeekTotal;
     
-    let streak = 0;
-    for (let i = 1; i < 365; i++) {
-      const dayStats = getDayStats(getDateString(i));
-      if (dayStats.totalGoal === 0) continue;
-      if (dayStats.isGoodDay) {
-        streak++;
-      } else {
-        break;
-      }
-    }
-    if (today.isGoodDay) streak++;
     
     let perfectDays = 0;
     for (let i = 0; i < 30; i++) {
@@ -119,7 +108,6 @@ export default function StatsScreen() {
     return {
       todayTotal, todayDelta, todayIsGood: today.isGoodDay,
       weekTotal, weekDelta,
-      streak,
       perfectDays,
     };
   }, [getDayStats, currentDate, getDateString]);
@@ -348,11 +336,11 @@ export default function StatsScreen() {
           ) : null}
         </View>
         
-        <View style={[styles.statBox, { backgroundColor: overviewStats.streak > 0 ? GOLD + "15" : theme.backgroundDefault }]}>
-          <ThemedText type="h2" style={{ color: overviewStats.streak > 0 ? GOLD : theme.text }}>
-            {overviewStats.streak}
+        <View style={[styles.statBox, { backgroundColor: overviewStats.perfectDays > 0 ? GOLD + "15" : theme.backgroundDefault }]}>
+          <ThemedText type="h2" style={{ color: overviewStats.perfectDays > 0 ? GOLD : theme.text }}>
+            {overviewStats.perfectDays}
           </ThemedText>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>Streak</ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>Perfect (30d)</ThemedText>
         </View>
         
         <View style={[styles.statBox, { backgroundColor: theme.backgroundDefault }]}>

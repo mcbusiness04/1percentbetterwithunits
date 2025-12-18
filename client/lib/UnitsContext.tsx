@@ -83,6 +83,7 @@ interface UnitsContextType {
   getTodayTotalUnits: () => number;
   getWeekTotalUnits: () => number;
   getMonthUnits: (habitId: string) => number;
+  getYearUnits: (habitId: string) => number;
   getLogsForDate: (date: string) => UnitLog[];
   getHighestDailyTotal: () => number;
   
@@ -448,6 +449,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const startOfMonth = `${y}-${m}-01`;
     return logs
       .filter((l) => l.habitId === habitId && l.date >= startOfMonth)
+      .reduce((sum, l) => sum + l.count, 0);
+  }, [logs]);
+
+  const getYearUnits = useCallback((habitId: string) => {
+    const now = new Date();
+    const startOfYear = `${now.getFullYear()}-01-01`;
+    return logs
+      .filter((l) => l.habitId === habitId && l.date >= startOfYear)
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs]);
 
@@ -846,6 +855,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getEffectiveUnitsDistribution,
         getWeekUnits,
         getMonthUnits,
+        getYearUnits,
         getTodayTotalUnits,
         getWeekTotalUnits,
         getLogsForDate,
