@@ -110,10 +110,8 @@ export default function TodayScreen() {
     );
   }
 
-  const pileHeight = PILE_HEIGHT + 70;
-  
   return (
-    <View style={[styles.container, { backgroundColor: theme.backgroundRoot, paddingBottom: tabBarHeight + pileHeight + Spacing.lg }]}>
+    <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[
@@ -166,7 +164,7 @@ export default function TodayScreen() {
         <BadHabitsSection />
       </ScrollView>
 
-      <View style={[styles.pileSection, { bottom: tabBarHeight + Spacing.lg }]}>
+      <View style={[styles.pileSection, { marginBottom: tabBarHeight + Spacing.md }]}>
         <Animated.View 
           entering={FadeIn.delay(300)}
           style={[styles.statsStrip, { backgroundColor: theme.backgroundDefault }]}
@@ -282,10 +280,7 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   pileSection: {
-    position: "absolute",
-    left: Spacing.md,
-    right: Spacing.md,
-    height: PILE_HEIGHT + 50,
+    marginHorizontal: Spacing.md,
   },
   statsStrip: {
     flexDirection: "row",
