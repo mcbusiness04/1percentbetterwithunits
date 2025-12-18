@@ -26,6 +26,7 @@ import {
   FREE_LIMITS,
   isOnboardingComplete,
   setOnboardingComplete,
+  resetOnboarding as resetOnboardingStorage,
 } from "@/lib/storage";
 
 interface UndoAction {
@@ -74,6 +75,7 @@ interface UnitsContextType {
   updateSettings: (updates: Partial<AppSettings>) => Promise<void>;
   setIsPro: (isPro: boolean) => Promise<void>;
   completeOnboarding: () => Promise<void>;
+  resetOnboarding: () => Promise<void>;
   
   getTodayUnits: (habitId: string) => number;
   getEffectiveTodayUnits: (habitId: string) => number;
@@ -610,6 +612,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     setHasCompletedOnboarding(true);
   }, []);
 
+  const handleResetOnboarding = useCallback(async () => {
+    await resetOnboardingStorage();
+    setHasCompletedOnboarding(false);
+    setIsProState(false);
+  }, []);
+
   const handleAddBadHabit = useCallback(async (name: string) => {
     const newBadHabit: BadHabit = {
       id: generateId(),
@@ -849,6 +857,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         updateSettings: handleUpdateSettings,
         setIsPro: handleSetIsPro,
         completeOnboarding: handleCompleteOnboarding,
+        resetOnboarding: handleResetOnboarding,
         getTodayUnits,
         getEffectiveTodayUnits,
         getEffectiveTodayTotalUnits,

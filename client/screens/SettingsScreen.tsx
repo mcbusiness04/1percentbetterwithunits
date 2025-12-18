@@ -11,7 +11,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { SettingsRow } from "@/components/SettingsRow";
 import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
-import { clearAllData, resetOnboarding } from "@/lib/storage";
+import { clearAllData } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -22,7 +22,7 @@ export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { settings, updateSettings, refreshData } = useUnits();
+  const { settings, updateSettings, refreshData, resetOnboarding } = useUnits();
   const { user, signOut, isPremium } = useAuth();
   const [eraseText, setEraseText] = useState("");
   const [showEraseInput, setShowEraseInput] = useState(false);
@@ -210,6 +210,34 @@ export default function SettingsScreen() {
           subtitle="Coming soon"
           onPress={() => {
             Alert.alert("Coming Soon", "iCloud sync will be available in a future update.");
+          }}
+        />
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          Developer
+        </ThemedText>
+        <SettingsRow
+          icon="refresh-cw"
+          title="Reset Onboarding"
+          subtitle="Test the onboarding flow again"
+          onPress={() => {
+            Alert.alert(
+              "Reset Onboarding",
+              "This will reset the app to show the onboarding screens again. You will be signed out.",
+              [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Reset",
+                  style: "destructive",
+                  onPress: async () => {
+                    await signOut();
+                    await resetOnboarding();
+                  },
+                },
+              ]
+            );
           }}
         />
       </View>
