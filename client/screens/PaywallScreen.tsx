@@ -10,7 +10,6 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
-import { useAuth } from "@/lib/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -30,7 +29,6 @@ export default function PaywallScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { setIsPro } = useUnits();
-  const { updatePremiumStatus } = useAuth();
   const reason = route.params?.reason ?? "onboarding";
 
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
@@ -40,25 +38,33 @@ export default function PaywallScreen() {
     setLoading(true);
     try {
       await setIsPro(true);
-      await updatePremiumStatus(true);
+      // Navigator will automatically switch to Main when isPro becomes true
+      // Only call goBack if we're in a modal (can go back)
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to complete subscription. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [setIsPro, updatePremiumStatus]);
+  }, [setIsPro, navigation]);
 
   const handleRestorePurchases = useCallback(async () => {
     setLoading(true);
     try {
       await setIsPro(true);
-      await updatePremiumStatus(true);
+      // Navigator will automatically switch to Main when isPro becomes true
+      // Only call goBack if we're in a modal (can go back)
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
     } catch (error) {
       Alert.alert("Error", "Failed to restore purchases. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [setIsPro, updatePremiumStatus]);
+  }, [setIsPro, navigation]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");

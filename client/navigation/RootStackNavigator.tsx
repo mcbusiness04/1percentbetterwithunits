@@ -25,8 +25,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
-  const { hasCompletedOnboarding, loading: unitsLoading } = useUnits();
-  const { session, loading: authLoading, isPremium } = useAuth();
+  const { hasCompletedOnboarding, isPro, loading: unitsLoading } = useUnits();
+  const { session, loading: authLoading } = useAuth();
   const { theme } = useTheme();
 
   const loading = unitsLoading || authLoading;
@@ -39,18 +39,8 @@ export default function RootStackNavigator() {
     );
   }
 
-  if (!session) {
-    return (
-      <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen
-          name="Auth"
-          component={AuthScreen}
-          options={{ headerShown: false }}
-        />
-      </Stack.Navigator>
-    );
-  }
-
+  // Flow: Onboarding (with paywall) → Auth → Main
+  // 1. First show onboarding if not completed (includes paywall at step 5)
   if (!hasCompletedOnboarding) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
@@ -63,7 +53,21 @@ export default function RootStackNavigator() {
     );
   }
 
-  if (!isPremium) {
+  // 2. After onboarding, require sign in
+  if (!session) {
+    return (
+      <Stack.Navigator screenOptions={screenOptions}>
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ headerShown: false }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  // 3. Require premium status (from local storage, set during onboarding)
+  if (!isPro) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -75,6 +79,7 @@ export default function RootStackNavigator() {
     );
   }
 
+  // 4. Main app (user is signed in, has completed onboarding, and has premium)
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen

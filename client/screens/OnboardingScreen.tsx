@@ -25,7 +25,6 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
-import { useAuth } from "@/lib/AuthContext";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -186,7 +185,6 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { setIsPro, completeOnboarding } = useUnits();
-  const { updatePremiumStatus } = useAuth();
 
   const [step, setStep] = useState<OnboardingStep>("welcome");
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
@@ -205,28 +203,28 @@ export default function OnboardingScreen() {
   const handleSubscribe = useCallback(async () => {
     setLoading(true);
     try {
+      // Set premium status locally - will sync to Supabase after user creates account
       await setIsPro(true);
-      await updatePremiumStatus(true);
       await completeOnboarding();
     } catch (error) {
       Alert.alert("Error", "Failed to complete subscription. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [setIsPro, updatePremiumStatus, completeOnboarding]);
+  }, [setIsPro, completeOnboarding]);
 
   const handleRestorePurchases = useCallback(async () => {
     setLoading(true);
     try {
+      // Set premium status locally - will sync to Supabase after user creates account
       await setIsPro(true);
-      await updatePremiumStatus(true);
       await completeOnboarding();
     } catch (error) {
       Alert.alert("Error", "Failed to restore purchases. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [setIsPro, updatePremiumStatus, completeOnboarding]);
+  }, [setIsPro, completeOnboarding]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");

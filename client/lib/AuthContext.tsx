@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase, Profile } from "@/lib/supabase";
+import { getIsPro } from "@/lib/storage";
 
 interface AuthContextType {
   session: Session | null;
@@ -73,19 +74,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  const syncLocalPremiumStatus = async (userId: string) => {
+    // Check if user has local premium status (from onboarding paywall)
+    const localIsPro = await getIsPro();
+    if (localIsPro) {
+      // Sync local premium status to Supabase profile
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_premium: true, updated_at: new Date().toISOString() })
+        .eq("id", userId);
+      
+      if (!error) {
+        // Refresh profile to get updated premium status
+        const profileData = await fetchProfile(userId);
+        if (profileData) {
+          setProfile(profileData);
+        }
+      }
+    }
+  };
+
   const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
     });
+    
+    // After successful signup, sync local premium status
+    if (!error && data.user) {
+      await syncLocalPremiumStatus(data.user.id);
+    }
+    
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    // After successful signin, sync local premium status
+    if (!error && data.user) {
+      await syncLocalPremiumStatus(data.user.id);
+    }
+    
     return { error };
   };
 

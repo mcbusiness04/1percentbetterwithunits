@@ -45,7 +45,21 @@ export default function AuthScreen() {
         : await signIn(email.trim(), password);
 
       if (error) {
-        Alert.alert("Error", error.message);
+        // Handle rate limiting errors with a friendly message
+        if (error.message.includes("security purposes") || error.message.includes("after") || error.status === 429) {
+          const waitMatch = error.message.match(/(\d+)\s*second/);
+          const waitTime = waitMatch ? waitMatch[1] : "a few";
+          Alert.alert(
+            "Please Wait",
+            `Too many attempts. Please wait ${waitTime} seconds before trying again.`
+          );
+        } else if (error.message.includes("Invalid login credentials")) {
+          Alert.alert("Sign In Failed", "Invalid email or password. Please check your credentials and try again.");
+        } else if (error.message.includes("User already registered")) {
+          Alert.alert("Account Exists", "An account with this email already exists. Try signing in instead.");
+        } else {
+          Alert.alert("Error", error.message);
+        }
       }
     } catch (err: unknown) {
       Alert.alert("Error", "An unexpected error occurred. Please try again.");
@@ -129,6 +143,7 @@ export default function AuthScreen() {
           <Button
             onPress={handleSubmit}
             disabled={loading}
+            variant="light"
             style={styles.submitButton}
           >
             {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
@@ -209,7 +224,6 @@ const styles = StyleSheet.create({
   submitButton: {
     marginTop: Spacing.md,
     height: 56,
-    backgroundColor: "#FFFFFF",
   },
   toggleButton: {
     alignItems: "center",
