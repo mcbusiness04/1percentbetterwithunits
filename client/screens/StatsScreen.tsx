@@ -32,7 +32,7 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress } = useUnits();
+  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress, tapBadHabitForDate, undoBadHabitTapForDate, getBadHabitTapsForDate } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -626,6 +626,58 @@ export default function StatsScreen() {
                 <ThemedText type="body" style={{ color: theme.textSecondary, textAlign: "center", padding: Spacing.xl }}>
                   No habits existed on this date
                 </ThemedText>
+              ) : null}
+              
+              {selectedDate && badHabits.filter(bh => {
+                if (bh.isArchived) return false;
+                const createdDate = getLocalDateFromISO(bh.createdAt);
+                return createdDate <= selectedDate;
+              }).length > 0 ? (
+                <>
+                  <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.lg, marginBottom: Spacing.sm, fontWeight: "600" }}>
+                    Bad Habits
+                  </ThemedText>
+                  {badHabits.filter(bh => {
+                    if (bh.isArchived) return false;
+                    const createdDate = getLocalDateFromISO(bh.createdAt);
+                    return selectedDate && createdDate <= selectedDate;
+                  }).map((bh) => {
+                    const taps = selectedDate ? getBadHabitTapsForDate(bh.id, selectedDate) : 0;
+                    
+                    return (
+                      <View key={bh.id} style={[styles.editHabitRow, { borderColor: theme.border }]}>
+                        <View style={[styles.editHabitIcon, { backgroundColor: RED + "20" }]}>
+                          <Feather name="alert-circle" size={18} color={RED} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <ThemedText type="body" style={{ fontWeight: "500" }}>{bh.name}</ThemedText>
+                          <ThemedText type="small" style={{ color: taps > 0 ? RED : GREEN }}>
+                            {taps > 0 ? "Slipped (-10%)" : "Resisted"}
+                          </ThemedText>
+                        </View>
+                        <View style={styles.editButtons}>
+                          <Pressable
+                            onPress={() => selectedDate && undoBadHabitTapForDate(bh.id, selectedDate)}
+                            style={[styles.editButton, { backgroundColor: GREEN + "20", opacity: taps > 0 ? 1 : 0.3 }]}
+                            disabled={taps === 0}
+                          >
+                            <Feather name="check" size={16} color={GREEN} />
+                          </Pressable>
+                          <ThemedText type="body" style={{ fontWeight: "600", minWidth: 32, textAlign: "center", color: taps > 0 ? RED : GREEN }}>
+                            {taps > 0 ? "-10%" : "OK"}
+                          </ThemedText>
+                          <Pressable
+                            onPress={() => selectedDate && tapBadHabitForDate(bh.id, selectedDate)}
+                            style={[styles.editButton, { backgroundColor: RED + "20", opacity: taps === 0 ? 1 : 0.3 }]}
+                            disabled={taps > 0}
+                          >
+                            <Feather name="x" size={16} color={RED} />
+                          </Pressable>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </>
               ) : null}
             </ScrollView>
           </Pressable>

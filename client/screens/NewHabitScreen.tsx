@@ -85,7 +85,7 @@ export default function NewHabitScreen() {
     
     if (creationMode === "bad") {
       const existingBadHabit = badHabits.find(
-        (h) => h.name.toLowerCase() === habitName.toLowerCase()
+        (h) => !h.isArchived && h.name.toLowerCase() === habitName.toLowerCase()
       );
       if (existingBadHabit) {
         Alert.alert("Duplicate", `You already have a bad habit named "${habitName}".`);
@@ -103,7 +103,7 @@ export default function NewHabitScreen() {
       }
     } else {
       const existingHabit = habits.find(
-        (h) => h.name.toLowerCase() === habitName.toLowerCase()
+        (h) => !h.isArchived && h.name.toLowerCase() === habitName.toLowerCase()
       );
       if (existingHabit) {
         Alert.alert("Duplicate", `You already have a habit for "${habitName}".`);

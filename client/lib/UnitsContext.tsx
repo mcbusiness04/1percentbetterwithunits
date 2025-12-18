@@ -62,6 +62,9 @@ interface UnitsContextType {
   deleteBadHabit: (id: string) => Promise<void>;
   tapBadHabit: (badHabitId: string) => Promise<void>;
   undoBadHabitTap: (badHabitId: string) => Promise<boolean>;
+  tapBadHabitForDate: (badHabitId: string, date: string) => Promise<void>;
+  undoBadHabitTapForDate: (badHabitId: string, date: string) => Promise<boolean>;
+  getBadHabitTapsForDate: (badHabitId: string, date: string) => number;
   getTodayBadHabitTaps: (badHabitId: string) => number;
   getTodayTotalBadTaps: () => number;
   getPenaltyMultiplier: () => number;
@@ -666,6 +669,46 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return true;
   }, [badHabitLogs, settings.hapticsEnabled]);
 
+  const handleTapBadHabitForDate = useCallback(async (badHabitId: string, date: string) => {
+    const alreadyTapped = badHabitLogs.some(
+      (l) => l.badHabitId === badHabitId && l.date === date && !l.isUndone
+    );
+    if (alreadyTapped) return;
+    
+    const newLog: BadHabitLog = {
+      id: generateId(),
+      badHabitId,
+      count: 1,
+      date,
+      createdAt: new Date().toISOString(),
+      penaltyAdjustments: [],
+      isUndone: false,
+    };
+    const updatedBadLogs = [...badHabitLogs, newLog];
+    setBadHabitLogs(updatedBadLogs);
+    await saveBadHabitLogs(updatedBadLogs);
+  }, [badHabitLogs]);
+
+  const handleUndoBadHabitTapForDate = useCallback(async (badHabitId: string, date: string): Promise<boolean> => {
+    const dateLog = badHabitLogs.find(
+      (l) => l.badHabitId === badHabitId && l.date === date && !l.isUndone
+    );
+    if (!dateLog) return false;
+    
+    const updatedBadLogs = badHabitLogs.map((l) =>
+      l.id === dateLog.id ? { ...l, isUndone: true } : l
+    );
+    setBadHabitLogs(updatedBadLogs);
+    await saveBadHabitLogs(updatedBadLogs);
+    return true;
+  }, [badHabitLogs]);
+
+  const getBadHabitTapsForDate = useCallback((badHabitId: string, date: string) => {
+    return badHabitLogs
+      .filter((l) => l.badHabitId === badHabitId && l.date === date && !l.isUndone)
+      .reduce((sum, l) => sum + l.count, 0);
+  }, [badHabitLogs]);
+
   const getTodayBadHabitTaps = useCallback((badHabitId: string) => {
     return badHabitLogs
       .filter((l) => l.badHabitId === badHabitId && l.date === currentDate && !l.isUndone)
@@ -786,6 +829,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         deleteBadHabit: handleDeleteBadHabit,
         tapBadHabit: handleTapBadHabit,
         undoBadHabitTap: handleUndoBadHabitTap,
+        tapBadHabitForDate: handleTapBadHabitForDate,
+        undoBadHabitTapForDate: handleUndoBadHabitTapForDate,
+        getBadHabitTapsForDate,
         getTodayBadHabitTaps,
         getTodayTotalBadTaps,
         getPenaltyMultiplier,
