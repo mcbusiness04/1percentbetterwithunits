@@ -105,6 +105,39 @@ const UnitBlock = memo(function UnitBlock({
   const borderRadius = size >= 4 ? Math.max(1, Math.min(size * 0.15, 3)) : 0;
   const showGradient = size >= 8;
   
+  if (isTimeBlock && size >= 4) {
+    const glowInset = Math.max(1, Math.floor(size * 0.15));
+    return (
+      <View
+        style={{
+          width: size,
+          height: size,
+          borderRadius,
+          backgroundColor: "#FFD700",
+          overflow: "hidden",
+        }}
+      >
+        <View
+          style={{
+            position: "absolute",
+            top: glowInset,
+            left: glowInset,
+            right: glowInset,
+            bottom: glowInset,
+            borderRadius: Math.max(0, borderRadius - glowInset / 2),
+            backgroundColor: color,
+          }}
+        />
+        <LinearGradient
+          colors={["rgba(255,215,0,0.6)", "rgba(255,200,0,0.3)", "transparent"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </View>
+    );
+  }
+  
   return (
     <View
       style={{
@@ -112,8 +145,6 @@ const UnitBlock = memo(function UnitBlock({
         height: size,
         borderRadius,
         backgroundColor: color,
-        borderWidth: isTimeBlock && size >= 4 ? 0.5 : 0,
-        borderColor: isTimeBlock ? "#FFD700" : undefined,
         overflow: "hidden",
       }}
     >
