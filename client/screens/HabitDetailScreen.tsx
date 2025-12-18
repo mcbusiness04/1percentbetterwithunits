@@ -102,73 +102,22 @@ export default function HabitDetailScreen() {
   const handleMenuPress = useCallback(() => {
     if (!habit) return;
 
-    const options = ["Cancel", "Archive Habit", "Delete Habit"];
-    const destructiveButtonIndex = 2;
-
-    if (Platform.OS === "ios") {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options,
-          cancelButtonIndex: 0,
-          destructiveButtonIndex,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            updateHabit(habit.id, { isArchived: true });
-            navigation.goBack();
-          } else if (buttonIndex === 2) {
-            Alert.alert(
-              "Delete Habit",
-              "This will permanently delete this habit and all its data. This cannot be undone.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete",
-                  style: "destructive",
-                  onPress: async () => {
-                    await deleteHabit(habit.id);
-                    navigation.goBack();
-                  },
-                },
-              ]
-            );
-          }
-        }
-      );
-    } else {
-      Alert.alert("Habit Options", undefined, [
+    Alert.alert(
+      "Delete Habit",
+      "This will permanently delete this habit and all its data. This cannot be undone.",
+      [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Archive Habit",
-          onPress: () => {
-            updateHabit(habit.id, { isArchived: true });
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteHabit(habit.id);
             navigation.goBack();
           },
         },
-        {
-          text: "Delete Habit",
-          style: "destructive",
-          onPress: () => {
-            Alert.alert(
-              "Delete Habit",
-              "This will permanently delete this habit and all its data.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Delete",
-                  style: "destructive",
-                  onPress: async () => {
-                    await deleteHabit(habit.id);
-                    navigation.goBack();
-                  },
-                },
-              ]
-            );
-          },
-        },
-      ]);
-    }
-  }, [habit, updateHabit, deleteHabit, navigation]);
+      ]
+    );
+  }, [habit, deleteHabit, navigation]);
 
   if (!habit) {
     return (
