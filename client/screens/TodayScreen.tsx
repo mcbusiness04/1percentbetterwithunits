@@ -35,6 +35,7 @@ export default function TodayScreen() {
     getTodayTotalUnits,
     getHighestDailyTotal,
     getDailyProgress,
+    getPenaltyMultiplier,
     currentDate,
   } = useUnits();
 
@@ -43,7 +44,9 @@ export default function TodayScreen() {
     [habits]
   );
 
-  const todayTotal = getTodayTotalUnits();
+  const baseTotal = getTodayTotalUnits();
+  const penaltyMultiplier = getPenaltyMultiplier();
+  const todayTotal = Math.floor(baseTotal * penaltyMultiplier);
   const highestTotal = getHighestDailyTotal();
   const dailyProgress = getDailyProgress();
 
@@ -74,12 +77,15 @@ export default function TodayScreen() {
     Object.entries(habitTotals).forEach(([habitId, netCount]) => {
       const habit = habits.find((h) => h.id === habitId);
       if (habit && netCount > 0) {
-        habitData.push({
-          habitId,
-          color: habit.color,
-          count: netCount,
-          isTimeBlock: habit.habitType === "time",
-        });
+        const effectiveCount = Math.floor(netCount * penaltyMultiplier);
+        if (effectiveCount > 0) {
+          habitData.push({
+            habitId,
+            color: habit.color,
+            count: effectiveCount,
+            isTimeBlock: habit.habitType === "time",
+          });
+        }
       }
     });
     
@@ -95,7 +101,7 @@ export default function TodayScreen() {
     });
     
     return blocks;
-  }, [logs, habits, currentDate]);
+  }, [logs, habits, currentDate, penaltyMultiplier]);
 
   const bottomOffset = tabBarHeight + Spacing.lg;
   const overlayHeight = STATS_STRIP_HEIGHT + PILE_HEIGHT + PILE_SECTION_GAP;
