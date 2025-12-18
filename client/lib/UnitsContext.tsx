@@ -511,8 +511,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
     const multiplier = Math.pow(0.9, totalBadTaps);
-    // Use floor to ensure exact 10% reduction (40 * 0.9 = 36, not 39)
-    return Math.floor(rawTotal * multiplier);
+    // Use round for accurate display (44 * 0.9 = 39.6 → 40)
+    return Math.round(rawTotal * multiplier);
   }, [logs, currentDate, badHabitLogs, habits]);
 
   // Get effective distribution of units across all habits (for blocks visualization)
@@ -540,8 +540,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
     const multiplier = Math.pow(0.9, totalBadTaps);
     
-    // Calculate effective total (floor for exact 10%)
-    const effectiveTotal = Math.floor(rawTotal * multiplier);
+    // Calculate effective total (round for accurate display)
+    const effectiveTotal = Math.round(rawTotal * multiplier);
     const penaltyAmount = rawTotal - effectiveTotal;
     
     // Distribute penalty evenly (round-robin for remainder)
@@ -729,8 +729,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    // Effective units after penalty (use floor for exact 10% reduction)
-    const effectiveTotalUnits = Math.floor(rawTotalUnits * penaltyMultiplier);
+    // Effective units after penalty (use round for accurate display)
+    const effectiveTotalUnits = Math.round(rawTotalUnits * penaltyMultiplier);
     
     // Raw percentage (0-100 scale for completion)
     const rawPercent = totalGoal > 0 ? (rawTotalUnits / totalGoal) * 100 : 0;
