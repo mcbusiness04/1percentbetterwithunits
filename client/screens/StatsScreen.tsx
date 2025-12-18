@@ -211,22 +211,12 @@ export default function StatsScreen() {
   }, [timeRange, getDayStats, getDateString, badHabitLogs]);
 
   const habitStats = useMemo(() => {
+    const now = new Date();
+    const startOfYear = `${now.getFullYear()}-01-01`;
+    
     return activeHabits.map((habit) => {
       const habitLogs = logs.filter((l) => l.habitId === habit.id);
       const todayUnits = habitLogs.filter((l) => l.date === currentDate).reduce((sum, l) => sum + l.count, 0);
-      
-      let daysGoalMet = 0;
-      let daysWithData = 0;
-      let totalUnitsLast7 = 0;
-      for (let i = 0; i < 7; i++) {
-        const dateStr = getDateString(i);
-        const createdDate = getLocalDateFromISO(habit.createdAt);
-        if (dateStr < createdDate) continue;
-        daysWithData++;
-        const units = habitLogs.filter((l) => l.date === dateStr).reduce((sum, l) => sum + l.count, 0);
-        totalUnitsLast7 += units;
-        if (units >= habit.dailyGoal) daysGoalMet++;
-      }
       
       const dayTotals: Record<string, number> = {};
       habitLogs.forEach((l) => {
@@ -236,14 +226,17 @@ export default function StatsScreen() {
       const bestDay = dayValues.length > 0 ? Math.max(...dayValues) : 0;
       const avgDay = dayValues.length > 0 ? Math.round(dayValues.reduce((a, b) => a + b, 0) / dayValues.length) : 0;
       
+      const yearTotal = habitLogs.filter((l) => l.date >= startOfYear).reduce((sum, l) => sum + l.count, 0);
+      const allTimeTotal = habitLogs.reduce((sum, l) => sum + l.count, 0);
+      
       const isGoalMet = todayUnits >= habit.dailyGoal;
       const progress = habit.dailyGoal > 0 ? Math.min(todayUnits / habit.dailyGoal, 1) : 0;
       
       const unitLabel = habit.habitType === "time" ? "min" : "";
       
-      return { habit, todayUnits, isGoalMet, progress, bestDay, avgDay, unitLabel };
+      return { habit, todayUnits, isGoalMet, progress, bestDay, avgDay, yearTotal, allTimeTotal, unitLabel };
     });
-  }, [activeHabits, logs, currentDate, getDateString]);
+  }, [activeHabits, logs, currentDate]);
 
   const badHabitStats = useMemo(() => {
     const activeBadHabits = badHabits.filter(bh => !bh.isArchived);
@@ -493,6 +486,18 @@ export default function StatsScreen() {
                   {stat.bestDay}{stat.unitLabel}
                 </ThemedText>
                 <ThemedText type="small" style={{ color: theme.textSecondary }}>best</ThemedText>
+              </View>
+              <View style={styles.habitStatItem}>
+                <ThemedText type="body" style={{ fontWeight: "600", color: stat.habit.color }}>
+                  {stat.yearTotal.toLocaleString()}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>{new Date().getFullYear()}</ThemedText>
+              </View>
+              <View style={styles.habitStatItem}>
+                <ThemedText type="body" style={{ fontWeight: "600", color: stat.habit.color }}>
+                  {stat.allTimeTotal.toLocaleString()}
+                </ThemedText>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>all time</ThemedText>
               </View>
             </View>
           </Animated.View>
