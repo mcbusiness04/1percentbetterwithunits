@@ -118,7 +118,7 @@ export default function TodayScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + PILE_HEIGHT + 120,
+            paddingBottom: tabBarHeight + PILE_HEIGHT + 180,
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
