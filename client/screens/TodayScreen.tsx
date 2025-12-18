@@ -113,12 +113,12 @@ export default function TodayScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.backgroundRoot }]}>
       <ScrollView
-        style={styles.scrollView}
+        style={[styles.scrollView, { marginBottom: PILE_HEIGHT + 70 }]}
         contentContainerStyle={[
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: tabBarHeight + PILE_HEIGHT + 180,
+            paddingBottom: Spacing.xl,
           },
         ]}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
