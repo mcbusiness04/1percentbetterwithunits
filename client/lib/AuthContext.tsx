@@ -25,7 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string, userEmail?: string) => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -33,7 +33,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error) {
-      console.error("Error fetching profile:", error);
+      // Profile doesn't exist - create it
+      if (error.code === "PGRST116" && userEmail) {
+        const { error: upsertError } = await supabase
+          .from("profiles")
+          .upsert({
+            id: userId,
+            email: userEmail,
+            is_premium: false,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "id" });
+
+        if (!upsertError) {
+          // Re-fetch after creating
+          const { data: newData } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", userId)
+            .single();
+          return newData as Profile | null;
+        }
+      }
       return null;
     }
     return data as Profile;
@@ -41,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (user) {
-      const profileData = await fetchProfile(user.id);
+      const profileData = await fetchProfile(user.id, user.email ?? undefined);
       if (profileData) {
         setProfile(profileData);
       }
@@ -53,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+        fetchProfile(session.user.id, session.user.email ?? undefined).then(setProfile);
       }
       setLoading(false);
     });
@@ -64,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        const profileData = await fetchProfile(session.user.id);
+        const profileData = await fetchProfile(session.user.id, session.user.email ?? undefined);
         setProfile(profileData);
       } else {
         setProfile(null);
@@ -74,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const syncLocalPremiumStatus = async (userId: string) => {
+  const syncLocalPremiumStatus = async (userId: string, userEmail?: string) => {
     // Check if user has local premium status (from onboarding paywall)
     const localIsPro = await getIsPro();
     if (localIsPro) {
@@ -86,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (!error) {
         // Refresh profile to get updated premium status
-        const profileData = await fetchProfile(userId);
+        const profileData = await fetchProfile(userId, userEmail);
         if (profileData) {
           setProfile(profileData);
         }
@@ -102,7 +123,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // After successful signup, sync local premium status
     if (!error && data.user) {
-      await syncLocalPremiumStatus(data.user.id);
+      await syncLocalPremiumStatus(data.user.id, data.user.email ?? undefined);
     }
     
     return { error };
@@ -116,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     // After successful signin, sync local premium status
     if (!error && data.user) {
-      await syncLocalPremiumStatus(data.user.id);
+      await syncLocalPremiumStatus(data.user.id, data.user.email ?? undefined);
     }
     
     return { error };
