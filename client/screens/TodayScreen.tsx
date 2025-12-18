@@ -32,7 +32,7 @@ export default function TodayScreen() {
     habits,
     logs,
     loading,
-    getTodayTotalUnits,
+    getEffectiveTodayTotalUnits,
     getHighestDailyTotal,
     getDailyProgress,
     getPenaltyMultiplier,
@@ -44,40 +44,54 @@ export default function TodayScreen() {
     [habits]
   );
 
-  const baseTotal = getTodayTotalUnits();
-  const penaltyMultiplier = getPenaltyMultiplier();
-  const todayTotal = Math.floor(baseTotal * penaltyMultiplier);
+  const todayTotal = getEffectiveTodayTotalUnits();
   const highestTotal = getHighestDailyTotal();
   const dailyProgress = getDailyProgress();
 
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    if (dailyProgress.allGoalsMet && dailyProgress.improvementPercent >= 1) {
-      return `${dailyProgress.improvementPercent}% better`;
+    // Show improvement percent (can be decimal with bad habits)
+    if (dailyProgress.rawAllGoalsMet && dailyProgress.improvementPercent > 0) {
+      // Format: show 1 decimal if needed (e.g., 0.9%, 1.8%)
+      const formatted = dailyProgress.improvementPercent % 1 === 0 
+        ? `${dailyProgress.improvementPercent}` 
+        : `${dailyProgress.improvementPercent.toFixed(1)}`;
+      return `${formatted}% better`;
     }
     
-    if (dailyProgress.hasBadHabits && dailyProgress.penaltyPercent > 0) {
-      const effectivePercent = dailyProgress.percentage - (dailyProgress.penaltyPercent * 0.1);
-      return `${Math.max(0, Math.round(effectivePercent * 10) / 10)}%`;
+    // If all goals met but have bad habits reducing improvement below 0
+    if (dailyProgress.rawAllGoalsMet && dailyProgress.hasBadHabits) {
+      if (dailyProgress.improvementPercent <= 0) {
+        return `${Math.abs(dailyProgress.improvementPercent).toFixed(1)}% penalty`;
+      }
     }
     
     return `${dailyProgress.percentage}%`;
   }, [dailyProgress, activeHabits.length]);
 
+  const penaltyMultiplier = getPenaltyMultiplier();
+  
   const todayBlocks = useMemo(() => {
     const todayLogs = logs.filter((l) => l.date === currentDate);
     
+    // First compute total raw units
+    let totalRawUnits = 0;
     const habitTotals: Record<string, number> = {};
     todayLogs.forEach((log) => {
       habitTotals[log.habitId] = (habitTotals[log.habitId] || 0) + log.count;
+      totalRawUnits += log.count;
     });
+    
+    // Apply penalty to total, then distribute proportionally
+    const effectiveTotal = Math.floor(totalRawUnits * penaltyMultiplier);
+    const ratio = totalRawUnits > 0 ? effectiveTotal / totalRawUnits : 1;
     
     const habitData: { habitId: string; color: string; count: number; isTimeBlock: boolean }[] = [];
     Object.entries(habitTotals).forEach(([habitId, netCount]) => {
       const habit = habits.find((h) => h.id === habitId);
       if (habit && netCount > 0) {
-        const effectiveCount = Math.floor(netCount * penaltyMultiplier);
+        const effectiveCount = Math.max(0, Math.round(netCount * ratio));
         if (effectiveCount > 0) {
           habitData.push({
             habitId,

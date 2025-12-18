@@ -73,6 +73,8 @@ interface UnitsContextType {
   completeOnboarding: () => Promise<void>;
   
   getTodayUnits: (habitId: string) => number;
+  getEffectiveTodayUnits: (habitId: string) => number;
+  getEffectiveTodayTotalUnits: () => number;
   getWeekUnits: (habitId: string) => number;
   getTodayTotalUnits: () => number;
   getWeekTotalUnits: () => number;
@@ -453,6 +455,31 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs, currentDate, habits]);
 
+  // Get effective units for a habit after penalty multiplier applied
+  const getEffectiveTodayUnits = useCallback((habitId: string) => {
+    const rawUnits = logs
+      .filter((l) => l.habitId === habitId && l.date === currentDate)
+      .reduce((sum, l) => sum + l.count, 0);
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === currentDate && !l.isUndone)
+      .reduce((sum, l) => sum + l.count, 0);
+    const multiplier = Math.pow(0.9, totalBadTaps);
+    return Math.floor(rawUnits * multiplier);
+  }, [logs, currentDate, badHabitLogs]);
+
+  // Get effective total units after penalty multiplier applied
+  const getEffectiveTodayTotalUnits = useCallback(() => {
+    const habitIds = new Set(habits.map((h) => h.id));
+    const rawTotal = logs
+      .filter((l) => l.date === currentDate && habitIds.has(l.habitId))
+      .reduce((sum, l) => sum + l.count, 0);
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === currentDate && !l.isUndone)
+      .reduce((sum, l) => sum + l.count, 0);
+    const multiplier = Math.pow(0.9, totalBadTaps);
+    return Math.floor(rawTotal * multiplier);
+  }, [logs, currentDate, habits, badHabitLogs]);
+
   const getWeekTotalUnits = useCallback(() => {
     const startOfWeek = getStartOfWeek();
     const habitIds = new Set(habits.map((h) => h.id));
@@ -634,9 +661,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const basePercent = (totalProgress / activeHabits.length) * 100;
     const finalPercent = Math.min(100, Math.max(0, basePercent * penaltyMultiplier));
     
+    // Improvement scales: 1x goals = 1%, 2x = 2%, etc.
+    // Subtract 0.1 per bad habit tap from improvement
     let improvementPercent = 0;
-    if (rawAllGoalsMet && !hasBadHabits && minMultiplier >= 1) {
-      improvementPercent = minMultiplier;
+    if (rawAllGoalsMet && minMultiplier >= 1) {
+      improvementPercent = minMultiplier - (totalBadTaps * 0.1);
+    } else if (minMultiplier >= 1) {
+      // Goals met but have bad habits - still show reduced improvement
+      improvementPercent = minMultiplier - (totalBadTaps * 0.1);
     }
     
     return { 
@@ -687,6 +719,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         setIsPro: handleSetIsPro,
         completeOnboarding: handleCompleteOnboarding,
         getTodayUnits,
+        getEffectiveTodayUnits,
+        getEffectiveTodayTotalUnits,
         getWeekUnits,
         getMonthUnits,
         getTodayTotalUnits,

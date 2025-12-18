@@ -26,10 +26,10 @@ type RootStackParamList = {
 
 export function HabitRow({ habit }: HabitRowProps) {
   const { theme } = useTheme();
-  const { getTodayUnits, addUnits } = useUnits();
+  const { getEffectiveTodayUnits, addUnits } = useUnits();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  const todayCount = getTodayUnits(habit.id);
+  const todayCount = getEffectiveTodayUnits(habit.id);
   const scale = useSharedValue(1);
 
   const statusColor = useMemo(() => {
