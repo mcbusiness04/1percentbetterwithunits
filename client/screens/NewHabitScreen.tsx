@@ -19,7 +19,7 @@ export default function NewHabitScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const navigation = useNavigation();
-  const { addHabit, addBadHabit, habits, badHabits, canAddHabit } = useUnits();
+  const { addHabit, addBadHabit, habits, badHabits } = useUnits();
 
   const [creationMode, setCreationMode] = useState<CreationMode>("count");
   const [unitName, setUnitName] = useState("");
@@ -110,11 +110,6 @@ export default function NewHabitScreen() {
         return;
       }
 
-      if (!canAddHabit()) {
-        Alert.alert("Limit Reached", "Free tier allows 3 habits. Upgrade to Pro for unlimited habits.");
-        return;
-      }
-
       const tapIncrementValue = parseInt(tapIncrement) || 1;
       if (tapIncrementValue > 500) {
         Alert.alert("Invalid Tap Increment", "Maximum tap increment is 500. Please enter a lower value.");
@@ -155,7 +150,6 @@ export default function NewHabitScreen() {
     selectedColor,
     addHabit,
     addBadHabit,
-    canAddHabit,
     navigation,
   ]);
 

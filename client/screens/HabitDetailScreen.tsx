@@ -37,7 +37,6 @@ export default function HabitDetailScreen() {
     getTodayUnits,
     getWeekUnits,
     getMonthUnits,
-    canAddUnits,
   } = useUnits();
 
   const habit = useMemo(
@@ -78,13 +77,9 @@ export default function HabitDetailScreen() {
   const handleAddUnits = useCallback(
     async (count: number) => {
       if (!habit) return;
-      if (!canAddUnits(count)) {
-        navigation.navigate("Paywall", { reason: "units" });
-        return;
-      }
       await addUnits(habit.id, count);
     },
-    [habit, addUnits, canAddUnits, navigation]
+    [habit, addUnits]
   );
 
   const handleRemoveUnits = useCallback(

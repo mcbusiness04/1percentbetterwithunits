@@ -13,7 +13,7 @@ The app is fully functional with the following features:
 - Stats strip showing Today's total and Best Day (previous record)
 - Remove units available in habit detail screen (-1, -5 buttons)
 - Local-first data persistence with AsyncStorage
-- Freemium model with Pro tier for unlimited access
+- Fully paid app ($4.99/month or $11.99/year) - all features unlocked
 - iOS 26 liquid glass design aesthetic
 - Pie chart and enhanced analytics on Stats screen
 
@@ -63,7 +63,7 @@ server/
 1. **Local-first**: All data stored in AsyncStorage, no authentication required
 2. **Zero guilt approach**: Daily goals with visual feedback, no streaks
 3. **Goal visualization**: Red glow when under daily goal, gold glow when goal is met
-4. **Freemium limits**: Free tier has 3 habits, 50 units/day, 7-day history
+4. **Paid app**: All features unlocked for subscribers ($4.99/month or $11.99/year)
 
 ### Data Models
 - **Habit**: id, name, icon, color, unitName, dailyGoal, tapIncrement, habitType ("count" | "time"), createdAt, isArchived

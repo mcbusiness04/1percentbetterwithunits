@@ -21,7 +21,7 @@ export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { settings, updateSettings, isPro, setIsPro, refreshData } = useUnits();
+  const { settings, updateSettings, refreshData } = useUnits();
   const [eraseText, setEraseText] = useState("");
   const [showEraseInput, setShowEraseInput] = useState(false);
 
@@ -31,24 +31,6 @@ export default function SettingsScreen() {
     },
     [updateSettings]
   );
-
-  const handleUpgradePress = useCallback(() => {
-    navigation.navigate("Paywall", { reason: "settings" });
-  }, [navigation]);
-
-  const handleRestorePurchases = useCallback(() => {
-    Alert.alert(
-      "Restore Purchases",
-      "This would restore any previous purchases. Since this is a demo, we'll simulate restoring Pro.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Restore Pro",
-          onPress: () => setIsPro(true),
-        },
-      ]
-    );
-  }, [setIsPro]);
 
   const handleManageSubscription = useCallback(() => {
     if (Platform.OS === "ios") {
@@ -102,37 +84,11 @@ export default function SettingsScreen() {
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Subscription
         </ThemedText>
-        {isPro ? (
-          <View style={[styles.proCard, { backgroundColor: theme.accentLight }]}>
-            <View style={[styles.proBadge, { backgroundColor: theme.accent }]}>
-              <ThemedText type="small" style={{ color: "white", fontWeight: "600" }}>
-                PRO
-              </ThemedText>
-            </View>
-            <ThemedText type="body" style={{ fontWeight: "500" }}>
-              Units Pro Active
-            </ThemedText>
-          </View>
-        ) : (
-          <SettingsRow
-            icon="star"
-            title="Upgrade to Units Pro"
-            subtitle="Unlimited habits, history & more"
-            onPress={handleUpgradePress}
-          />
-        )}
         <SettingsRow
-          icon="refresh-cw"
-          title="Restore Purchases"
-          onPress={handleRestorePurchases}
+          icon="credit-card"
+          title="Manage Subscription"
+          onPress={handleManageSubscription}
         />
-        {isPro ? (
-          <SettingsRow
-            icon="credit-card"
-            title="Manage Subscription"
-            onPress={handleManageSubscription}
-          />
-        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -202,25 +158,17 @@ export default function SettingsScreen() {
         <SettingsRow
           icon="download"
           title="Export Data"
-          subtitle={isPro ? "Export as CSV" : "Pro feature"}
+          subtitle="Export as CSV"
           onPress={() => {
-            if (isPro) {
-              Alert.alert("Export", "CSV export would be generated here.");
-            } else {
-              navigation.navigate("Paywall", { reason: "export" });
-            }
+            Alert.alert("Export", "CSV export would be generated here.");
           }}
         />
         <SettingsRow
           icon="cloud"
           title="iCloud Sync"
-          subtitle={isPro ? "Coming soon" : "Pro feature"}
+          subtitle="Coming soon"
           onPress={() => {
-            if (!isPro) {
-              navigation.navigate("Paywall", { reason: "sync" });
-            } else {
-              Alert.alert("Coming Soon", "iCloud sync will be available in a future update.");
-            }
+            Alert.alert("Coming Soon", "iCloud sync will be available in a future update.");
           }}
         />
       </View>

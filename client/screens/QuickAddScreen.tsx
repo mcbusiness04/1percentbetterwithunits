@@ -29,7 +29,7 @@ export default function QuickAddScreen() {
   const { habitId, mode = "add" } = route.params;
   const isRemoveMode = mode === "remove";
 
-  const { habits, addUnits, removeUnits, canAddUnits, getTodayUnits } = useUnits();
+  const { habits, addUnits, removeUnits, getTodayUnits } = useUnits();
   const [count, setCount] = useState(1);
   const [inputValue, setInputValue] = useState("1");
   const [inputError, setInputError] = useState<string | null>(null);
@@ -124,17 +124,11 @@ export default function QuickAddScreen() {
         setIsSubmitting(false);
       }
     } else {
-      if (!canAddUnits(count)) {
-        navigation.navigate("Paywall", { reason: "units" });
-        return;
-      }
       setIsSubmitting(true);
       try {
         const success = await addUnits(habitId, count);
         if (success) {
           navigation.goBack();
-        } else {
-          Alert.alert("Limit Reached", "You've reached the daily unit limit. Upgrade to Pro for unlimited units.");
         }
       } catch (error) {
         Alert.alert("Error", "Failed to add units. Please try again.");
@@ -142,7 +136,7 @@ export default function QuickAddScreen() {
         setIsSubmitting(false);
       }
     }
-  }, [count, isSubmitting, inputError, isRemoveMode, todayUnits, canAddUnits, addUnits, removeUnits, habitId, navigation]);
+  }, [count, isSubmitting, inputError, isRemoveMode, todayUnits, addUnits, removeUnits, habitId, navigation]);
 
   React.useLayoutEffect(() => {
     navigation.setOptions({
