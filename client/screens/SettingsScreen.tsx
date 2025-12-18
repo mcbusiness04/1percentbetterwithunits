@@ -10,6 +10,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsRow } from "@/components/SettingsRow";
 import { useUnits } from "@/lib/UnitsContext";
+import { useAuth } from "@/lib/AuthContext";
 import { clearAllData, resetOnboarding } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -22,6 +23,7 @@ export default function SettingsScreen() {
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
   const { settings, updateSettings, refreshData } = useUnits();
+  const { user, signOut, isPremium } = useAuth();
   const [eraseText, setEraseText] = useState("");
   const [showEraseInput, setShowEraseInput] = useState(false);
 
@@ -68,6 +70,23 @@ export default function SettingsScreen() {
     Linking.openURL("mailto:support@example.com?subject=Units%20Support");
   }, []);
 
+  const handleSignOut = useCallback(async () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            await signOut();
+          },
+        },
+      ]
+    );
+  }, [signOut]);
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
@@ -80,6 +99,28 @@ export default function SettingsScreen() {
       ]}
       scrollIndicatorInsets={{ bottom: insets.bottom }}
     >
+      <View style={styles.section}>
+        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+          Account
+        </ThemedText>
+        <View style={[styles.accountCard, { backgroundColor: theme.backgroundDefault }]}>
+          <View style={styles.accountInfo}>
+            <ThemedText type="body" style={{ fontWeight: "600" }}>
+              {user?.email ?? "Not signed in"}
+            </ThemedText>
+            <ThemedText type="small" style={{ color: isPremium ? "#FFD700" : theme.textSecondary }}>
+              {isPremium ? "Premium Member" : "Free Account"}
+            </ThemedText>
+          </View>
+        </View>
+        <SettingsRow
+          icon="log-out"
+          title="Sign Out"
+          onPress={handleSignOut}
+          destructive
+        />
+      </View>
+
       <View style={styles.section}>
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Subscription
@@ -235,6 +276,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.xs,
     borderRadius: BorderRadius.xs,
+  },
+  accountCard: {
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing.sm,
+  },
+  accountInfo: {
+    gap: 4,
   },
   eraseContainer: {
     padding: Spacing.lg,

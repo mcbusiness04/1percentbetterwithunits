@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, StyleSheet, Pressable, Linking } from "react-native";
+import { View, StyleSheet, Pressable, Linking, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
@@ -9,6 +9,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
+import { useAuth } from "@/lib/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type ScreenRouteProp = RouteProp<RootStackParamList, "Paywall">;
@@ -26,19 +27,35 @@ export default function PaywallScreen() {
   const navigation = useNavigation();
   const route = useRoute<ScreenRouteProp>();
   const { setIsPro } = useUnits();
-  const { reason } = route.params;
+  const { updatePremiumStatus } = useAuth();
+  const reason = route.params?.reason ?? "onboarding";
 
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
+  const [loading, setLoading] = useState(false);
 
   const handleSubscribe = useCallback(async () => {
-    await setIsPro(true);
-    navigation.goBack();
-  }, [setIsPro, navigation]);
+    setLoading(true);
+    try {
+      await setIsPro(true);
+      await updatePremiumStatus(true);
+    } catch (error) {
+      Alert.alert("Error", "Failed to complete subscription. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [setIsPro, updatePremiumStatus]);
 
   const handleRestorePurchases = useCallback(async () => {
-    await setIsPro(true);
-    navigation.goBack();
-  }, [setIsPro, navigation]);
+    setLoading(true);
+    try {
+      await setIsPro(true);
+      await updatePremiumStatus(true);
+    } catch (error) {
+      Alert.alert("Error", "Failed to restore purchases. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, [setIsPro, updatePremiumStatus]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");
