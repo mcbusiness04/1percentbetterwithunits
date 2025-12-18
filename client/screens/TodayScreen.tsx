@@ -19,6 +19,9 @@ import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+const STATS_STRIP_HEIGHT = 72;
+const PILE_SECTION_GAP = Spacing.md;
+
 export default function TodayScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -47,12 +50,10 @@ export default function TodayScreen() {
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    // If all goals met and no bad habits, show "X% better" based on multiplier
     if (dailyProgress.allGoalsMet && dailyProgress.improvementPercent >= 1) {
       return `${dailyProgress.improvementPercent}% better`;
     }
     
-    // Show negative for bad habits
     if (dailyProgress.hasBadHabits && dailyProgress.penaltyPercent > 0) {
       const effectivePercent = dailyProgress.percentage - (dailyProgress.penaltyPercent * 0.1);
       return `${Math.max(0, Math.round(effectivePercent * 10) / 10)}%`;
@@ -64,13 +65,11 @@ export default function TodayScreen() {
   const todayBlocks = useMemo(() => {
     const todayLogs = logs.filter((l) => l.date === currentDate);
     
-    // Aggregate units per habit first (handles positive and negative logs)
     const habitTotals: Record<string, number> = {};
     todayLogs.forEach((log) => {
       habitTotals[log.habitId] = (habitTotals[log.habitId] || 0) + log.count;
     });
     
-    // Build habit data with colors - sorted by count descending
     const habitData: { habitId: string; color: string; count: number; isTimeBlock: boolean }[] = [];
     Object.entries(habitTotals).forEach(([habitId, netCount]) => {
       const habit = habits.find((h) => h.id === habitId);
@@ -84,7 +83,6 @@ export default function TodayScreen() {
       }
     });
     
-    // Create all blocks sequentially per habit (efficient)
     const blocks: { id: string; color: string; isTimeBlock?: boolean }[] = [];
     habitData.forEach((h) => {
       for (let i = 0; i < h.count; i++) {
@@ -99,6 +97,8 @@ export default function TodayScreen() {
     return blocks;
   }, [logs, habits, currentDate]);
 
+  const bottomOffset = tabBarHeight + Spacing.lg;
+  const overlayHeight = STATS_STRIP_HEIGHT + PILE_HEIGHT + PILE_SECTION_GAP;
 
   if (loading) {
     return (
@@ -118,10 +118,10 @@ export default function TodayScreen() {
           styles.content,
           {
             paddingTop: headerHeight + Spacing.lg,
-            paddingBottom: Spacing.lg,
+            paddingBottom: overlayHeight + bottomOffset + Spacing.xl,
           },
         ]}
-        scrollIndicatorInsets={{ bottom: insets.bottom }}
+        scrollIndicatorInsets={{ bottom: overlayHeight + bottomOffset }}
       >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -164,7 +164,7 @@ export default function TodayScreen() {
         <BadHabitsSection />
       </ScrollView>
 
-      <View style={[styles.pileSection, { marginBottom: tabBarHeight + Spacing.md }]}>
+      <View style={[styles.pileSection, { bottom: bottomOffset }]}>
         <Animated.View 
           entering={FadeIn.delay(300)}
           style={[styles.statsStrip, { backgroundColor: theme.backgroundDefault }]}
@@ -280,16 +280,19 @@ const styles = StyleSheet.create({
     minWidth: 180,
   },
   pileSection: {
-    marginHorizontal: Spacing.md,
+    position: "absolute",
+    left: Spacing.lg,
+    right: Spacing.lg,
   },
   statsStrip: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-evenly",
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
+    height: STATS_STRIP_HEIGHT,
   },
   statItem: {
     flex: 1,
