@@ -32,7 +32,7 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate } = useUnits();
+  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -125,36 +125,34 @@ export default function StatsScreen() {
   }, [getDayStats, currentDate, getDateString]);
 
   const totalImprovement = useMemo(() => {
+    // Use shared progress calculation for consistency
+    const progress = getDailyProgress();
+    const improvementPercent = progress.improvementPercent;
+    const hasBadHabits = progress.hasBadHabits;
+    
+    // Format the display percentage - always show sign
+    const roundedValue = Math.round(improvementPercent * 100) / 100;
+    const absValue = Math.abs(roundedValue);
+    let displayPercent: string;
+    const sign = "+";
+    if (absValue === 0) {
+      displayPercent = "+0";
+    } else if (absValue === Math.floor(absValue)) {
+      displayPercent = sign + roundedValue.toFixed(0);
+    } else if (absValue < 1) {
+      displayPercent = sign + roundedValue.toFixed(1);
+    } else {
+      displayPercent = sign + roundedValue.toFixed(1).replace(/\.0$/, "");
+    }
+    
+    // isPositive is false when there are bad habits (shows red)
+    const isPositive = !hasBadHabits;
+    
+    // Count good days over last 30 days
+    const habitIds = new Set(activeHabits.map((h) => h.id));
     let goodDays = 0;
     let trackedDays = 0;
     
-    const habitIds = new Set(activeHabits.map((h) => h.id));
-    
-    // Calculate TODAY's progress - this becomes the improvement percentage
-    const todayLogs = logs.filter((l) => l.date === currentDate && habitIds.has(l.habitId));
-    const todayBadLogs = badHabitLogs.filter((l) => l.date === currentDate && !l.isUndone);
-    
-    const todayActiveHabits = activeHabits.filter((h) => {
-      const createdDate = getLocalDateFromISO(h.createdAt);
-      return createdDate <= currentDate;
-    });
-    
-    const totalGoal = todayActiveHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
-    const totalUnits = todayLogs.reduce((sum, l) => sum + l.count, 0);
-    
-    // Progress = (units / goal) as percentage improvement
-    // 40% complete = +0.4%, 100% complete = +1%, 200% complete = +2%
-    // Subtract 0.1% per bad habit tap
-    let improvementPercent = 0;
-    if (totalGoal > 0) {
-      improvementPercent = (totalUnits / totalGoal); // 0.4 means 40% of goal = +0.4%
-    }
-    
-    // Subtract bad habit penalty: -0.1% per bad habit tap (0.001 in decimal form)
-    const badHabitPenalty = todayBadLogs.length * 0.001;
-    improvementPercent = improvementPercent - badHabitPenalty;
-    
-    // Count good days over last 30 days
     for (let i = 0; i < 30; i++) {
       const dateStr = getDateString(i);
       const dayLogs = logs.filter((l) => l.date === dateStr && habitIds.has(l.habitId));
@@ -177,24 +175,8 @@ export default function StatsScreen() {
       }
     }
     
-    // Format the display percentage - always show sign
-    const roundedValue = Math.round(improvementPercent * 100) / 100;
-    const absValue = Math.abs(roundedValue);
-    let displayPercent: string;
-    const sign = roundedValue >= 0 ? "+" : "";
-    if (absValue === 0) {
-      displayPercent = "+0";
-    } else if (absValue < 0.01) {
-      displayPercent = sign + roundedValue.toFixed(2);
-    } else if (absValue === Math.floor(absValue)) {
-      displayPercent = sign + roundedValue.toFixed(0);
-    } else {
-      displayPercent = sign + roundedValue.toFixed(2).replace(/\.?0+$/, "");
-    }
-    const isPositive = roundedValue >= 0;
-    
     let message = "";
-    if (totalGoal === 0) {
+    if (progress.totalGoal === 0) {
       message = "Start tracking to see progress!";
     } else if (improvementPercent >= 2) {
       message = "You're crushing it!";
@@ -208,8 +190,8 @@ export default function StatsScreen() {
       message = "Time to bounce back!";
     }
     
-    return { displayPercent, isPositive, message, goodDays, trackedDays };
-  }, [logs, badHabitLogs, activeHabits, getDateString, currentDate]);
+    return { displayPercent, isPositive, message, goodDays, trackedDays, hasBadHabits };
+  }, [getDailyProgress, logs, badHabitLogs, activeHabits, getDateString]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;
