@@ -28,12 +28,13 @@ client/
     MainTabNavigator.tsx     # Bottom tabs (Today, Stats, Settings)
     TodayStackNavigator.tsx  # Today tab stack
   screens/
+    AuthScreen.tsx           # Email/password sign in and sign up
+    OnboardingScreen.tsx     # 5-step onboarding with paywall
     TodayScreen.tsx          # Main screen with habits and tasks
     HabitDetailScreen.tsx    # Habit detail with wall visualization
     StatsScreen.tsx          # Statistics and rolling averages
-    SettingsScreen.tsx       # App settings and subscription
+    SettingsScreen.tsx       # App settings, account, and subscription
     NewHabitScreen.tsx       # Modal for creating habits
-    NewTaskScreen.tsx        # Modal for creating tasks
     QuickAddScreen.tsx       # Modal for adding multiple units
     PaywallScreen.tsx        # Pro upgrade screen
   components/
@@ -52,6 +53,8 @@ client/
     BadHabitsSection.tsx     # Bad habits with penalty tracking
   lib/
     UnitsContext.tsx         # Global state management
+    AuthContext.tsx          # Supabase authentication context
+    supabase.ts              # Supabase client configuration
     storage.ts               # AsyncStorage persistence
   constants/
     theme.ts                 # Design tokens and colors
@@ -60,10 +63,18 @@ server/
 ```
 
 ### Key Design Decisions
-1. **Local-first**: All data stored in AsyncStorage, no authentication required
+1. **Supabase Integration**: Authentication (email/password) and premium status via Supabase
 2. **Zero guilt approach**: Daily goals with visual feedback, no streaks
 3. **Goal visualization**: Red glow when under daily goal, gold glow when goal is met
 4. **Paid app**: All features unlocked for subscribers ($4.99/month or $11.99/year)
+5. **Local data persistence**: Habits and logs stored in AsyncStorage (syncing to Supabase coming soon)
+
+### Supabase Setup
+- **URL**: https://rleheeagukbgovoywnlb.supabase.co
+- **Environment Variables**: EXPO_PUBLIC_SUPABASE_URL, EXPO_PUBLIC_SUPABASE_ANON_KEY
+- **Tables**: profiles (linked to auth.users), habits, unit_logs, bad_habits, bad_habit_logs
+- **SQL Setup**: Run supabase-setup.sql in Supabase SQL Editor to create tables with RLS
+- **Auth Flow**: Auth Screen → Onboarding (5 steps with paywall) → Main App
 
 ### Data Models
 - **Habit**: id, name, icon, color, unitName, dailyGoal, tapIncrement, habitType ("count" | "time"), createdAt, isArchived

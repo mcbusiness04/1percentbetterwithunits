@@ -18,7 +18,7 @@ export type RootStackParamList = {
   Onboarding: undefined;
   NewHabit: undefined;
   QuickAdd: { habitId: string; mode?: "add" | "remove" };
-  Paywall: { reason: string };
+  Paywall: { reason?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -39,59 +39,73 @@ export default function RootStackNavigator() {
     );
   }
 
-  return (
-    <Stack.Navigator screenOptions={screenOptions}>
-      {!session ? (
+  if (!session) {
+    return (
+      <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
           name="Auth"
           component={AuthScreen}
           options={{ headerShown: false }}
         />
-      ) : !hasCompletedOnboarding ? (
+      </Stack.Navigator>
+    );
+  }
+
+  if (!hasCompletedOnboarding) {
+    return (
+      <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
           name="Onboarding"
           component={OnboardingScreen}
           options={{ headerShown: false }}
         />
-      ) : !isPremium ? (
+      </Stack.Navigator>
+    );
+  }
+
+  if (!isPremium) {
+    return (
+      <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
           name="Paywall"
           component={PaywallScreen}
           options={{ headerShown: false }}
         />
-      ) : (
-        <>
-          <Stack.Screen
-            name="Main"
-            component={MainTabNavigator}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="NewHabit"
-            component={NewHabitScreen}
-            options={{
-              presentation: "modal",
-              headerTitle: "New Habit",
-            }}
-          />
-          <Stack.Screen
-            name="QuickAdd"
-            component={QuickAddScreen}
-            options={{
-              presentation: "formSheet",
-              headerTitle: "Quick Add",
-            }}
-          />
-          <Stack.Screen
-            name="Paywall"
-            component={PaywallScreen}
-            options={{
-              presentation: "modal",
-              headerShown: false,
-            }}
-          />
-        </>
-      )}
+      </Stack.Navigator>
+    );
+  }
+
+  return (
+    <Stack.Navigator screenOptions={screenOptions}>
+      <Stack.Screen
+        name="Main"
+        component={MainTabNavigator}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="NewHabit"
+        component={NewHabitScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "New Habit",
+        }}
+      />
+      <Stack.Screen
+        name="QuickAdd"
+        component={QuickAddScreen}
+        options={{
+          presentation: "formSheet",
+          headerTitle: "Quick Add",
+        }}
+      />
+      <Stack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{
+          presentation: "modal",
+          headerShown: false,
+        }}
+      />
     </Stack.Navigator>
   );
 }

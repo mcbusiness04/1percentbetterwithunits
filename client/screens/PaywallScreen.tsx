@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { View, StyleSheet, Pressable, Linking, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useTheme } from "@/hooks/useTheme";
@@ -11,6 +12,8 @@ import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 type ScreenRouteProp = RouteProp<RootStackParamList, "Paywall">;
 
@@ -24,7 +27,7 @@ const FEATURES = [
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { setIsPro } = useUnits();
   const { updatePremiumStatus } = useAuth();
