@@ -51,22 +51,20 @@ export default function TodayScreen() {
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    // Show improvement percent (can be decimal with bad habits)
-    if (dailyProgress.rawAllGoalsMet && dailyProgress.improvementPercent > 0) {
-      // Format: show 1 decimal if needed (e.g., 0.9%, 1.8%)
-      const formatted = dailyProgress.improvementPercent % 1 === 0 
-        ? `${dailyProgress.improvementPercent}` 
-        : `${dailyProgress.improvementPercent.toFixed(1)}`;
-      return `${formatted}% better`;
+    // NEVER show "% better" when bad habits are active
+    // When penalized, just show the reduced percentage out of 100%
+    if (dailyProgress.hasBadHabits) {
+      // Show penalized percentage (e.g., 90% if was 100% and got 10% penalty)
+      const pct = dailyProgress.percentage;
+      return `${pct % 1 === 0 ? pct : pct.toFixed(1)}%`;
     }
     
-    // If all goals met but have bad habits reducing improvement below 0
-    if (dailyProgress.rawAllGoalsMet && dailyProgress.hasBadHabits) {
-      if (dailyProgress.improvementPercent <= 0) {
-        return `${Math.abs(dailyProgress.improvementPercent).toFixed(1)}% penalty`;
-      }
+    // No bad habits - show improvement if all goals met
+    if (dailyProgress.allGoalsMet && dailyProgress.improvementPercent >= 1) {
+      return `${dailyProgress.improvementPercent}% better`;
     }
     
+    // Otherwise just show percentage
     return `${dailyProgress.percentage}%`;
   }, [dailyProgress, activeHabits.length]);
 
