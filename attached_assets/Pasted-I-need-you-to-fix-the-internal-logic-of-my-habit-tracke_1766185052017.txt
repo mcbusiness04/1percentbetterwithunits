@@ -1,0 +1,84 @@
+I need you to fix the internal logic of my habit tracker so that all numbers are consistent and intuitive, without changing anything visually.
+Do not modify UI, layout, colors, icons, animations, visual blocks, styling, or component structure.
+The app should look and feel exactly the same — only the underlying behavior and math should be corrected.
+Core rule
+The app must stop “incrementally changing totals” and instead treat today’s score as something that is recomputed from what happened today, every time the screen updates.
+Nothing that appears on screen should drift, compound incorrectly, or desync from other values.
+Good habits (how work is counted)
+Each time I tap a good habit:
+That habit records that one more unit of work was done today.
+The habit keeps track of how much work was done relative to its daily goal.
+Once the goal is met, the habit turns green (as it already does).
+Additional work beyond the goal is allowed and should count as extra effort, not ignored.
+The total work done today must always reflect the sum of everything I actually did, regardless of goals or completion states.
+Bad habits (how penalties work)
+Each time I tap a bad habit:
+The system records that a bad habit occurred today.
+Each bad habit occurrence removes a fixed, consistent amount from today’s overall score.
+This removal must happen every single time, with no limit, no decay, and no diminishing effect.
+Bad habits should never permanently erase or mutate the record of work I actually did; they only affect today’s final score.
+Undoing a bad habit:
+Restores exactly what that bad habit removed.
+Must always bring the totals back to the same values they had before that bad habit occurred.
+What “Today” represents
+The number shown as “Today” must represent:
+The total work I did today
+Minus the total impact of all bad habits today
+This value must:
+Never go negative
+Always match the visual block grid
+Always match the sum implied by individual habits after penalties
+Visual blocks consistency
+The visual block grid represents today’s final score.
+That means:
+Filling a block means today’s score increased
+Removing a block means today’s score decreased
+Pressing a bad habit must visibly remove blocks in a predictable, consistent way
+Undo must restore blocks exactly as expected
+The number of filled blocks must always match the number shown as “Today”.
+Goal completion vs extra effort
+The system must clearly distinguish between:
+Meeting a habit’s goal
+Exceeding a habit’s goal
+Meeting the goal:
+Determines whether a habit is marked complete (green)
+Contributes toward overall daily progress
+Exceeding the goal:
+Counts as extra effort
+Should improve the “% better” or equivalent metric
+Should never falsely inflate goal completion or cause all habits to appear completed
+Progress percentage meaning
+Progress percentage must represent:
+How much of my planned daily work I completed
+Based on habit goals, not raw taps
+This means:
+Completing more than the goal should not break progress math
+Completing one habit many times should not make it look like all habits are done
+Partial progress on habits should count proportionally if that’s already part of the design
+“% better” meaning
+“% better” should represent:
+How much I exceeded my planned goals today
+Only counting work done beyond the goal
+It should:
+Increase when I go beyond goals
+Stay stable when I only meet goals
+Never decrease because of bad habits (bad habits affect today’s score, not how hard I worked)
+Consistency guarantees (must always be true)
+At all times:
+The “Today” number
+The visual block grid
+The habit totals
+The progress stats
+Must all agree with each other and be derived from the same underlying events.
+There must be no situation where:
+The UI shows more units than exist
+Bad habits stop having an effect
+Percentages increase or decrease unexpectedly
+Undo produces different results depending on order
+Final requirement
+Rework the internal logic so the app behaves like a deterministic scoring system, where:
+Inputs are habit taps and bad habit taps
+Outputs are always recomputed from those inputs
+No values drift over time
+Visuals remain unchanged
+Fix the math so it always “makes sense” to a human using the app.
