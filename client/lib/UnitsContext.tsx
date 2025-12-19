@@ -32,6 +32,7 @@ import { useAuth } from "@/lib/AuthContext";
 import {
   fetchHabitsWithTodayProgress,
   addUnitsToHabit,
+  setUnitsForHabit,
   createHabit as createDbHabit,
   updateHabit as updateDbHabit,
   deleteHabit as deleteDbHabit,
@@ -218,41 +219,35 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       setBadHabits(loadedBadHabits);
       setBadHabitLogs(loadedBadHabitLogs);
 
-      // Always load from local storage first (local-first approach)
+      // Always load from local storage (local-first approach)
+      // IMPORTANT: Never overwrite storage during load - only during explicit mutations
       const [loadedHabits, loadedLogs] = await Promise.all([
         getHabits(),
         getLogs(),
       ]);
       
+      // Normalize habits with default values (in-memory only, save only if needed)
       const normalizedHabits = loadedHabits.map((h) => ({
         ...h,
         tapIncrement: h.tapIncrement ?? 1,
         habitType: h.habitType ?? "count",
       }));
       
+      // Only save if actual migration is needed (one-time migration)
       const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
-      if (needsMigration) {
+      if (needsMigration && loadedHabits.length > 0) {
         await saveHabits(normalizedHabits);
       }
       
-      const habitIds = new Set(normalizedHabits.map((h) => h.id));
-      const cleanedLogs = loadedLogs.filter((l) => habitIds.has(l.habitId));
-      if (cleanedLogs.length !== loadedLogs.length) {
-        await saveLogs(cleanedLogs);
-      }
-      
+      // Set state with all loaded data - DO NOT filter or clean during load
+      // Logs for deleted habits are harmless and will be cleaned up on next habit deletion
       setHabits(normalizedHabits);
-      setLogs(cleanedLogs);
+      setLogs(loadedLogs); // Keep ALL historical logs
 
-      // Try to sync with Supabase in background if logged in
+      // Try to sync with Supabase in background if logged in (non-blocking)
       if (user) {
-        fetchHabitsWithTodayProgress(user.id).then(({ habits: dbHabits, error }) => {
-          if (!error && dbHabits) {
-            // Merge Supabase habits with local if needed (background sync)
-            // For now, local storage is source of truth
-          }
-        }).catch(() => {
-          // Silently ignore Supabase errors
+        fetchHabitsWithTodayProgress(user.id).catch(() => {
+          // Silently ignore Supabase errors - local storage is source of truth
         });
       }
     } catch (error) {
@@ -324,7 +319,24 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updated = habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
     setHabits(updated);
     await saveHabits(updated);
-  }, [habits]);
+    
+    // Sync to Supabase in background
+    if (user) {
+      const dbUpdates: Partial<{ name: string; icon: string; color: string; unit_name: string; daily_goal: number; tap_increment: number; habit_type: "count" | "time"; is_archived: boolean }> = {};
+      if (updates.name !== undefined) dbUpdates.name = updates.name;
+      if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+      if (updates.color !== undefined) dbUpdates.color = updates.color;
+      if (updates.unitName !== undefined) dbUpdates.unit_name = updates.unitName;
+      if (updates.dailyGoal !== undefined) dbUpdates.daily_goal = updates.dailyGoal;
+      if (updates.tapIncrement !== undefined) dbUpdates.tap_increment = updates.tapIncrement;
+      if (updates.habitType !== undefined) dbUpdates.habit_type = updates.habitType;
+      if (updates.isArchived !== undefined) dbUpdates.is_archived = updates.isArchived;
+      
+      if (Object.keys(dbUpdates).length > 0) {
+        updateDbHabit(id, dbUpdates).catch(() => {});
+      }
+    }
+  }, [habits, user]);
 
   const handleDeleteHabit = useCallback(async (id: string) => {
     const updated = habits.filter((h) => h.id !== id);
@@ -334,7 +346,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updatedLogs = logs.filter((l) => l.habitId !== id);
     setLogs(updatedLogs);
     await saveLogs(updatedLogs);
-  }, [habits, logs]);
+    
+    // Sync to Supabase in background
+    if (user) {
+      deleteDbHabit(id).catch(() => {});
+    }
+  }, [habits, logs, user]);
 
   const handleAddUnits = useCallback(async (habitId: string, count: number) => {
     const today = getTodayDate();
@@ -424,9 +441,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
     setLogs(updated);
     await saveLogs(updated);
+    
+    // Sync to Supabase - calculate new total and set it
+    if (user) {
+      const newTotal = totalAvailable - actualCountToRemove;
+      setUnitsForHabit(habitId, user.id, newTotal, today).catch(() => {});
+    }
+    
     triggerHaptic("light");
     return true;
-  }, [logs, triggerHaptic]);
+  }, [logs, user, triggerHaptic]);
 
   const handleAddUnitsForDate = useCallback(async (habitId: string, count: number, date: string) => {
     const habit = habits.find((h) => h.id === habitId);
@@ -443,9 +467,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updated = [...logs, newLog];
     setLogs(updated);
     await saveLogs(updated);
+    
+    // Sync to Supabase
+    if (user) {
+      addUnitsToHabit(habitId, user.id, count, date).catch(() => {});
+    }
+    
     triggerHaptic("medium");
     return true;
-  }, [habits, logs, triggerHaptic]);
+  }, [habits, logs, user, triggerHaptic]);
 
   const handleRemoveUnitsForDate = useCallback(async (habitId: string, count: number, date: string) => {
     const dateLogs = logs
@@ -487,9 +517,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
     setLogs(updated);
     await saveLogs(updated);
+    
+    // Sync to Supabase - set new total for the date
+    if (user) {
+      const newTotal = totalAvailable - actualCountToRemove;
+      setUnitsForHabit(habitId, user.id, newTotal, date).catch(() => {});
+    }
+    
     triggerHaptic("light");
     return true;
-  }, [logs, triggerHaptic]);
+  }, [logs, user, triggerHaptic]);
 
   const handleUndoLastAdd = useCallback(async () => {
     if (!undoAction) return;
