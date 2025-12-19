@@ -595,8 +595,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs, currentDate, habits]);
 
-  // PENALTY_PER_BAD_TAP constant for consistent penalty calculation
-  const PENALTY_PER_BAD_TAP_CONST = 5;
+  // Penalty is 10% of total logged units per bad habit tap
+  const PENALTY_PERCENT_PER_TAP = 0.10;
 
   // Helper to distribute penalty across habits ensuring sum equals total penalty exactly
   // Uses deterministic ordering (by habitId) to ensure consistent results regardless of input order
@@ -668,7 +668,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return result;
   }, []);
 
-  // Get effective units for a habit after fixed penalty applied
+  // Get effective units for a habit after 10% penalty applied per bad tap
   const getEffectiveTodayUnits = useCallback((habitId: string) => {
     const activeHabits = habits.filter((h) => !h.isArchived);
     
@@ -686,11 +686,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       totalRawUnits += raw;
     }
     
-    // Get fixed penalty
+    // Calculate 10% penalty per bad tap (based on total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
+    const totalPenalty = Math.round(totalRawUnits * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Distribute penalty using helper
     const effectiveUnits = distributeEffectivePenalty(
@@ -703,7 +703,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return effectiveUnits[habitId] || 0;
   }, [logs, currentDate, badHabitLogs, habits, distributeEffectivePenalty]);
 
-  // Get effective total units after fixed penalty applied
+  // Get effective total units after 10% penalty applied per bad tap
   // TODAY'S SCORE = raw work - penalty (never negative)
   const getEffectiveTodayTotalUnits = useCallback(() => {
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -711,11 +711,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .filter((l) => l.date === currentDate && activeHabits.some((h) => h.id === l.habitId))
       .reduce((sum, l) => sum + l.count, 0);
     
-    // Fixed penalty: each bad tap subtracts PENALTY_PER_BAD_TAP units
+    // 10% penalty per bad tap (based on total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
+    const totalPenalty = Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Score = raw - penalty, minimum 0
     return Math.max(0, rawTotal - totalPenalty);
@@ -740,11 +740,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       rawTotal += raw;
     }
     
-    // Get fixed penalty
+    // 10% penalty per bad tap (based on total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
+    const totalPenalty = Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Use helper to distribute penalty (ensures sum equals total)
     return distributeEffectivePenalty(
@@ -780,11 +780,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     
     const rawTotal = logsOnDate.reduce((sum, l) => sum + l.count, 0);
     
-    // Fixed penalty
+    // 10% penalty per bad tap
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === dateStr && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
+    const totalPenalty = Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     return Math.max(0, rawTotal - totalPenalty);
   }, [logs, badHabitLogs, currentDate, getEffectiveTodayTotalUnits]);
@@ -816,11 +816,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       totalRawUnits += raw;
     }
     
-    // Get fixed penalty for this date
+    // 10% penalty per bad tap for this date
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === dateStr && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
+    const totalPenalty = Math.round(totalRawUnits * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Use helper to distribute penalty
     const effectiveUnits = distributeEffectivePenalty(
@@ -999,12 +999,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getTodayTotalPenalty = useCallback(() => {
-    // Each bad habit tap removes a fixed number of units from today's score
+    // Each bad habit tap removes 10% of total logged units
+    const activeHabits = habits.filter((h) => !h.isArchived);
+    const rawTotal = logs
+      .filter((l) => l.date === currentDate && activeHabits.some((h) => h.id === l.habitId))
+      .reduce((sum, l) => sum + l.count, 0);
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    return totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
-  }, [badHabitLogs, currentDate]);
+    return Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
+  }, [logs, badHabitLogs, currentDate, habits]);
 
   const getDailyProgress = useCallback(() => {
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -1018,10 +1022,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
     const hasBadHabits = totalBadTaps > 0;
     
-    // Fixed penalty: each bad tap removes PENALTY_PER_BAD_TAP_CONST units from score
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP_CONST;
-    
-    // Calculate raw totals (actual work done, unaffected by penalties)
+    // Calculate raw totals first (needed for penalty calculation)
     let rawTotalUnits = 0;
     let totalGoal = 0;
     let rawAllGoalsMet = true;
@@ -1045,6 +1046,9 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         doubledCount++;
       }
     }
+    
+    // 10% penalty per bad tap (based on total logged units)
+    const totalPenalty = Math.round(rawTotalUnits * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // TODAY'S SCORE = raw work - penalty (never negative)
     // This is what blocks show and what "Today" displays

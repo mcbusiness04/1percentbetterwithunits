@@ -161,7 +161,7 @@ server/
 - **Fixed: Real-time progress %** - Calculates from raw logs, updates instantly as units are logged throughout the day
 - **Fixed: Progress % formatting** - Rounds to whole numbers or 1 decimal max (e.g., +1, +0.4, +2.5)
 - **Fixed: UTC/local timezone mismatch** - Added getLocalDateFromISO helper to convert habit createdAt timestamps to local dates; ensures habits created today appear in stats immediately
-- **Fixed: Penalty system refactored** - Changed from multiplicative (0.9^n) to fixed subtraction (5 units per bad tap) for predictable, consistent penalties
+- **Fixed: Penalty system refactored** - Each bad habit tap removes exactly 10% of total logged units, distributed evenly across all habits
 - **Fixed: Deterministic scoring** - Today's score = raw work - penalty; all values recomputed from inputs, no drift
 - **Fixed: Goal completion independent of penalties** - Goals marked complete based on RAW work done, not affected by bad habits
 - **Fixed: % better not affected by bad habits** - Improvement percentage measures effort beyond goals (raw work only)
