@@ -32,7 +32,7 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress, tapBadHabitForDate, undoBadHabitTapForDate, getBadHabitTapsForDate } = useUnits();
+  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress, tapBadHabitForDate, undoBadHabitTapForDate, getBadHabitTapsForDate, getEffectiveTotalForDate, getEffectiveHabitUnitsForDate } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -60,11 +60,14 @@ export default function StatsScreen() {
       // Only count logs for habits that still exist
       const dayLogs = logs.filter((l) => l.date === dateStr && habitIds.has(l.habitId));
       const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
-      const total = dayLogs.reduce((sum, l) => sum + l.count, 0);
       
+      // Use effective (penalty-adjusted) total for the day
+      const total = getEffectiveTotalForDate(dateStr);
+      
+      // Get effective habit totals with penalty applied
       const habitTotals: Record<string, number> = {};
-      dayLogs.forEach((l) => {
-        habitTotals[l.habitId] = (habitTotals[l.habitId] || 0) + l.count;
+      activeHabits.forEach((h) => {
+        habitTotals[h.id] = getEffectiveHabitUnitsForDate(h.id, dateStr);
       });
       
       const dayActiveHabits = activeHabits.filter((h) => {
@@ -81,7 +84,7 @@ export default function StatsScreen() {
       
       return { total, totalGoal, allGoalsMet, isGoodDay, habitTotals };
     };
-  }, [logs, badHabitLogs, activeHabits]);
+  }, [logs, badHabitLogs, activeHabits, getEffectiveTotalForDate, getEffectiveHabitUnitsForDate]);
 
   const overviewStats = useMemo(() => {
     const today = getDayStats(currentDate);
@@ -138,30 +141,17 @@ export default function StatsScreen() {
     // isPositive is false when there are bad habits (shows red)
     const isPositive = !hasBadHabits;
     
-    // Count good days over last 30 days
-    const habitIds = new Set(activeHabits.map((h) => h.id));
+    // Count good days over last 30 days using effective (penalty-adjusted) units
     let goodDays = 0;
     let trackedDays = 0;
     
     for (let i = 0; i < 30; i++) {
       const dateStr = getDateString(i);
-      const dayLogs = logs.filter((l) => l.date === dateStr && habitIds.has(l.habitId));
-      const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
+      const dayStats = getDayStats(dateStr);
       
-      const dayActiveHabits = activeHabits.filter((h) => {
-        const createdDate = getLocalDateFromISO(h.createdAt);
-        return createdDate <= dateStr;
-      });
-      
-      const dayGoal = dayActiveHabits.reduce((sum, h) => sum + h.dailyGoal, 0);
-      
-      if (dayGoal > 0) {
+      if (dayStats.totalGoal > 0) {
         trackedDays++;
-        const allGoalsMet = dayActiveHabits.every((h) => {
-          const habitUnits = dayLogs.filter((l) => l.habitId === h.id).reduce((sum, l) => sum + l.count, 0);
-          return habitUnits >= h.dailyGoal;
-        });
-        if (allGoalsMet && dayBadLogs.length === 0) goodDays++;
+        if (dayStats.isGoodDay) goodDays++;
       }
     }
     
@@ -181,7 +171,7 @@ export default function StatsScreen() {
     }
     
     return { displayPercent, isPositive, message, goodDays, trackedDays, hasBadHabits };
-  }, [getDailyProgress, logs, badHabitLogs, activeHabits, getDateString]);
+  }, [getDailyProgress, getDayStats, getDateString]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;
@@ -215,19 +205,26 @@ export default function StatsScreen() {
     const startOfYear = `${now.getFullYear()}-01-01`;
     
     return activeHabits.map((habit) => {
-      const habitLogs = logs.filter((l) => l.habitId === habit.id);
-      const todayUnits = habitLogs.filter((l) => l.date === currentDate).reduce((sum, l) => sum + l.count, 0);
+      // Use effective (penalty-adjusted) today units
+      const todayUnits = getEffectiveHabitUnitsForDate(habit.id, currentDate);
       
+      // Get all unique dates for this habit
+      const habitLogs = logs.filter((l) => l.habitId === habit.id);
+      const uniqueDates = [...new Set(habitLogs.map((l) => l.date))];
+      
+      // Calculate effective day totals for each date
       const dayTotals: Record<string, number> = {};
-      habitLogs.forEach((l) => {
-        dayTotals[l.date] = (dayTotals[l.date] || 0) + l.count;
+      uniqueDates.forEach((date) => {
+        dayTotals[date] = getEffectiveHabitUnitsForDate(habit.id, date);
       });
       const dayValues = Object.values(dayTotals);
       const bestDay = dayValues.length > 0 ? Math.max(...dayValues) : 0;
       const avgDay = dayValues.length > 0 ? Math.round(dayValues.reduce((a, b) => a + b, 0) / dayValues.length) : 0;
       
-      const yearTotal = habitLogs.filter((l) => l.date >= startOfYear).reduce((sum, l) => sum + l.count, 0);
-      const allTimeTotal = habitLogs.reduce((sum, l) => sum + l.count, 0);
+      // Year and all-time totals using effective units
+      const yearDates = uniqueDates.filter((d) => d >= startOfYear);
+      const yearTotal = yearDates.reduce((sum, date) => sum + getEffectiveHabitUnitsForDate(habit.id, date), 0);
+      const allTimeTotal = uniqueDates.reduce((sum, date) => sum + getEffectiveHabitUnitsForDate(habit.id, date), 0);
       
       const isGoalMet = todayUnits >= habit.dailyGoal;
       const progress = habit.dailyGoal > 0 ? Math.min(todayUnits / habit.dailyGoal, 1) : 0;
@@ -236,7 +233,7 @@ export default function StatsScreen() {
       
       return { habit, todayUnits, isGoalMet, progress, bestDay, avgDay, yearTotal, allTimeTotal, unitLabel };
     });
-  }, [activeHabits, logs, currentDate]);
+  }, [activeHabits, logs, currentDate, getEffectiveHabitUnitsForDate]);
 
   const badHabitStats = useMemo(() => {
     const activeBadHabits = badHabits.filter(bh => !bh.isArchived);

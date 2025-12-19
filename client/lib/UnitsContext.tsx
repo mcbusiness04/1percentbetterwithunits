@@ -91,6 +91,8 @@ interface UnitsContextType {
   getEffectiveTodayUnits: (habitId: string) => number;
   getEffectiveTodayTotalUnits: () => number;
   getEffectiveUnitsDistribution: () => Record<string, number>;
+  getEffectiveTotalForDate: (date: string) => number;
+  getEffectiveHabitUnitsForDate: (habitId: string, date: string) => number;
   getWeekUnits: (habitId: string) => number;
   getTodayTotalUnits: () => number;
   getWeekTotalUnits: () => number;
@@ -702,6 +704,94 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs, habits]);
 
+  // Get effective (penalty-adjusted) total for any date
+  // Uses same logic as getEffectiveTodayTotalUnits
+  const getEffectiveTotalForDate = useCallback((dateStr: string) => {
+    // For today, delegate to existing function for consistency
+    if (dateStr === currentDate) {
+      return getEffectiveTodayTotalUnits();
+    }
+    
+    // Helper to get local date from ISO timestamp
+    const getLocalDate = (isoString: string): string => {
+      const date = new Date(isoString);
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    };
+    
+    // For historical dates, only consider habits that existed on that date
+    const habitsOnDate = habits.filter((h) => {
+      if (h.isArchived) return false;
+      const createdDate = getLocalDate(h.createdAt);
+      return createdDate <= dateStr;
+    });
+    const habitIds = new Set(habitsOnDate.map((h) => h.id));
+    
+    const rawTotal = logs
+      .filter((l) => l.date === dateStr && habitIds.has(l.habitId))
+      .reduce((sum, l) => sum + l.count, 0);
+    
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === dateStr && !l.isUndone)
+      .reduce((sum, l) => sum + l.count, 0);
+    
+    const multiplier = Math.pow(0.9, totalBadTaps);
+    return Math.round(rawTotal * multiplier);
+  }, [logs, badHabitLogs, habits, currentDate, getEffectiveTodayTotalUnits]);
+
+  // Get effective units for a specific habit on a specific date
+  // Mirrors getEffectiveTodayUnits logic exactly: distributes penalty evenly across ALL active habits
+  const getEffectiveHabitUnitsForDate = useCallback((habitId: string, dateStr: string) => {
+    // For today, delegate to existing function for consistency
+    if (dateStr === currentDate) {
+      return getEffectiveTodayUnits(habitId);
+    }
+    
+    // Get ALL active habits (same as getEffectiveTodayUnits)
+    const activeHabits = habits.filter((h) => !h.isArchived);
+    const habitCount = activeHabits.length;
+    
+    if (habitCount === 0) return 0;
+    
+    // Calculate total raw units across ALL habits
+    let totalRawUnits = 0;
+    const habitRawUnits: Record<string, number> = {};
+    
+    for (const h of activeHabits) {
+      const raw = logs
+        .filter((l) => l.habitId === h.id && l.date === dateStr)
+        .reduce((sum, l) => sum + l.count, 0);
+      habitRawUnits[h.id] = raw;
+      totalRawUnits += raw;
+    }
+    
+    // Get penalty for this date
+    const totalBadTaps = badHabitLogs
+      .filter((l) => l.date === dateStr && !l.isUndone)
+      .reduce((sum, l) => sum + l.count, 0);
+    const multiplier = Math.pow(0.9, totalBadTaps);
+    
+    // Calculate effective total (with penalty)
+    const effectiveTotal = Math.round(totalRawUnits * multiplier);
+    const penaltyAmount = totalRawUnits - effectiveTotal;
+    
+    // Distribute penalty EVENLY across ALL active habits (same as getEffectiveTodayUnits)
+    const penaltyPerHabit = Math.floor(penaltyAmount / habitCount);
+    const remainder = penaltyAmount % habitCount;
+    
+    // Find position of this habit for remainder distribution
+    const habitIndex = activeHabits.findIndex((h) => h.id === habitId);
+    if (habitIndex === -1) return 0;
+    
+    const extraPenalty = habitIndex < remainder ? 1 : 0;
+    const rawUnits = habitRawUnits[habitId] || 0;
+    const effectiveUnits = Math.max(0, rawUnits - penaltyPerHabit - extraPenalty);
+    
+    return effectiveUnits;
+  }, [logs, badHabitLogs, habits, currentDate, getEffectiveTodayUnits]);
+
   const getLogsForDate = useCallback((date: string) => {
     const habitIds = new Set(habits.map((h) => h.id));
     return logs.filter((l) => l.date === date && habitIds.has(l.habitId));
@@ -985,6 +1075,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getEffectiveTodayUnits,
         getEffectiveTodayTotalUnits,
         getEffectiveUnitsDistribution,
+        getEffectiveTotalForDate,
+        getEffectiveHabitUnitsForDate,
         getWeekUnits,
         getMonthUnits,
         getYearUnits,
