@@ -218,42 +218,42 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       setBadHabits(loadedBadHabits);
       setBadHabitLogs(loadedBadHabitLogs);
 
+      // Always load from local storage first (local-first approach)
+      const [loadedHabits, loadedLogs] = await Promise.all([
+        getHabits(),
+        getLogs(),
+      ]);
+      
+      const normalizedHabits = loadedHabits.map((h) => ({
+        ...h,
+        tapIncrement: h.tapIncrement ?? 1,
+        habitType: h.habitType ?? "count",
+      }));
+      
+      const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
+      if (needsMigration) {
+        await saveHabits(normalizedHabits);
+      }
+      
+      const habitIds = new Set(normalizedHabits.map((h) => h.id));
+      const cleanedLogs = loadedLogs.filter((l) => habitIds.has(l.habitId));
+      if (cleanedLogs.length !== loadedLogs.length) {
+        await saveLogs(cleanedLogs);
+      }
+      
+      setHabits(normalizedHabits);
+      setLogs(cleanedLogs);
+
+      // Try to sync with Supabase in background if logged in
       if (user) {
-        const today = getTodayDate();
-        const { habits: dbHabits, error } = await fetchHabitsWithTodayProgress(user.id);
-        
-        if (!error && dbHabits) {
-          const localHabits = dbHabits.map(dbHabitToLocal);
-          const todayLogs = dbHabits.map((h) => dbHabitToLog(h, today));
-          
-          setHabits(localHabits);
-          setLogs(todayLogs);
-        }
-      } else {
-        const [loadedHabits, loadedLogs] = await Promise.all([
-          getHabits(),
-          getLogs(),
-        ]);
-        
-        const normalizedHabits = loadedHabits.map((h) => ({
-          ...h,
-          tapIncrement: h.tapIncrement ?? 1,
-          habitType: h.habitType ?? "count",
-        }));
-        
-        const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
-        if (needsMigration) {
-          await saveHabits(normalizedHabits);
-        }
-        
-        const habitIds = new Set(normalizedHabits.map((h) => h.id));
-        const cleanedLogs = loadedLogs.filter((l) => habitIds.has(l.habitId));
-        if (cleanedLogs.length !== loadedLogs.length) {
-          await saveLogs(cleanedLogs);
-        }
-        
-        setHabits(normalizedHabits);
-        setLogs(cleanedLogs);
+        fetchHabitsWithTodayProgress(user.id).then(({ habits: dbHabits, error }) => {
+          if (!error && dbHabits) {
+            // Merge Supabase habits with local if needed (background sync)
+            // For now, local storage is source of truth
+          }
+        }).catch(() => {
+          // Silently ignore Supabase errors
+        });
       }
     } catch (error) {
       console.error("Error loading data:", error);
