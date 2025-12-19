@@ -15,7 +15,7 @@ type AuthMode = "signin" | "signup";
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const { signIn, signUp } = useAuth();
-  const [mode, setMode] = useState<AuthMode>("signup");
+  const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -104,6 +104,9 @@ export default function AuthScreen() {
               keyboardType="email-address"
               autoCapitalize="none"
               autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              spellCheck={false}
             />
           </View>
 
@@ -149,7 +152,7 @@ export default function AuthScreen() {
 
           <Pressable onPress={toggleMode} style={styles.toggleButton}>
             <ThemedText type="body" style={styles.toggleText}>
-              {mode === "signup" ? "Already have an account? Sign In" : "Need an account? Sign Up"}
+              {mode === "signup" ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
             </ThemedText>
           </Pressable>
         </Animated.View>
