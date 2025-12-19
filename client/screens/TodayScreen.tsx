@@ -49,17 +49,18 @@ export default function TodayScreen() {
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    // Always show improvement % (e.g., "1% better", "2% better", "1.8% better")
-    // Format with 1 decimal if needed
+    // improvementPercent is a ratio (0.5 = 50% surplus beyond goals)
+    // Only shows when ALL goals are met; otherwise it's 0
     const imp = dailyProgress.improvementPercent;
-    const formatted = imp % 1 === 0 ? `${imp}` : `${imp.toFixed(1)}`;
+    const impPercent = imp * 100; // Convert ratio to percentage for display
+    const formatted = impPercent % 1 === 0 ? `${Math.round(impPercent)}` : `${impPercent.toFixed(1)}`;
     
-    if (imp > 0) {
+    if (impPercent > 0) {
       return `${formatted}% better`;
     }
     
-    // If no units yet, show 0%
-    return "0%";
+    // No surplus yet (either goals not met, or just met exactly)
+    return null;
   }, [dailyProgress, activeHabits.length]);
 
   // Use centralized effective distribution to ensure all counts match
