@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
-import { supabase, Profile } from "@/lib/supabase";
+import { supabase, Profile, isSupabaseConfigured } from "@/lib/supabase";
 import { getIsPro } from "@/lib/storage";
 
 interface AuthContextType {
@@ -26,6 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string, userEmail?: string) => {
+    if (!isSupabaseConfigured) return null;
+    
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -70,6 +72,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
@@ -116,6 +123,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signUp = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: { message: "Supabase not configured" } as AuthError };
+    }
+    
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -130,6 +141,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: { message: "Supabase not configured" } as AuthError };
+    }
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -144,7 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    if (isSupabaseConfigured) {
+      await supabase.auth.signOut();
+    }
     setProfile(null);
   };
 

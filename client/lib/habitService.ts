@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export interface DbHabit {
   id: string;
@@ -42,6 +42,10 @@ export function getTodayDateLocal(): string {
 export async function fetchHabitsWithTodayProgress(
   userId: string
 ): Promise<{ habits: HabitWithProgress[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { habits: [], error: "Supabase not configured" };
+  }
+  
   const today = getTodayDateLocal();
 
   const { data: habits, error: habitsError } = await supabase
@@ -120,6 +124,10 @@ export async function addUnitsToHabit(
   count: number,
   date?: string
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase not configured" };
+  }
+  
   const targetDate = date || getTodayDateLocal();
 
   const { data: existingLog } = await supabase
@@ -157,6 +165,10 @@ export async function setUnitsForHabit(
   count: number,
   date?: string
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase not configured" };
+  }
+  
   const targetDate = date || getTodayDateLocal();
 
   const { error } = await supabase
@@ -180,6 +192,10 @@ export async function fetchHabitLogsForDateRange(
   startDate: string,
   endDate: string
 ): Promise<{ logs: DbHabitLog[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { logs: [], error: "Supabase not configured" };
+  }
+  
   const { data, error } = await supabase
     .from("habit_logs")
     .select("*")
@@ -203,6 +219,10 @@ export async function createHabit(
     habit_type: "count" | "time";
   }
 ): Promise<{ habit: DbHabit | null; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { habit: null, error: "Supabase not configured" };
+  }
+  
   const { data, error } = await supabase
     .from("habits")
     .insert({
@@ -219,6 +239,10 @@ export async function updateHabit(
   habitId: string,
   updates: Partial<DbHabit>
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase not configured" };
+  }
+  
   const { error } = await supabase
     .from("habits")
     .update({
@@ -233,6 +257,10 @@ export async function updateHabit(
 export async function deleteHabit(
   habitId: string
 ): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase not configured" };
+  }
+  
   const { error } = await supabase
     .from("habits")
     .update({ is_archived: true, updated_at: new Date().toISOString() })
@@ -249,6 +277,10 @@ export interface DailyStats {
 }
 
 export async function fetchDailyStats(userId: string): Promise<{ stats: DailyStats; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { stats: { todayTotal: 0, bestDayTotal: 0, bestDayDate: null, sevenDayAverage: 0 }, error: "Supabase not configured" };
+  }
+  
   const today = getTodayDateLocal();
   
   const { data: todayLogs, error: todayError } = await supabase
