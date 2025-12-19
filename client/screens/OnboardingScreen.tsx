@@ -513,7 +513,7 @@ export default function OnboardingScreen() {
                 </View>
               </View>
               <View style={styles.planPricing}>
-                <ThemedText type="h2" style={{ color: "white" }}>$11.99</ThemedText>
+                <ThemedText type="h2" style={{ color: "white" }}>$19.99</ThemedText>
                 <ThemedText type="body" style={{ color: "rgba(255,255,255,0.8)" }}>/year</ThemedText>
               </View>
               <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Just $1/month</ThemedText>
@@ -553,7 +553,7 @@ export default function OnboardingScreen() {
         <View style={styles.paywallFooter}>
           <Pressable onPress={handleSubscribe} style={styles.subscribeButton}>
             <ThemedText type="body" style={{ color: GRADIENT_COLORS.paywall[0], fontWeight: "700", fontSize: 17 }}>
-              {selectedPlan === "annual" ? "Start for $11.99/year" : "Start for $4.99/month"}
+              {selectedPlan === "annual" ? "Start for $19.99/year" : "Start for $4.99/month"}
             </ThemedText>
           </Pressable>
 
