@@ -42,6 +42,12 @@ export function useStoreKit(): UseStoreKitReturn {
           return;
         }
 
+        if (typeof module.initConnection !== "function") {
+          console.log("IAP native module not available (Expo Go)");
+          setLoading(false);
+          return;
+        }
+
         setIapAvailable(true);
 
         const connected = await module.initConnection();
@@ -102,6 +108,13 @@ export function useStoreKit(): UseStoreKitReturn {
     setPurchasing(true);
 
     try {
+      if (typeof module.requestPurchase !== "function") {
+        return { 
+          success: false, 
+          error: "In-app purchases require a development build. Expo Go does not support StoreKit." 
+        };
+      }
+      
       const purchase = await module.requestPurchase({ 
         request: {
           apple: { sku: productId },
