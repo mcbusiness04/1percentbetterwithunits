@@ -240,3 +240,76 @@ export async function deleteHabit(
 
   return { success: !error, error: error?.message ?? null };
 }
+
+export interface DailyStats {
+  todayTotal: number;
+  bestDayTotal: number;
+  bestDayDate: string | null;
+  sevenDayAverage: number;
+}
+
+export async function fetchDailyStats(userId: string): Promise<{ stats: DailyStats; error: string | null }> {
+  const today = getTodayDateLocal();
+  
+  const { data: todayLogs, error: todayError } = await supabase
+    .from("habit_logs")
+    .select("count")
+    .eq("user_id", userId)
+    .eq("date", today);
+
+  if (todayError) {
+    return { stats: { todayTotal: 0, bestDayTotal: 0, bestDayDate: null, sevenDayAverage: 0 }, error: todayError.message };
+  }
+
+  const todayTotal = (todayLogs || []).reduce((sum, log) => sum + (log.count || 0), 0);
+
+  const { data: allLogs, error: allError } = await supabase
+    .from("habit_logs")
+    .select("date, count")
+    .eq("user_id", userId);
+
+  if (allError) {
+    return { stats: { todayTotal, bestDayTotal: 0, bestDayDate: null, sevenDayAverage: 0 }, error: allError.message };
+  }
+
+  const dailyTotals = new Map<string, number>();
+  (allLogs || []).forEach((log) => {
+    const current = dailyTotals.get(log.date) || 0;
+    dailyTotals.set(log.date, current + (log.count || 0));
+  });
+
+  let bestDayTotal = 0;
+  let bestDayDate: string | null = null;
+  dailyTotals.forEach((total, date) => {
+    if (total > bestDayTotal) {
+      bestDayTotal = total;
+      bestDayDate = date;
+    }
+  });
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+  const sevenDayDates: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sevenDaysAgo.getFullYear(), sevenDaysAgo.getMonth(), sevenDaysAgo.getDate() + i);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    sevenDayDates.push(`${year}-${month}-${day}`);
+  }
+
+  let sevenDaySum = 0;
+  let daysWithData = 0;
+  sevenDayDates.forEach((date) => {
+    const total = dailyTotals.get(date) || 0;
+    sevenDaySum += total;
+    if (total > 0) daysWithData++;
+  });
+
+  const sevenDayAverage = daysWithData > 0 ? Math.round((sevenDaySum / 7) * 10) / 10 : 0;
+
+  return {
+    stats: { todayTotal, bestDayTotal, bestDayDate, sevenDayAverage },
+    error: null,
+  };
+}
