@@ -43,6 +43,9 @@ export default function HabitDetailScreen() {
     [habits, habitId]
   );
 
+  const [goalText, setGoalText] = useState(habit ? String(habit.dailyGoal) : "1");
+  const [tapText, setTapText] = useState(habit ? String(habit.tapIncrement || 1) : "1");
+
   const habitLogs = useMemo(
     () => logs.filter((l) => l.habitId === habitId),
     [logs, habitId]
@@ -277,13 +280,18 @@ export default function HabitDetailScreen() {
             color: theme.text,
             borderColor: theme.border,
           }]}
-          value={String(habit.dailyGoal)}
+          value={goalText}
           onChangeText={(text) => {
-            const num = parseInt(text.replace(/[^0-9]/g, ""), 10);
+            setGoalText(text.replace(/[^0-9]/g, ""));
+          }}
+          onBlur={() => {
+            const num = parseInt(goalText, 10);
             if (!isNaN(num) && num >= 1) {
               updateHabit(habit.id, { dailyGoal: num });
-            } else if (text === "" || text === "0") {
+              setGoalText(String(num));
+            } else {
               updateHabit(habit.id, { dailyGoal: 1 });
+              setGoalText("1");
             }
           }}
           keyboardType="number-pad"
@@ -305,16 +313,22 @@ export default function HabitDetailScreen() {
             color: theme.text,
             borderColor: theme.border,
           }]}
-          value={String(habit.tapIncrement || 1)}
+          value={tapText}
           onChangeText={(text) => {
-            const num = parseInt(text.replace(/[^0-9]/g, ""), 10);
+            setTapText(text.replace(/[^0-9]/g, ""));
+          }}
+          onBlur={() => {
+            const num = parseInt(tapText, 10);
             if (!isNaN(num) && num >= 1 && num <= 500) {
               updateHabit(habit.id, { tapIncrement: num });
+              setTapText(String(num));
             } else if (num > 500) {
               Alert.alert("Limit Reached", "Maximum tap increment is 500.");
               updateHabit(habit.id, { tapIncrement: 500 });
-            } else if (text === "" || text === "0") {
+              setTapText("500");
+            } else {
               updateHabit(habit.id, { tapIncrement: 1 });
+              setTapText("1");
             }
           }}
           keyboardType="number-pad"
