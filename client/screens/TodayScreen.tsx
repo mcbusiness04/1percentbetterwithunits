@@ -49,18 +49,21 @@ export default function TodayScreen() {
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    // improvementPercent is a ratio (0.5 = 50% surplus beyond goals)
-    // Only shows when ALL goals are met; otherwise it's 0
-    const imp = dailyProgress.improvementPercent;
-    const impPercent = imp * 100; // Convert ratio to percentage for display
-    const formatted = impPercent % 1 === 0 ? `${Math.round(impPercent)}` : `${impPercent.toFixed(1)}`;
+    // Always show progress percentage toward goals (increases with each tap)
+    const rawProgress = dailyProgress.rawPercentage; // 0-100%+ based on raw work
     
-    if (impPercent > 0) {
+    // If ALL goals are met AND we have surplus, show "X% better"
+    const imp = dailyProgress.improvementPercent;
+    const impPercent = imp * 100; // Convert ratio to percentage
+    
+    if (dailyProgress.allGoalsMet && impPercent > 0) {
+      // Beyond 100% - show surplus as "X% better"
+      const formatted = impPercent % 1 === 0 ? `${Math.round(impPercent)}` : `${impPercent.toFixed(1)}`;
       return `${formatted}% better`;
     }
     
-    // No surplus yet (either goals not met, or just met exactly)
-    return null;
+    // Otherwise show progress toward goals (e.g., "45%")
+    return `${rawProgress}%`;
   }, [dailyProgress, activeHabits.length]);
 
   // Use centralized effective distribution to ensure all counts match
