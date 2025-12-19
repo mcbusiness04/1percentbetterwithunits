@@ -28,6 +28,15 @@ import {
   setOnboardingComplete,
   resetOnboarding as resetOnboardingStorage,
 } from "@/lib/storage";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  fetchHabitsWithTodayProgress,
+  addUnitsToHabit,
+  createHabit as createDbHabit,
+  updateHabit as updateDbHabit,
+  deleteHabit as deleteDbHabit,
+  HabitWithProgress,
+} from "@/lib/habitService";
 
 interface UndoAction {
   type: "add_units" | "remove_units";
@@ -97,7 +106,33 @@ interface UnitsContextType {
 
 const UnitsContext = createContext<UnitsContextType | undefined>(undefined);
 
+function dbHabitToLocal(dbHabit: HabitWithProgress): Habit {
+  return {
+    id: dbHabit.id,
+    name: dbHabit.name,
+    icon: dbHabit.icon,
+    color: dbHabit.color,
+    unitName: dbHabit.unit_name,
+    dailyGoal: dbHabit.daily_goal,
+    tapIncrement: dbHabit.tap_increment,
+    habitType: dbHabit.habit_type,
+    createdAt: dbHabit.created_at,
+    isArchived: dbHabit.is_archived,
+  };
+}
+
+function dbHabitToLog(dbHabit: HabitWithProgress, date: string): UnitLog {
+  return {
+    id: dbHabit.todayLogId || generateId(),
+    habitId: dbHabit.id,
+    count: dbHabit.todayCount,
+    date,
+    createdAt: new Date().toISOString(),
+  };
+}
+
 export function UnitsProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [habits, setHabits] = useState<Habit[]>([]);
   const [logs, setLogs] = useState<UnitLog[]>([]);
   const [settings, setSettings] = useState<AppSettings>({
@@ -169,47 +204,63 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(async () => {
     try {
-      const [loadedHabits, loadedLogs, loadedSettings, loadedIsPro, loadedOnboarding, loadedBadHabits, loadedBadHabitLogs] = await Promise.all([
-        getHabits(),
-        getLogs(),
+      const [loadedSettings, loadedIsPro, loadedOnboarding, loadedBadHabits, loadedBadHabitLogs] = await Promise.all([
         getSettings(),
         getIsPro(),
         isOnboardingComplete(),
         getBadHabits(),
         getBadHabitLogs(),
       ]);
-      
-      const normalizedHabits = loadedHabits.map((h) => ({
-        ...h,
-        tapIncrement: h.tapIncrement ?? 1,
-        habitType: h.habitType ?? "count",
-      }));
-      
-      const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
-      if (needsMigration) {
-        await saveHabits(normalizedHabits);
-      }
-      
-      // Clean up orphaned logs (logs for habits that no longer exist)
-      const habitIds = new Set(normalizedHabits.map((h) => h.id));
-      const cleanedLogs = loadedLogs.filter((l) => habitIds.has(l.habitId));
-      if (cleanedLogs.length !== loadedLogs.length) {
-        await saveLogs(cleanedLogs);
-      }
-      
-      setHabits(normalizedHabits);
-      setLogs(cleanedLogs);
+
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
       setHasCompletedOnboarding(loadedOnboarding);
       setBadHabits(loadedBadHabits);
       setBadHabitLogs(loadedBadHabitLogs);
+
+      if (user) {
+        const today = getTodayDate();
+        const { habits: dbHabits, error } = await fetchHabitsWithTodayProgress(user.id);
+        
+        if (!error && dbHabits) {
+          const localHabits = dbHabits.map(dbHabitToLocal);
+          const todayLogs = dbHabits.map((h) => dbHabitToLog(h, today));
+          
+          setHabits(localHabits);
+          setLogs(todayLogs);
+        }
+      } else {
+        const [loadedHabits, loadedLogs] = await Promise.all([
+          getHabits(),
+          getLogs(),
+        ]);
+        
+        const normalizedHabits = loadedHabits.map((h) => ({
+          ...h,
+          tapIncrement: h.tapIncrement ?? 1,
+          habitType: h.habitType ?? "count",
+        }));
+        
+        const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
+        if (needsMigration) {
+          await saveHabits(normalizedHabits);
+        }
+        
+        const habitIds = new Set(normalizedHabits.map((h) => h.id));
+        const cleanedLogs = loadedLogs.filter((l) => habitIds.has(l.habitId));
+        if (cleanedLogs.length !== loadedLogs.length) {
+          await saveLogs(cleanedLogs);
+        }
+        
+        setHabits(normalizedHabits);
+        setLogs(cleanedLogs);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refreshData();
@@ -238,18 +289,60 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    const newHabit: Habit = {
-      ...habit,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-      isArchived: false,
-    };
-    const updated = [...habits, newHabit];
-    setHabits(updated);
-    await saveHabits(updated);
-    triggerSuccess();
-    return true;
-  }, [habits, isPro, triggerSuccess]);
+    if (user) {
+      const { habit: dbHabit, error } = await createDbHabit(user.id, {
+        name: habit.name,
+        icon: habit.icon,
+        color: habit.color,
+        unit_name: habit.unitName,
+        daily_goal: habit.dailyGoal,
+        tap_increment: habit.tapIncrement,
+        habit_type: habit.habitType,
+      });
+      
+      if (!error && dbHabit) {
+        const newHabit: Habit = {
+          id: dbHabit.id,
+          name: dbHabit.name,
+          icon: dbHabit.icon,
+          color: dbHabit.color,
+          unitName: dbHabit.unit_name,
+          dailyGoal: dbHabit.daily_goal,
+          tapIncrement: dbHabit.tap_increment,
+          habitType: dbHabit.habit_type,
+          createdAt: dbHabit.created_at,
+          isArchived: dbHabit.is_archived,
+        };
+        setHabits([...habits, newHabit]);
+        
+        const today = getTodayDate();
+        const newLog: UnitLog = {
+          id: generateId(),
+          habitId: dbHabit.id,
+          count: 0,
+          date: today,
+          createdAt: new Date().toISOString(),
+        };
+        setLogs([...logs, newLog]);
+        
+        triggerSuccess();
+        return true;
+      }
+      return false;
+    } else {
+      const newHabit: Habit = {
+        ...habit,
+        id: generateId(),
+        createdAt: new Date().toISOString(),
+        isArchived: false,
+      };
+      const updated = [...habits, newHabit];
+      setHabits(updated);
+      await saveHabits(updated);
+      triggerSuccess();
+      return true;
+    }
+  }, [habits, logs, user, isPro, triggerSuccess]);
 
   const handleUpdateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
     const updated = habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
@@ -272,30 +365,51 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return false;
 
-    const newLog: UnitLog = {
-      id: generateId(),
-      habitId,
-      count,
-      date: today,
-      createdAt: new Date().toISOString(),
-    };
+    const existingLog = logs.find((l) => l.habitId === habitId && l.date === today);
+    const oldTotal = existingLog?.count ?? 0;
+    const newTotal = oldTotal + count;
 
-    const updated = [...logs, newLog];
-    setLogs(updated);
-    await saveLogs(updated);
+    if (user) {
+      const { success } = await addUnitsToHabit(habitId, user.id, count, today);
+      if (success) {
+        if (existingLog) {
+          setLogs(logs.map((l) =>
+            l.habitId === habitId && l.date === today
+              ? { ...l, count: newTotal }
+              : l
+          ));
+        } else {
+          const newLog: UnitLog = {
+            id: generateId(),
+            habitId,
+            count,
+            date: today,
+            createdAt: new Date().toISOString(),
+          };
+          setLogs([...logs, newLog]);
+        }
+      }
+    } else {
+      const newLog: UnitLog = {
+        id: generateId(),
+        habitId,
+        count,
+        date: today,
+        createdAt: new Date().toISOString(),
+      };
+      const updated = [...logs, newLog];
+      setLogs(updated);
+      await saveLogs(updated);
+    }
 
-    const newTotal = logs
-      .filter((l) => l.habitId === habitId && l.date === today)
-      .reduce((sum, l) => sum + l.count, 0) + count;
-    
-    if (newTotal >= habit.dailyGoal && newTotal - count < habit.dailyGoal) {
+    if (newTotal >= habit.dailyGoal && oldTotal < habit.dailyGoal) {
       triggerSuccess();
     } else {
       triggerHaptic("medium");
     }
 
     return true;
-  }, [habits, logs, isPro, triggerHaptic, triggerSuccess]);
+  }, [habits, logs, user, triggerHaptic, triggerSuccess]);
 
   const handleRemoveUnits = useCallback(async (habitId: string, count: number) => {
     const today = getTodayDate();
