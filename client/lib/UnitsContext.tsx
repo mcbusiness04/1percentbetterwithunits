@@ -595,8 +595,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .reduce((sum, l) => sum + l.count, 0);
   }, [logs, currentDate, habits]);
 
-  // Fixed penalty: each bad habit tap removes 5 units from score
-  const PENALTY_PER_BAD_TAP = 5;
+  // Penalty: each bad habit tap removes 10% of total logged units from score
+  const PENALTY_PERCENT_PER_TAP = 0.10;
 
   // Helper to distribute penalty across habits ensuring sum equals total penalty exactly
   // Uses deterministic ordering (by habitId) to ensure consistent results regardless of input order
@@ -668,7 +668,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return result;
   }, []);
 
-  // Get effective units for a habit after fixed 5-unit penalty applied per bad tap
+  // Get effective units for a habit after 10% penalty applied per bad tap
   const getEffectiveTodayUnits = useCallback((habitId: string) => {
     const activeHabits = habits.filter((h) => !h.isArchived);
     
@@ -686,11 +686,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       totalRawUnits += raw;
     }
     
-    // Calculate fixed 5-unit penalty per bad tap
+    // Calculate 10% penalty per bad tap (of total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP;
+    const totalPenalty = Math.round(totalRawUnits * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Distribute penalty using helper
     const effectiveUnits = distributeEffectivePenalty(
@@ -703,7 +703,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     return effectiveUnits[habitId] || 0;
   }, [logs, currentDate, badHabitLogs, habits, distributeEffectivePenalty]);
 
-  // Get effective total units after fixed 5-unit penalty applied per bad tap
+  // Get effective total units after 10% penalty applied per bad tap
   // TODAY'S SCORE = raw work - penalty (never negative)
   const getEffectiveTodayTotalUnits = useCallback(() => {
     const activeHabits = habits.filter((h) => !h.isArchived);
@@ -711,11 +711,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       .filter((l) => l.date === currentDate && activeHabits.some((h) => h.id === l.habitId))
       .reduce((sum, l) => sum + l.count, 0);
     
-    // Fixed 5-unit penalty per bad tap
+    // 10% penalty per bad tap (of total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP;
+    const totalPenalty = Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Score = raw - penalty, minimum 0
     return Math.max(0, rawTotal - totalPenalty);
@@ -740,11 +740,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       rawTotal += raw;
     }
     
-    // Fixed 5-unit penalty per bad tap
+    // 10% penalty per bad tap (of total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP;
+    const totalPenalty = Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Use helper to distribute penalty (ensures sum equals total)
     return distributeEffectivePenalty(
@@ -780,11 +780,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     
     const rawTotal = logsOnDate.reduce((sum, l) => sum + l.count, 0);
     
-    // Fixed 5-unit penalty per bad tap
+    // 10% penalty per bad tap (of total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === dateStr && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP;
+    const totalPenalty = Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     return Math.max(0, rawTotal - totalPenalty);
   }, [logs, badHabitLogs, currentDate, getEffectiveTodayTotalUnits]);
@@ -816,11 +816,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       totalRawUnits += raw;
     }
     
-    // Fixed 5-unit penalty per bad tap for this date
+    // 10% penalty per bad tap for this date (of total logged units)
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === dateStr && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP;
+    const totalPenalty = Math.round(totalRawUnits * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // Use helper to distribute penalty
     const effectiveUnits = distributeEffectivePenalty(
@@ -999,7 +999,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getTodayTotalPenalty = useCallback(() => {
-    // Each bad habit tap removes a fixed 5 units
+    // Each bad habit tap removes 10% of total logged units
     const activeHabits = habits.filter((h) => !h.isArchived);
     const rawTotal = logs
       .filter((l) => l.date === currentDate && activeHabits.some((h) => h.id === l.habitId))
@@ -1007,7 +1007,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const totalBadTaps = badHabitLogs
       .filter((l) => l.date === currentDate && !l.isUndone)
       .reduce((sum, l) => sum + l.count, 0);
-    return totalBadTaps * PENALTY_PER_BAD_TAP;
+    return Math.round(rawTotal * PENALTY_PERCENT_PER_TAP * totalBadTaps);
   }, [logs, badHabitLogs, currentDate, habits]);
 
   const getDailyProgress = useCallback(() => {
@@ -1047,44 +1047,42 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    // Fixed 5-unit penalty per bad tap
-    const totalPenalty = totalBadTaps * PENALTY_PER_BAD_TAP;
+    // 10% penalty per bad tap (of total logged units)
+    const totalPenalty = Math.round(rawTotalUnits * PENALTY_PERCENT_PER_TAP * totalBadTaps);
     
     // TODAY'S SCORE = raw work - penalty (never negative)
     // This is what blocks show and what "Today" displays
     const effectiveTotalUnits = Math.max(0, rawTotalUnits - totalPenalty);
     
-    // PROGRESS % = how much of planned goals completed (based on RAW work, not affected by penalties)
-    // This shows actual effort toward goals
+    // PROGRESS % = how much of planned goals completed (based on EFFECTIVE work, after penalties)
+    // This shows progress toward goals including penalty effects
     const rawPercent = totalGoal > 0 ? (rawTotalUnits / totalGoal) * 100 : 0;
     
-    // Final percentage reflects the effective score (for display consistency with blocks)
+    // Effective percentage reflects the score after penalty (for display and progress bar)
     const effectivePercent = totalGoal > 0 ? (effectiveTotalUnits / totalGoal) * 100 : 0;
     const finalPercent = Math.round(effectivePercent * 10) / 10;
     
-    // IMPROVEMENT RATIO = surplus effort BEYOND 100% of goals (as ratio, not percentage)
-    // ONLY shown when ALL goals are met - otherwise it's 0
-    // 100% completion = 0 (just met goals), 150% = 0.5 surplus, 200% = 1.0 surplus (doubled)
-    const rawCompletionRatio = totalGoal > 0 ? rawTotalUnits / totalGoal : 0;
-    // Only show surplus if ALL goals are met; surplus = ratio - 1 (e.g., 1.5 ratio = 0.5 surplus)
-    const surplusRatio = rawAllGoalsMet && rawCompletionRatio > 1 
-      ? rawCompletionRatio - 1 
-      : 0;
-    // rawImprovementPercent = raw completion ratio (for analytics)
-    // improvementPercent = surplus ratio (for UI display - only shows extra effort beyond goals)
-    const rawImprovementPercent = rawCompletionRatio;
-    const improvementPercent = surplusRatio;
+    // IMPROVEMENT % = shows when goals are met (based on EFFECTIVE progress)
+    // 100% effective = "1% better", 200% = "2% better", 150% = "1.5% better"
+    // allGoalsMet is based on EFFECTIVE completion, not raw
+    const effectiveRatio = totalGoal > 0 ? effectiveTotalUnits / totalGoal : 0;
+    const allGoalsMetEffective = effectiveRatio >= 1.0;
+    
+    // improvementPercent = effectiveRatio when goals are met (for "X% better" display)
+    // rawImprovementPercent = raw ratio (for analytics)
+    const rawImprovementPercent = totalGoal > 0 ? rawTotalUnits / totalGoal : 0;
+    const improvementPercent = allGoalsMetEffective ? effectiveRatio : 0;
     
     // Penalty percent for display (shows what was subtracted)
     const penaltyPercent = totalGoal > 0 ? (totalPenalty / totalGoal) * 100 : 0;
     
-    // Perfect day = met all goals AND no bad habit slips (for stats)
-    const perfectDay = rawAllGoalsMet && !hasBadHabits;
+    // Perfect day = met all goals (effective) AND no bad habit slips (for stats)
+    const perfectDay = allGoalsMetEffective && !hasBadHabits;
     
     return { 
       percentage: finalPercent,                    // Progress toward goals (effective, after penalty)
-      allGoalsMet: rawAllGoalsMet,                 // Goal completion based ONLY on raw work (not affected by bad habits)
-      rawAllGoalsMet,                              // Same as allGoalsMet now (kept for backwards compat)
+      allGoalsMet: allGoalsMetEffective,           // Goal completion based on EFFECTIVE work (after penalties)
+      rawAllGoalsMet,                              // Goal completion based on RAW work (for reference)
       perfectDay,                                  // Perfect day = goals met AND no bad habits (for stats/heatmaps)
       hasBadHabits,                                // Whether any bad habits were tapped today
       improvementPercent,                          // Extra effort (raw, NOT affected by bad habits)

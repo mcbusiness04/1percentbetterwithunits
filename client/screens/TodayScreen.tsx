@@ -49,22 +49,27 @@ export default function TodayScreen() {
   const progressMessage = useMemo(() => {
     if (activeHabits.length === 0) return null;
     
-    // Always show progress percentage toward goals (increases with each tap)
-    const rawProgress = dailyProgress.rawPercentage; // 0-100%+ based on raw work
+    // Progress is based on EFFECTIVE work (after penalties)
+    const effectiveProgress = dailyProgress.percentage; // 0-100%+ based on effective work
     
-    // If ALL goals are met AND we have surplus, show "X% better"
-    const imp = dailyProgress.improvementPercent;
-    const impPercent = imp * 100; // Convert ratio to percentage
-    
-    if (dailyProgress.allGoalsMet && impPercent > 0) {
-      // Beyond 100% - show surplus as "X% better"
-      const formatted = impPercent % 1 === 0 ? `${Math.round(impPercent)}` : `${impPercent.toFixed(1)}`;
+    // If goals are met (100%+ effective), show "X% better" where X = ratio
+    // 100% = "1% better", 200% = "2% better", 150% = "1.5% better"
+    if (dailyProgress.allGoalsMet) {
+      const ratio = dailyProgress.improvementPercent; // This is the effective ratio (1.0, 1.5, 2.0, etc.)
+      const formatted = ratio % 1 === 0 ? `${Math.round(ratio)}` : `${ratio.toFixed(1)}`;
       return `${formatted}% better`;
     }
     
     // Otherwise show progress toward goals (e.g., "45%")
-    return `${rawProgress}%`;
+    return `${Math.round(effectiveProgress)}%`;
   }, [dailyProgress, activeHabits.length]);
+  
+  // Color: green when goals met AND no bad habits, red if any bad habit tapped
+  const progressColor = useMemo(() => {
+    if (dailyProgress.hasBadHabits) return '#E53935'; // Red - stays red for the day
+    if (dailyProgress.allGoalsMet) return '#4CAF50'; // Green - goals met, no bad habits
+    return undefined; // Default theme color
+  }, [dailyProgress]);
 
   // Use centralized effective distribution to ensure all counts match
   const todayBlocks = useMemo(() => {
