@@ -345,26 +345,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const oldTotal = existingLog?.count ?? 0;
     const newTotal = oldTotal + count;
 
-    if (user) {
-      const { success } = await addUnitsToHabit(habitId, user.id, count, today);
-      if (success) {
-        if (existingLog) {
-          setLogs(logs.map((l) =>
-            l.habitId === habitId && l.date === today
-              ? { ...l, count: newTotal }
-              : l
-          ));
-        } else {
-          const newLog: UnitLog = {
-            id: generateId(),
-            habitId,
-            count,
-            date: today,
-            createdAt: new Date().toISOString(),
-          };
-          setLogs([...logs, newLog]);
-        }
-      }
+    // Always update local state first (local-first approach)
+    let updatedLogs: UnitLog[];
+    if (existingLog) {
+      updatedLogs = logs.map((l) =>
+        l.habitId === habitId && l.date === today
+          ? { ...l, count: newTotal }
+          : l
+      );
     } else {
       const newLog: UnitLog = {
         id: generateId(),
@@ -373,9 +361,17 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         date: today,
         createdAt: new Date().toISOString(),
       };
-      const updated = [...logs, newLog];
-      setLogs(updated);
-      await saveLogs(updated);
+      updatedLogs = [...logs, newLog];
+    }
+    
+    setLogs(updatedLogs);
+    await saveLogs(updatedLogs);
+
+    // Try to sync to Supabase in background (non-blocking)
+    if (user) {
+      addUnitsToHabit(habitId, user.id, count, today).catch(() => {
+        // Silently ignore Supabase errors - local storage is source of truth
+      });
     }
 
     if (newTotal >= habit.dailyGoal && oldTotal < habit.dailyGoal) {
