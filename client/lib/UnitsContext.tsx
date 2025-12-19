@@ -289,8 +289,21 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
+    const newHabit: Habit = {
+      ...habit,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      isArchived: false,
+    };
+
+    // Always update local state first
+    const updated = [...habits, newHabit];
+    setHabits(updated);
+    await saveHabits(updated);
+
+    // Try to sync to Supabase in background (non-blocking)
     if (user) {
-      const { habit: dbHabit, error } = await createDbHabit(user.id, {
+      createDbHabit(user.id, {
         name: habit.name,
         icon: habit.icon,
         color: habit.color,
@@ -298,51 +311,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         daily_goal: habit.dailyGoal,
         tap_increment: habit.tapIncrement,
         habit_type: habit.habitType,
+      }).catch(() => {
+        // Silently ignore Supabase errors - local storage is source of truth for now
       });
-      
-      if (!error && dbHabit) {
-        const newHabit: Habit = {
-          id: dbHabit.id,
-          name: dbHabit.name,
-          icon: dbHabit.icon,
-          color: dbHabit.color,
-          unitName: dbHabit.unit_name,
-          dailyGoal: dbHabit.daily_goal,
-          tapIncrement: dbHabit.tap_increment,
-          habitType: dbHabit.habit_type,
-          createdAt: dbHabit.created_at,
-          isArchived: dbHabit.is_archived,
-        };
-        setHabits([...habits, newHabit]);
-        
-        const today = getTodayDate();
-        const newLog: UnitLog = {
-          id: generateId(),
-          habitId: dbHabit.id,
-          count: 0,
-          date: today,
-          createdAt: new Date().toISOString(),
-        };
-        setLogs([...logs, newLog]);
-        
-        triggerSuccess();
-        return true;
-      }
-      return false;
-    } else {
-      const newHabit: Habit = {
-        ...habit,
-        id: generateId(),
-        createdAt: new Date().toISOString(),
-        isArchived: false,
-      };
-      const updated = [...habits, newHabit];
-      setHabits(updated);
-      await saveHabits(updated);
-      triggerSuccess();
-      return true;
     }
-  }, [habits, logs, user, isPro, triggerSuccess]);
+
+    triggerSuccess();
+    return true;
+  }, [habits, user, isPro, triggerSuccess]);
 
   const handleUpdateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
     const updated = habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
