@@ -40,12 +40,24 @@ export default function AuthScreen() {
 
     setLoading(true);
     try {
-      const { error } = mode === "signup" 
-        ? await signUp(email.trim(), password)
-        : await signIn(email.trim(), password);
-
-      if (error) {
-        Alert.alert("Error", error.message);
+      if (mode === "signup") {
+        const { error } = await signUp(email.trim(), password);
+        if (error) {
+          Alert.alert("Error", error.message);
+        } else {
+          Alert.alert(
+            "Confirm Your Email",
+            "We sent a confirmation link to your email. Please check your inbox and confirm, then sign in.",
+            [{ text: "OK", onPress: () => setMode("signin") }]
+          );
+          setPassword("");
+          setConfirmPassword("");
+        }
+      } else {
+        const { error } = await signIn(email.trim(), password);
+        if (error) {
+          Alert.alert("Error", error.message);
+        }
       }
     } catch (err: unknown) {
       Alert.alert("Error", "An unexpected error occurred. Please try again.");
