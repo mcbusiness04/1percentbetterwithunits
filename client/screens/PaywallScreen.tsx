@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { View, StyleSheet, Pressable, Linking, Alert } from "react-native";
+import { View, StyleSheet, Pressable, Linking, Alert, Platform, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -11,6 +11,8 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { useStoreKit } from "@/hooks/useStoreKit";
+import { PRODUCT_IDS } from "@/lib/storekit";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -29,42 +31,59 @@ export default function PaywallScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { setIsPro } = useUnits();
+  const { products, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
   const reason = route.params?.reason ?? "onboarding";
 
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
-  const [loading, setLoading] = useState(false);
+
+  const monthlyProduct = getProductByType("monthly");
+  const yearlyProduct = getProductByType("yearly");
 
   const handleSubscribe = useCallback(async () => {
-    setLoading(true);
-    try {
+    const productId = selectedPlan === "annual" ? PRODUCT_IDS.YEARLY : PRODUCT_IDS.MONTHLY;
+    
+    if (Platform.OS === "web" || !iapAvailable) {
       await setIsPro(true);
-      // Navigator will automatically switch to Main when isPro becomes true
-      // Only call goBack if we're in a modal (can go back)
       if (navigation.canGoBack()) {
         navigation.goBack();
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to complete subscription. Please try again.");
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [setIsPro, navigation]);
+
+    const result = await purchase(productId);
+    
+    if (result.success) {
+      await setIsPro(true);
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
+    } else if (result.error && !result.error.includes("cancelled")) {
+      Alert.alert("Purchase Failed", result.error);
+    }
+  }, [selectedPlan, iapAvailable, purchase, setIsPro, navigation]);
 
   const handleRestorePurchases = useCallback(async () => {
-    setLoading(true);
-    try {
+    if (Platform.OS === "web" || !iapAvailable) {
       await setIsPro(true);
-      // Navigator will automatically switch to Main when isPro becomes true
-      // Only call goBack if we're in a modal (can go back)
       if (navigation.canGoBack()) {
         navigation.goBack();
       }
-    } catch (error) {
-      Alert.alert("Error", "Failed to restore purchases. Please try again.");
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [setIsPro, navigation]);
+
+    const result = await restore();
+    
+    if (result.success && result.hasPremium) {
+      await setIsPro(true);
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      }
+    } else if (result.success && !result.hasPremium) {
+      Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
+    } else if (result.error) {
+      Alert.alert("Restore Failed", result.error);
+    }
+  }, [iapAvailable, restore, setIsPro, navigation]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");
@@ -137,12 +156,12 @@ export default function PaywallScreen() {
             </View>
             <View style={styles.planPricing}>
               <ThemedText type="h3" style={{ color: selectedPlan === "annual" ? theme.accent : theme.text }}>
-                $9.99
+                {yearlyProduct?.price || "$19.99"}
               </ThemedText>
               <ThemedText type="small" style={{ color: theme.textSecondary }}>/year</ThemedText>
             </View>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Just $0.83/month - Save 83%
+              {yearlyProduct ? `Just ${(yearlyProduct.priceValue / 12).toFixed(2)}/month` : "Best value"}
             </ThemedText>
             {selectedPlan === "annual" ? (
               <View style={[styles.checkCircle, { backgroundColor: theme.accent }]}>
@@ -167,12 +186,12 @@ export default function PaywallScreen() {
             </ThemedText>
             <View style={styles.planPricing}>
               <ThemedText type="h3" style={{ color: selectedPlan === "monthly" ? theme.accent : theme.text }}>
-                $4.99
+                {monthlyProduct?.price || "$4.99"}
               </ThemedText>
               <ThemedText type="small" style={{ color: theme.textSecondary }}>/month</ThemedText>
             </View>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Flexible, cancel anytime
+              Cancel anytime
             </ThemedText>
             {selectedPlan === "monthly" ? (
               <View style={[styles.checkCircle, { backgroundColor: theme.accent }]}>
@@ -184,8 +203,12 @@ export default function PaywallScreen() {
       </Animated.View>
 
       <View style={styles.footer}>
-        <Button onPress={handleSubscribe}>
-          {selectedPlan === "annual" ? "Start for $9.99/year" : "Start for $4.99/month"}
+        <Button onPress={handleSubscribe} disabled={purchasing}>
+          {purchasing 
+            ? "Processing..." 
+            : selectedPlan === "annual" 
+              ? `Start for ${yearlyProduct?.price || "$19.99"}/year` 
+              : `Start for ${monthlyProduct?.price || "$4.99"}/month`}
         </Button>
 
         <View style={styles.legalRow}>

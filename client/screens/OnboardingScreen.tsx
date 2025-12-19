@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useRef } from "react";
-import { View, StyleSheet, Pressable, Dimensions, FlatList, Linking, Alert } from "react-native";
+import React, { useState, useCallback, useRef, useEffect } from "react";
+import { View, StyleSheet, Pressable, Dimensions, FlatList, Linking, Alert, Platform, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -25,6 +25,8 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
+import { useStoreKit } from "@/hooks/useStoreKit";
+import { PRODUCT_IDS } from "@/lib/storekit";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -185,10 +187,13 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { setIsPro, completeOnboarding } = useUnits();
+  const { products, loading: productsLoading, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
 
   const [step, setStep] = useState<OnboardingStep>("welcome");
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
-  const [loading, setLoading] = useState(false);
+
+  const monthlyProduct = getProductByType("monthly");
+  const yearlyProduct = getProductByType("yearly");
 
   const steps: OnboardingStep[] = ["welcome", "science", "benefits", "demo", "paywall"];
   const stepIndex = steps.indexOf(step);
@@ -201,30 +206,42 @@ export default function OnboardingScreen() {
   }, [step]);
 
   const handleSubscribe = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Set premium status locally - will sync to Supabase after user creates account
+    const productId = selectedPlan === "annual" ? PRODUCT_IDS.YEARLY : PRODUCT_IDS.MONTHLY;
+    
+    if (Platform.OS === "web" || !iapAvailable) {
       await setIsPro(true);
       await completeOnboarding();
-    } catch (error) {
-      Alert.alert("Error", "Failed to complete subscription. Please try again.");
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [setIsPro, completeOnboarding]);
+
+    const result = await purchase(productId);
+    
+    if (result.success) {
+      await setIsPro(true);
+      await completeOnboarding();
+    } else if (result.error && !result.error.includes("cancelled")) {
+      Alert.alert("Purchase Failed", result.error);
+    }
+  }, [selectedPlan, iapAvailable, purchase, setIsPro, completeOnboarding]);
 
   const handleRestorePurchases = useCallback(async () => {
-    setLoading(true);
-    try {
-      // Set premium status locally - will sync to Supabase after user creates account
+    if (Platform.OS === "web" || !iapAvailable) {
       await setIsPro(true);
       await completeOnboarding();
-    } catch (error) {
-      Alert.alert("Error", "Failed to restore purchases. Please try again.");
-    } finally {
-      setLoading(false);
+      return;
     }
-  }, [setIsPro, completeOnboarding]);
+
+    const result = await restore();
+    
+    if (result.success && result.hasPremium) {
+      await setIsPro(true);
+      await completeOnboarding();
+    } else if (result.success && !result.hasPremium) {
+      Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
+    } else if (result.error) {
+      Alert.alert("Restore Failed", result.error);
+    }
+  }, [iapAvailable, restore, setIsPro, completeOnboarding]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");
@@ -508,15 +525,17 @@ export default function OnboardingScreen() {
                 <ThemedText type="body" style={{ fontWeight: "700", color: "white" }}>Annual</ThemedText>
                 <View style={styles.bestValueBadge}>
                   <ThemedText type="small" style={{ color: GRADIENT_COLORS.paywall[0], fontWeight: "700", fontSize: 10 }}>
-                    SAVE 80%
+                    BEST VALUE
                   </ThemedText>
                 </View>
               </View>
               <View style={styles.planPricing}>
-                <ThemedText type="h2" style={{ color: "white" }}>$19.99</ThemedText>
+                <ThemedText type="h2" style={{ color: "white" }}>{yearlyProduct?.price || "$19.99"}</ThemedText>
                 <ThemedText type="body" style={{ color: "rgba(255,255,255,0.8)" }}>/year</ThemedText>
               </View>
-              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Just $1/month</ThemedText>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>
+                {yearlyProduct ? `Just ${(yearlyProduct.priceValue / 12).toFixed(2)}/month` : "Best value"}
+              </ThemedText>
               {selectedPlan === "annual" && (
                 <View style={styles.checkCircle}>
                   <Feather name="check" size={16} color={GRADIENT_COLORS.paywall[0]} />
@@ -537,7 +556,7 @@ export default function OnboardingScreen() {
             >
               <ThemedText type="body" style={{ fontWeight: "700", color: "white" }}>Monthly</ThemedText>
               <View style={styles.planPricing}>
-                <ThemedText type="h2" style={{ color: "white" }}>$4.99</ThemedText>
+                <ThemedText type="h2" style={{ color: "white" }}>{monthlyProduct?.price || "$4.99"}</ThemedText>
                 <ThemedText type="body" style={{ color: "rgba(255,255,255,0.8)" }}>/month</ThemedText>
               </View>
               <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Cancel anytime</ThemedText>
@@ -551,10 +570,20 @@ export default function OnboardingScreen() {
         </Animated.View>
 
         <View style={styles.paywallFooter}>
-          <Pressable onPress={handleSubscribe} style={styles.subscribeButton}>
-            <ThemedText type="body" style={{ color: GRADIENT_COLORS.paywall[0], fontWeight: "700", fontSize: 17 }}>
-              {selectedPlan === "annual" ? "Start for $19.99/year" : "Start for $4.99/month"}
-            </ThemedText>
+          <Pressable 
+            onPress={handleSubscribe} 
+            style={[styles.subscribeButton, purchasing && { opacity: 0.7 }]}
+            disabled={purchasing}
+          >
+            {purchasing ? (
+              <ActivityIndicator color={GRADIENT_COLORS.paywall[0]} />
+            ) : (
+              <ThemedText type="body" style={{ color: GRADIENT_COLORS.paywall[0], fontWeight: "700", fontSize: 17 }}>
+                {selectedPlan === "annual" 
+                  ? `Start for ${yearlyProduct?.price || "$19.99"}/year` 
+                  : `Start for ${monthlyProduct?.price || "$4.99"}/month`}
+              </ThemedText>
+            )}
           </Pressable>
 
           <View style={styles.legalRow}>

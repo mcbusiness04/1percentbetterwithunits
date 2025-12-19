@@ -13,7 +13,8 @@ The app is fully functional with the following features:
 - Stats strip showing Today's total and Best Day (previous record)
 - Remove units available in habit detail screen (-1, -5 buttons)
 - Local-first data persistence with AsyncStorage
-- Fully paid app ($4.99/month or $11.99/year) - all features unlocked
+- Fully paid app ($4.99/month or $19.99/year) - all features unlocked
+- StoreKit integration via expo-iap for Apple purchases (requires development build)
 - iOS 26 liquid glass design aesthetic
 - Pie chart and enhanced analytics on Stats screen
 
@@ -56,6 +57,9 @@ client/
     AuthContext.tsx          # Supabase authentication context
     supabase.ts              # Supabase client configuration
     storage.ts               # AsyncStorage persistence
+    storekit.ts              # StoreKit/IAP integration
+  hooks/
+    useStoreKit.ts           # StoreKit hook for purchases
   constants/
     theme.ts                 # Design tokens and colors
 server/
@@ -66,8 +70,9 @@ server/
 1. **Supabase Integration**: Authentication (email/password) and premium status via Supabase
 2. **Zero guilt approach**: Daily goals with visual feedback, no streaks
 3. **Goal visualization**: Red glow when under daily goal, gold glow when goal is met
-4. **Paid app**: All features unlocked for subscribers ($4.99/month or $11.99/year)
-5. **Local data persistence**: Habits and logs stored in AsyncStorage (syncing to Supabase coming soon)
+4. **Paid app**: All features unlocked for subscribers ($4.99/month or $19.99/year)
+5. **StoreKit Integration**: Uses expo-iap for Apple/Google purchases with dynamic pricing from App Store
+6. **Local data persistence**: Habits and logs stored in AsyncStorage (syncing to Supabase coming soon)
 
 ### Supabase Setup
 - **URL**: https://rleheeagukbgovoywnlb.supabase.co
