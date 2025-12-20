@@ -109,6 +109,9 @@ interface UnitsContextType {
   canAddUnits: (count: number) => boolean;
   
   refreshData: () => Promise<void>;
+  
+  // DEV ONLY – REMOVE BEFORE TESTFLIGHT
+  devSimulateNextDay: () => void;
 }
 
 const UnitsContext = createContext<UnitsContextType | undefined>(undefined);
@@ -222,6 +225,23 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     }
     return false;
   }, [currentDate]);
+
+  // DEV ONLY – REMOVE BEFORE TESTFLIGHT
+  // Simulates advancing to the next day for testing daily/weekly reset behavior
+  // Only affects local UI state, does NOT modify Supabase data or stored dates
+  const devSimulateNextDay = useCallback(() => {
+    const [year, month, day] = currentDate.split("-").map(Number);
+    const nextDate = new Date(year, month - 1, day + 1);
+    const nextYear = nextDate.getFullYear();
+    const nextMonth = String(nextDate.getMonth() + 1).padStart(2, "0");
+    const nextDay = String(nextDate.getDate()).padStart(2, "0");
+    const nextDateStr = `${nextYear}-${nextMonth}-${nextDay}`;
+    
+    console.log(`[DEV] Simulating day change: ${currentDate} → ${nextDateStr}`);
+    setCurrentDate(nextDateStr);
+    setUndoAction(null); // Clear undo on new day (same as real day change)
+  }, [currentDate]);
+  // END DEV ONLY
 
   // Listen for app state changes (foreground/background)
   useEffect(() => {
@@ -1415,6 +1435,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         canAddHabit,
         canAddUnits,
         refreshData,
+        // DEV ONLY – REMOVE BEFORE TESTFLIGHT
+        devSimulateNextDay,
       }}
     >
       {children}
