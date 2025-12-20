@@ -124,6 +124,13 @@ export default function RootStackNavigator() {
   }, [user]);
 
   const loading = unitsLoading || authLoading || validatingPremium;
+  
+  // ============================================================================
+  // DEV ONLY – REMOVE BEFORE APP STORE SUBMISSION
+  // ============================================================================
+  // This bypass skips ALL gates (onboarding, auth, paywall) in dev environments
+  const devBypass = isDevBypassActive();
+  // ============================================================================
 
   if (loading) {
     return (
@@ -137,7 +144,8 @@ export default function RootStackNavigator() {
   // GATE 1: ONBOARDING (includes paywall as final step)
   // ============================================================================
   // First-time users must complete onboarding AND purchase to proceed
-  if (!hasCompletedOnboarding) {
+  // DEV ONLY: Skip onboarding in Expo Go / web
+  if (!hasCompletedOnboarding && !devBypass) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -156,7 +164,8 @@ export default function RootStackNavigator() {
   // GATE 2: AUTHENTICATION (after onboarding/purchase)
   // ============================================================================
   // User must sign in to sync their subscription
-  if (!session) {
+  // DEV ONLY: Skip auth in Expo Go / web
+  if (!session && !devBypass) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -175,9 +184,7 @@ export default function RootStackNavigator() {
   // GATE 3: PREMIUM VALIDATION (after auth)
   // ============================================================================
   // User must have premium access (validated from local, Supabase, or App Store)
-  // DEV-ONLY: Bypass paywall in Expo Go / web for UI testing
-  const devBypass = isDevBypassActive(); // DEV-ONLY – REMOVE BEFORE SHIP
-  
+  // DEV ONLY: Skip paywall in Expo Go / web
   if (!isPro && !premiumValidated && !devBypass) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
