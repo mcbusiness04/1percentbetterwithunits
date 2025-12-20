@@ -20,7 +20,7 @@ export default function SettingsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { settings, updateSettings, setIsPro } = useUnits();
+  const { settings, updateSettings, setIsPro, devSimulateNextDay, currentDate } = useUnits();
   const { user, signOut, isPremium } = useAuth();
   const { restore, purchasing, iapAvailable } = useStoreKit();
   const [restoring, setRestoring] = useState(false);
@@ -249,6 +249,32 @@ export default function SettingsScreen() {
         </ThemedText>
       </View>
 
+      {/* DEV ONLY – REMOVE BEFORE TESTFLIGHT */}
+      {__DEV__ && (
+        <View style={styles.devSection}>
+          <ThemedText type="small" style={[styles.sectionTitle, { color: "#FF6B6B" }]}>
+            Developer Tools
+          </ThemedText>
+          <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.sm }}>
+            Current simulated date: {currentDate}
+          </ThemedText>
+          <Pressable
+            onPress={() => {
+              devSimulateNextDay();
+              Alert.alert("Day Simulated", "Advanced to the next day. UI state has been updated.");
+            }}
+            style={[styles.devButton, { backgroundColor: "#FF6B6B" }]}
+          >
+            <ThemedText type="body" style={{ color: "white", fontWeight: "600", textAlign: "center" }}>
+              DEV ONLY - Simulate Next Day
+            </ThemedText>
+          </Pressable>
+          <ThemedText type="small" style={{ color: theme.textSecondary, marginTop: Spacing.xs, fontStyle: "italic" }}>
+            Advances currentDate by +1 day. Does not persist across restarts.
+          </ThemedText>
+        </View>
+      )}
+      {/* END DEV ONLY */}
     </ScrollView>
   );
 }
@@ -280,4 +306,18 @@ const styles = StyleSheet.create({
   footer: {
     paddingVertical: Spacing["2xl"],
   },
+  // DEV ONLY – REMOVE BEFORE TESTFLIGHT
+  devSection: {
+    marginBottom: Spacing["2xl"],
+    padding: Spacing.lg,
+    borderWidth: 2,
+    borderColor: "#FF6B6B",
+    borderRadius: BorderRadius.md,
+    borderStyle: "dashed",
+  },
+  devButton: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+  },
+  // END DEV ONLY
 });
