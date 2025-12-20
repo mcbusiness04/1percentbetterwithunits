@@ -261,9 +261,6 @@ export default function StatsScreen() {
     // Calculate the start date of the current period
     const periodStartDate = addDaysToDate(accountStartDate, currentPeriodIndex * periodLength);
     
-    // DEBUG: Log period calculations
-    console.log(`[Stats ${timeRange}] accountStart=${accountStartDate}, currentDate=${currentDate}, daysSinceStart=${daysSinceStart}, periodIndex=${currentPeriodIndex}, dayInPeriod=${dayInPeriod}, periodStart=${periodStartDate}`);
-    
     // Build data for each day in the period
     for (let i = 0; i < periodLength; i++) {
       const dateStr = addDaysToDate(periodStartDate, i);
@@ -513,8 +510,12 @@ export default function StatsScreen() {
             const isToday = day.dateStr === currentDate;
             let bgColor = theme.textSecondary + "20"; // Default empty color
             
-            // Only show colored data for non-empty days with actual goals/data
-            if (!day.isEmpty && day.goal > 0) {
+            // Coloring logic:
+            // - Future days or days with no goals: empty/faded
+            // - Bad habit tapped: RED (highest priority)
+            // - All goals met, no bad habits: GREEN
+            // - Has goals but not all met: YELLOW
+            if (!day.isFuture && day.goal > 0) {
               if (day.hadBadHabits) {
                 bgColor = RED;
               } else if (day.allGoalsMet) {
@@ -523,6 +524,9 @@ export default function StatsScreen() {
                 bgColor = YELLOW;
               }
             }
+            
+            // Determine if this box should be faded (future or no goals)
+            const shouldFade = day.isFuture || day.goal === 0;
             
             return (
               <Pressable
@@ -537,7 +541,7 @@ export default function StatsScreen() {
                     borderWidth: 2,
                     borderColor: theme.text,
                   },
-                  day.isEmpty && {
+                  shouldFade && {
                     opacity: 0.3,
                   },
                 ]}
