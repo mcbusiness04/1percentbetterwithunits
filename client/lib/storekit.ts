@@ -386,42 +386,27 @@ export async function restorePurchasesFromStore(
 // ============================================================================
 
 /**
- * Validates premium access from multiple sources:
- * 1. Local storage (AsyncStorage)
+ * Validates premium access with App Store re-validation.
+ * 
+ * COMPLIANCE: This function always re-validates with App Store when available,
+ * and will REVOKE premium if the subscription is no longer active.
+ * 
+ * Validation order:
+ * 1. App Store (authoritative source - if available)
  * 2. Supabase profile (if authenticated)
- * 3. App Store (if available)
+ * 3. Local storage (fallback only when App Store unavailable)
+ * 
+ * @param userId - Optional Supabase user ID
+ * @param forceAppStoreCheck - If true, always check App Store (used on app launch)
  */
-export async function validatePremiumAccess(userId?: string): Promise<boolean> {
-  // Check local storage first (fastest)
-  const localPremium = await getLocalIsPro();
-  if (localPremium) {
-    console.log("[StoreKit] Premium validated from local storage");
-    return true;
-  }
-  
-  // Check Supabase profile if authenticated
-  if (userId && isSupabaseConfigured) {
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("is_premium")
-        .eq("id", userId)
-        .single();
-      
-      if (data?.is_premium) {
-        // Sync to local storage
-        await setLocalIsPro(true);
-        console.log("[StoreKit] Premium validated from Supabase");
-        return true;
-      }
-    } catch (error) {
-      console.log("[StoreKit] Error checking Supabase premium:", error);
-    }
-  }
-  
-  // Try to validate with App Store (if IAP available)
+export async function validatePremiumAccess(
+  userId?: string,
+  forceAppStoreCheck: boolean = true
+): Promise<boolean> {
   const module = await loadIAPModule();
-  if (module) {
+  
+  // If App Store is available, it is the authoritative source
+  if (module && forceAppStoreCheck) {
     try {
       await initializeIAP();
       const purchases = await module.getAvailablePurchases();
@@ -434,20 +419,79 @@ export async function validatePremiumAccess(userId?: string): Promise<boolean> {
       });
       
       if (hasValidSubscription) {
+        // Valid subscription - update all sources
         await setLocalIsPro(true);
         if (userId) {
           await updateSupabasePremiumStatus(userId);
         }
-        console.log("[StoreKit] Premium validated from App Store");
+        console.log("[StoreKit] Premium VALIDATED from App Store");
         return true;
+      } else {
+        // No valid subscription - REVOKE premium from all sources
+        await setLocalIsPro(false);
+        if (userId) {
+          await revokeSupabasePremiumStatus(userId);
+        }
+        console.log("[StoreKit] Premium REVOKED - no active App Store subscription");
+        return false;
       }
     } catch (error) {
       console.log("[StoreKit] Error validating with App Store:", error);
+      // On error, fall through to other validation methods
+    }
+  }
+  
+  // Fallback: Check Supabase profile if authenticated (for when App Store unavailable)
+  if (userId && isSupabaseConfigured) {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium")
+        .eq("id", userId)
+        .single();
+      
+      if (data?.is_premium) {
+        // Sync to local storage
+        await setLocalIsPro(true);
+        console.log("[StoreKit] Premium validated from Supabase (App Store unavailable)");
+        return true;
+      }
+    } catch (error) {
+      console.log("[StoreKit] Error checking Supabase premium:", error);
+    }
+  }
+  
+  // Fallback: Check local storage (only when App Store unavailable)
+  if (!module) {
+    const localPremium = await getLocalIsPro();
+    if (localPremium) {
+      console.log("[StoreKit] Premium validated from local storage (App Store unavailable)");
+      return true;
     }
   }
   
   console.log("[StoreKit] No premium access found");
   return false;
+}
+
+/**
+ * Revokes premium status in Supabase profile
+ */
+export async function revokeSupabasePremiumStatus(userId: string): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  
+  try {
+    await supabase
+      .from("profiles")
+      .update({ 
+        is_premium: false, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq("id", userId);
+    console.log("[StoreKit] Revoked premium status in Supabase");
+  } catch (error) {
+    console.error("[StoreKit] Failed to revoke Supabase premium status:", error);
+  }
 }
 
 // ============================================================================

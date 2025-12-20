@@ -208,9 +208,21 @@ export default function OnboardingScreen() {
   const handleSubscribe = useCallback(async () => {
     const productId = selectedPlan === "annual" ? PRODUCT_IDS.YEARLY : PRODUCT_IDS.MONTHLY;
     
-    if (Platform.OS === "web" || !iapAvailable) {
-      await setIsPro(true);
-      await completeOnboarding();
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "iOS Required",
+        "Subscriptions are only available on iOS. Please download Units from the App Store to subscribe.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    if (!iapAvailable) {
+      Alert.alert(
+        "Development Build Required",
+        "In-app purchases require a development or production build. This feature is not available in Expo Go.",
+        [{ text: "OK" }]
+      );
       return;
     }
 
@@ -225,9 +237,21 @@ export default function OnboardingScreen() {
   }, [selectedPlan, iapAvailable, purchase, setIsPro, completeOnboarding]);
 
   const handleRestorePurchases = useCallback(async () => {
-    if (Platform.OS === "web" || !iapAvailable) {
-      await setIsPro(true);
-      await completeOnboarding();
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "iOS Required",
+        "Restore is only available on iOS. Please use the iOS app.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+    
+    if (!iapAvailable) {
+      Alert.alert(
+        "Development Build Required",
+        "Restore requires a development or production build.",
+        [{ text: "OK" }]
+      );
       return;
     }
 
