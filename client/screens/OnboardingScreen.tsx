@@ -1,5 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { View, StyleSheet, Pressable, Dimensions, FlatList, Linking, Alert, Platform, ActivityIndicator } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -180,6 +183,21 @@ function DemoHabitRow({ name, icon, color, units, goal, delay }: { name: string;
         </View>
       </AnimatedPressable>
     </Animated.View>
+  );
+}
+
+// DEV ONLY – REMOVE BEFORE TESTFLIGHT
+function DevSkipButton() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  return (
+    <Pressable
+      onPress={() => navigation.navigate("Auth")}
+      style={styles.devButton}
+    >
+      <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>
+        DEV ONLY - Skip Paywall
+      </ThemedText>
+    </Pressable>
   );
 }
 
@@ -627,6 +645,11 @@ export default function OnboardingScreen() {
           <ThemedText type="small" style={styles.disclaimer}>
             Payment charged to Apple ID. Auto-renews unless cancelled 24hrs before period ends.
           </ThemedText>
+
+          {/* DEV ONLY – REMOVE BEFORE TESTFLIGHT */}
+          {__DEV__ ? (
+            <DevSkipButton />
+          ) : null}
         </View>
       </View>
     </LinearGradient>
@@ -921,5 +944,15 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     color: "rgba(255,255,255,0.6)",
+  },
+  devButton: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    borderStyle: "dashed",
+    borderColor: "rgba(255,255,255,0.5)",
+    alignSelf: "center",
   },
 });
