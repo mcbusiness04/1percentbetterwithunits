@@ -53,15 +53,5 @@ The following development-only code must be removed before submitting to TestFli
 ### client/navigation/RootStackNavigator.tsx
 - **Line ~139**: Dev bypass for test account `rappacarlos1@gmail.com` - remove the `isDevBypass` check
 
-### client/lib/UnitsContext.tsx
-- **Lines 116-117**: `devSimulateNextDay` in interface definition
-- **Lines 232-247**: `devSimulateNextDay` function implementation
-- **Lines 1441-1442**: `devSimulateNextDay` in context value export
-
-### client/screens/SettingsScreen.tsx
-- **Line 26**: Remove `devSimulateNextDay, currentDate` from useUnits destructuring
-- **Lines 255-280**: Developer Tools section with "Simulate Next Day" button
-- **Lines 312-325**: `devSection` and `devButton` styles in StyleSheet
-
 ### supabase/migrations/001_create_tables.sql
 - Run this SQL in your Supabase SQL Editor to create the required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions)
