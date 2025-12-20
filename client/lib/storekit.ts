@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
 
 export const PRODUCT_IDS = {
@@ -19,15 +20,24 @@ export type SubscriptionProduct = {
 let iapModule: typeof import("expo-iap") | null = null;
 let isIAPAvailable = false;
 
+function isExpoGo(): boolean {
+  return Constants.appOwnership === "expo";
+}
+
 export async function loadIAPModule(): Promise<typeof import("expo-iap") | null> {
   if (iapModule !== null) return iapModule;
   
+  if (Platform.OS !== "ios" && Platform.OS !== "android") {
+    console.log("IAP not available on web platform");
+    return null;
+  }
+  
+  if (isExpoGo()) {
+    console.log("IAP not available in Expo Go - requires development build");
+    return null;
+  }
+  
   try {
-    if (Platform.OS !== "ios" && Platform.OS !== "android") {
-      console.log("IAP not available on web platform");
-      return null;
-    }
-    
     const module = await import("expo-iap");
     iapModule = module;
     isIAPAvailable = true;
