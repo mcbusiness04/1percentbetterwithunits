@@ -26,10 +26,12 @@ type RootStackParamList = {
 
 export function HabitRow({ habit }: HabitRowProps) {
   const { theme } = useTheme();
-  const { getEffectiveTodayUnits, addUnits } = useUnits();
+  const { getTodayUnits, addUnits } = useUnits();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
-  const todayCount = getEffectiveTodayUnits(habit.id);
+  // Show RAW units (what user actually logged), not penalty-adjusted
+  // Penalty only affects the total displayed elsewhere, not individual habit counts
+  const todayCount = getTodayUnits(habit.id);
   const scale = useSharedValue(1);
 
   const statusColor = useMemo(() => {
