@@ -369,15 +369,20 @@ export async function createBadHabitLog(
     return { log: null, error: "Supabase not configured" };
   }
   
+  // Use upsert to handle case where log exists but was undone
+  // If a log exists for this bad_habit_id + date, update it instead of inserting
   const { data, error } = await supabase
     .from("bad_habit_logs")
-    .insert({
+    .upsert({
       bad_habit_id: badHabitId,
       user_id: userId,
       date,
       count: 1,
       penalty_units: penaltyUnits,
       is_undone: false,
+      updated_at: new Date().toISOString(),
+    }, {
+      onConflict: 'bad_habit_id,date',
     })
     .select()
     .single();
