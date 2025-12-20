@@ -34,7 +34,7 @@ export default function HabitDetailScreen() {
     removeUnits,
     deleteHabit,
     updateHabit,
-    getTodayUnits,
+    getEffectiveTodayUnits,
     getYearUnits,
   } = useUnits();
 
@@ -51,7 +51,7 @@ export default function HabitDetailScreen() {
     [logs, habitId]
   );
 
-  const todayUnits = habit ? getTodayUnits(habit.id) : 0;
+  const todayUnits = habit ? getEffectiveTodayUnits(habit.id) : 0;
   const yearUnits = habit ? getYearUnits(habit.id) : 0;
 
   const allTimeUnits = useMemo(() => {
