@@ -1,10 +1,8 @@
 import React, { useState, useCallback } from "react";
-import { View, ScrollView, StyleSheet, Alert, TextInput, Linking, Platform } from "react-native";
+import { View, ScrollView, StyleSheet, Alert, Linking, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
@@ -13,22 +11,20 @@ import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
 import { clearAllData } from "@/lib/storage";
-import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const APPLE_SUBSCRIPTION_URL = "https://apps.apple.com/account/subscriptions";
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const navigation = useNavigation<NavigationProp>();
-  const { settings, updateSettings, refreshData, resetOnboarding, setIsPro } = useUnits();
+  const { settings, updateSettings, setIsPro } = useUnits();
   const { user, signOut, isPremium } = useAuth();
   const { restore, purchasing, iapAvailable } = useStoreKit();
-  const [eraseText, setEraseText] = useState("");
-  const [showEraseInput, setShowEraseInput] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
 
   const handleHapticsToggle = useCallback(
     (value: boolean) => {
@@ -39,7 +35,7 @@ export default function SettingsScreen() {
 
   const handleManageSubscription = useCallback(() => {
     if (Platform.OS === "ios") {
-      Linking.openURL("https://apps.apple.com/account/subscriptions");
+      Linking.openURL(APPLE_SUBSCRIPTION_URL);
     } else if (Platform.OS === "android") {
       Linking.openURL("https://play.google.com/store/account/subscriptions");
     } else {
@@ -80,21 +76,62 @@ export default function SettingsScreen() {
     }
   }, [iapAvailable, restore, user?.id, setIsPro]);
 
-  const handleEraseAllData = useCallback(async () => {
-    if (eraseText === "ERASE") {
-      try {
-        await clearAllData();
-        await refreshData();
-        setShowEraseInput(false);
-        setEraseText("");
-        Alert.alert("Data Erased", "All your data has been permanently deleted.");
-      } catch (error) {
-        Alert.alert("Error", "Failed to erase data. Please try again.");
-      }
-    } else {
-      Alert.alert("Incorrect", "Please type ERASE to confirm deletion.");
-    }
-  }, [eraseText, refreshData]);
+  const handleCancelMembership = useCallback(() => {
+    Alert.alert(
+      "Cancel Membership",
+      "This will permanently delete your account and all your data. You will then be redirected to Apple's subscription page to cancel your billing.\n\nThis action cannot be undone.",
+      [
+        { text: "Keep Membership", style: "cancel" },
+        {
+          text: "Delete Account",
+          style: "destructive",
+          onPress: async () => {
+            setCancelling(true);
+            try {
+              // Step 1: Delete user data from Supabase
+              if (user?.id && isSupabaseConfigured) {
+                // Delete user's habits
+                await supabase.from("habits").delete().eq("user_id", user.id);
+                // Delete user's unit logs
+                await supabase.from("unit_logs").delete().eq("user_id", user.id);
+                // Delete user's bad habits
+                await supabase.from("bad_habits").delete().eq("user_id", user.id);
+                // Delete user's bad habit logs
+                await supabase.from("bad_habit_logs").delete().eq("user_id", user.id);
+                // Delete user's profile
+                await supabase.from("profiles").delete().eq("id", user.id);
+              }
+
+              // Step 2: Clear all local data
+              await clearAllData();
+
+              // Step 3: Sign out
+              await signOut();
+
+              // Step 4: Redirect to Apple subscription management
+              Alert.alert(
+                "Account Deleted",
+                "Your account has been deleted. You will now be redirected to Apple to cancel your subscription billing.",
+                [
+                  {
+                    text: "Continue",
+                    onPress: () => {
+                      Linking.openURL(APPLE_SUBSCRIPTION_URL);
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error("Cancel membership error:", error);
+              Alert.alert("Error", "Failed to delete account. Please try again or contact support.");
+            } finally {
+              setCancelling(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [user?.id, signOut]);
 
   const handlePrivacyPolicy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");
@@ -175,6 +212,13 @@ export default function SettingsScreen() {
           subtitle="Opens App Store"
           onPress={handleManageSubscription}
         />
+        <SettingsRow
+          icon="user-x"
+          title="Cancel Membership"
+          subtitle={cancelling ? "Deleting..." : "Delete account and data"}
+          onPress={cancelling ? undefined : handleCancelMembership}
+          destructive
+        />
       </View>
 
       <View style={styles.section}>
@@ -187,103 +231,6 @@ export default function SettingsScreen() {
           toggle
           toggleValue={settings.hapticsEnabled}
           onToggle={handleHapticsToggle}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-          Data
-        </ThemedText>
-        {showEraseInput ? (
-          <View style={[styles.eraseContainer, { backgroundColor: theme.cardBackground }]}>
-            <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.sm }}>
-              Type ERASE to confirm deletion
-            </ThemedText>
-            <TextInput
-              value={eraseText}
-              onChangeText={setEraseText}
-              placeholder="Type ERASE"
-              placeholderTextColor={theme.textSecondary}
-              autoCapitalize="characters"
-              style={[
-                styles.eraseInput,
-                {
-                  backgroundColor: theme.backgroundDefault,
-                  color: theme.text,
-                  borderColor: theme.border,
-                },
-              ]}
-            />
-            <View style={styles.eraseButtons}>
-              <SettingsRow
-                icon="x"
-                title="Cancel"
-                onPress={() => {
-                  setShowEraseInput(false);
-                  setEraseText("");
-                }}
-                showChevron={false}
-              />
-              <SettingsRow
-                icon="trash-2"
-                title="Confirm Erase"
-                onPress={handleEraseAllData}
-                destructive
-                showChevron={false}
-              />
-            </View>
-          </View>
-        ) : (
-          <SettingsRow
-            icon="trash-2"
-            title="Erase All Data"
-            onPress={() => setShowEraseInput(true)}
-            destructive
-          />
-        )}
-        <SettingsRow
-          icon="download"
-          title="Export Data"
-          subtitle="Export as CSV"
-          onPress={() => {
-            Alert.alert("Export", "CSV export would be generated here.");
-          }}
-        />
-        <SettingsRow
-          icon="cloud"
-          title="iCloud Sync"
-          subtitle="Coming soon"
-          onPress={() => {
-            Alert.alert("Coming Soon", "iCloud sync will be available in a future update.");
-          }}
-        />
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-          Developer
-        </ThemedText>
-        <SettingsRow
-          icon="refresh-cw"
-          title="Reset Onboarding"
-          subtitle="Test the onboarding flow again"
-          onPress={() => {
-            Alert.alert(
-              "Reset Onboarding",
-              "This will reset the app to show the onboarding screens again. You will be signed out.",
-              [
-                { text: "Cancel", style: "cancel" },
-                {
-                  text: "Reset",
-                  style: "destructive",
-                  onPress: async () => {
-                    await signOut();
-                    await resetOnboarding();
-                  },
-                },
-              ]
-            );
-          }}
         />
       </View>
 
@@ -321,19 +268,6 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5,
   },
-  proCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-    gap: Spacing.md,
-  },
-  proBadge: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    borderRadius: BorderRadius.xs,
-  },
   accountCard: {
     padding: Spacing.lg,
     borderRadius: BorderRadius.md,
@@ -341,23 +275,6 @@ const styles = StyleSheet.create({
   },
   accountInfo: {
     gap: 4,
-  },
-  eraseContainer: {
-    padding: Spacing.lg,
-    borderRadius: BorderRadius.md,
-    marginBottom: Spacing.sm,
-  },
-  eraseInput: {
-    height: Spacing.inputHeight,
-    borderRadius: BorderRadius.sm,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    fontSize: 16,
-    marginBottom: Spacing.md,
-  },
-  eraseButtons: {
-    flexDirection: "row",
-    gap: Spacing.sm,
   },
   footer: {
     paddingVertical: Spacing["2xl"],
