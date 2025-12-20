@@ -32,7 +32,7 @@ export default function StatsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress, tapBadHabitForDate, undoBadHabitTapForDate, getBadHabitTapsForDate, getEffectiveTotalForDate, getEffectiveHabitUnitsForDate, getEffectiveTodayTotalUnits } = useUnits();
+  const { habits, logs, badHabits, badHabitLogs, currentDate, addUnitsForDate, removeUnitsForDate, getDailyProgress, tapBadHabitForDate, undoBadHabitTapForDate, getBadHabitTapsForDate, getEffectiveTotalForDate, getEffectiveHabitUnitsForDate } = useUnits();
   
   const [timeRange, setTimeRange] = useState<TimeRange>("week");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -90,8 +90,7 @@ export default function StatsScreen() {
     const today = getDayStats(currentDate);
     const yesterday = getDayStats(getDateString(1));
     
-    // Use direct live value for today to avoid stale memoization
-    const todayTotal = getEffectiveTodayTotalUnits();
+    const todayTotal = today.total;
     const yesterdayTotal = yesterday.total;
     const todayDelta = todayTotal - yesterdayTotal;
     
@@ -116,7 +115,7 @@ export default function StatsScreen() {
       weekTotal, weekDelta,
       monthTotal, monthDelta,
     };
-  }, [getDayStats, currentDate, getDateString, getEffectiveTodayTotalUnits]);
+  }, [getDayStats, currentDate, getDateString]);
 
   const totalImprovement = useMemo(() => {
     // Use shared progress calculation for consistency
