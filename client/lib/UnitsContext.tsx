@@ -896,12 +896,20 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     );
     if (alreadyTappedToday) return;
     
-    // Calculate current raw total to determine penalty (10% of raw total at this moment)
+    // Calculate current EFFECTIVE total (raw - existing penalties) to determine penalty
+    // This ensures each bad habit takes 10% of what's LEFT, not 10% of original raw
     const activeHabits = habits.filter((h) => !h.isArchived);
     const currentRawTotal = logs
       .filter((l) => l.date === today && activeHabits.some((h) => h.id === l.habitId))
       .reduce((sum, l) => sum + l.count, 0);
-    const penaltyUnits = Math.round(currentRawTotal * PENALTY_PERCENT_PER_TAP);
+    
+    // Get existing penalties from other bad habit taps today
+    const existingPenalty = badHabitLogs
+      .filter((l) => l.date === today && !l.isUndone)
+      .reduce((sum, l) => sum + (l.penaltyUnits || 0), 0);
+    
+    const currentEffectiveTotal = Math.max(0, currentRawTotal - existingPenalty);
+    const penaltyUnits = Math.round(currentEffectiveTotal * PENALTY_PERCENT_PER_TAP);
     
     const newLog: BadHabitLog = {
       id: generateId(),
@@ -947,12 +955,20 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     );
     if (alreadyTapped) return;
     
-    // Calculate raw total for that date to determine penalty (10% of raw total at that moment)
+    // Calculate EFFECTIVE total for that date (raw - existing penalties) to determine penalty
+    // This ensures each bad habit takes 10% of what's LEFT, not 10% of original raw
     const activeHabits = habits.filter((h) => !h.isArchived);
     const dateRawTotal = logs
       .filter((l) => l.date === date && activeHabits.some((h) => h.id === l.habitId))
       .reduce((sum, l) => sum + l.count, 0);
-    const penaltyUnits = Math.round(dateRawTotal * PENALTY_PERCENT_PER_TAP);
+    
+    // Get existing penalties from other bad habit taps that date
+    const existingPenalty = badHabitLogs
+      .filter((l) => l.date === date && !l.isUndone)
+      .reduce((sum, l) => sum + (l.penaltyUnits || 0), 0);
+    
+    const currentEffectiveTotal = Math.max(0, dateRawTotal - existingPenalty);
+    const penaltyUnits = Math.round(currentEffectiveTotal * PENALTY_PERCENT_PER_TAP);
     
     const newLog: BadHabitLog = {
       id: generateId(),
