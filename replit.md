@@ -168,6 +168,8 @@ server/
 - **Fixed: Penalty distribution** - Penalty distributed proportionally with deterministic residual exhaustion (alphabetical order, round-robin +1)
 - **Fixed: Historical dates** - Use logs as proof of activity to correctly handle archived habits
 - **Added: perfectDay indicator** - Separate from allGoalsMet; perfectDay = goals met AND no bad habits (for stats/heatmaps)
+- **Fixed: Total Score calculation** - Removed /100 so 100% progress = +1%, 50% = +0.5% (cumulative over all time)
+- **Added: Bad habit Supabase sync** - Bad habits and logs now sync to Supabase in background for backup
 
 ## User Preferences
 - No emojis in the UI
