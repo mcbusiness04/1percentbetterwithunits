@@ -269,6 +269,137 @@ export async function deleteHabit(
   return { success: !error, error: error?.message ?? null };
 }
 
+// Bad Habits
+export interface DbBadHabit {
+  id: string;
+  user_id: string;
+  name: string;
+  is_archived: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DbBadHabitLog {
+  id: string;
+  bad_habit_id: string;
+  user_id: string;
+  date: string;
+  count: number;
+  penalty_units: number;
+  is_undone: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function createBadHabit(
+  userId: string,
+  name: string
+): Promise<{ badHabit: DbBadHabit | null; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { badHabit: null, error: "Supabase not configured" };
+  }
+  
+  const { data, error } = await supabase
+    .from("bad_habits")
+    .insert({
+      user_id: userId,
+      name,
+    })
+    .select()
+    .single();
+
+  return { badHabit: data, error: error?.message ?? null };
+}
+
+export async function deleteBadHabit(
+  badHabitId: string
+): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase not configured" };
+  }
+  
+  const { error } = await supabase
+    .from("bad_habits")
+    .update({ is_archived: true, updated_at: new Date().toISOString() })
+    .eq("id", badHabitId);
+
+  return { success: !error, error: error?.message ?? null };
+}
+
+export async function createBadHabitLog(
+  userId: string,
+  badHabitId: string,
+  date: string,
+  penaltyUnits: number
+): Promise<{ log: DbBadHabitLog | null; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { log: null, error: "Supabase not configured" };
+  }
+  
+  const { data, error } = await supabase
+    .from("bad_habit_logs")
+    .insert({
+      bad_habit_id: badHabitId,
+      user_id: userId,
+      date,
+      count: 1,
+      penalty_units: penaltyUnits,
+      is_undone: false,
+    })
+    .select()
+    .single();
+
+  return { log: data, error: error?.message ?? null };
+}
+
+export async function undoBadHabitLog(
+  logId: string
+): Promise<{ success: boolean; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: "Supabase not configured" };
+  }
+  
+  const { error } = await supabase
+    .from("bad_habit_logs")
+    .update({ is_undone: true, updated_at: new Date().toISOString() })
+    .eq("id", logId);
+
+  return { success: !error, error: error?.message ?? null };
+}
+
+export async function fetchBadHabits(
+  userId: string
+): Promise<{ badHabits: DbBadHabit[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { badHabits: [], error: "Supabase not configured" };
+  }
+  
+  const { data, error } = await supabase
+    .from("bad_habits")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .order("created_at", { ascending: true });
+
+  return { badHabits: data || [], error: error?.message ?? null };
+}
+
+export async function fetchBadHabitLogs(
+  userId: string
+): Promise<{ logs: DbBadHabitLog[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { logs: [], error: "Supabase not configured" };
+  }
+  
+  const { data, error } = await supabase
+    .from("bad_habit_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  return { logs: data || [], error: error?.message ?? null };
+}
+
 export interface DailyStats {
   todayTotal: number;
   bestDayTotal: number;

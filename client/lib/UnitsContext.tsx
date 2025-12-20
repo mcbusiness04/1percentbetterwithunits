@@ -36,6 +36,10 @@ import {
   createHabit as createDbHabit,
   updateHabit as updateDbHabit,
   deleteHabit as deleteDbHabit,
+  createBadHabit as createDbBadHabit,
+  deleteBadHabit as deleteDbBadHabit,
+  createBadHabitLog as createDbBadHabitLog,
+  undoBadHabitLog as undoDbBadHabitLog,
   HabitWithProgress,
 } from "@/lib/habitService";
 
@@ -875,9 +879,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updated = [...badHabits, newBadHabit];
     setBadHabits(updated);
     await saveBadHabits(updated);
+    
+    // Sync to Supabase in background
+    if (user) {
+      createDbBadHabit(user.id, name).catch(() => {});
+    }
+    
     triggerHaptic("medium");
     return true;
-  }, [badHabits, triggerHaptic]);
+  }, [badHabits, triggerHaptic, user]);
 
   const handleDeleteBadHabit = useCallback(async (id: string) => {
     const updated = badHabits.filter((h) => h.id !== id);
@@ -886,7 +896,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updatedLogs = badHabitLogs.filter((l) => l.badHabitId !== id);
     setBadHabitLogs(updatedLogs);
     await saveBadHabitLogs(updatedLogs);
-  }, [badHabits, badHabitLogs]);
+    
+    // Sync to Supabase in background
+    if (user) {
+      deleteDbBadHabit(id).catch(() => {});
+    }
+  }, [badHabits, badHabitLogs, user]);
 
   const handleTapBadHabit = useCallback(async (badHabitId: string) => {
     const today = getTodayDate();
@@ -925,10 +940,15 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     setBadHabitLogs(updatedBadLogs);
     await saveBadHabitLogs(updatedBadLogs);
     
+    // Sync to Supabase in background
+    if (user) {
+      createDbBadHabitLog(user.id, badHabitId, today, penaltyUnits).catch(() => {});
+    }
+    
     if (settings.hapticsEnabled) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
-  }, [badHabitLogs, settings.hapticsEnabled, habits, logs]);
+  }, [badHabitLogs, settings.hapticsEnabled, habits, logs, user]);
 
   const handleUndoBadHabitTap = useCallback(async (badHabitId: string): Promise<boolean> => {
     const today = getTodayDate();
@@ -943,11 +963,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     setBadHabitLogs(updatedBadLogs);
     await saveBadHabitLogs(updatedBadLogs);
     
+    // Sync to Supabase in background
+    if (user) {
+      undoDbBadHabitLog(todayLog.id).catch(() => {});
+    }
+    
     if (settings.hapticsEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     return true;
-  }, [badHabitLogs, settings.hapticsEnabled]);
+  }, [badHabitLogs, settings.hapticsEnabled, user]);
 
   const handleTapBadHabitForDate = useCallback(async (badHabitId: string, date: string) => {
     const alreadyTapped = badHabitLogs.some(
@@ -983,7 +1008,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const updatedBadLogs = [...badHabitLogs, newLog];
     setBadHabitLogs(updatedBadLogs);
     await saveBadHabitLogs(updatedBadLogs);
-  }, [badHabitLogs, habits, logs]);
+    
+    // Sync to Supabase in background
+    if (user) {
+      createDbBadHabitLog(user.id, badHabitId, date, penaltyUnits).catch(() => {});
+    }
+  }, [badHabitLogs, habits, logs, user]);
 
   const handleUndoBadHabitTapForDate = useCallback(async (badHabitId: string, date: string): Promise<boolean> => {
     const dateLog = badHabitLogs.find(
@@ -996,8 +1026,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     );
     setBadHabitLogs(updatedBadLogs);
     await saveBadHabitLogs(updatedBadLogs);
+    
+    // Sync to Supabase in background
+    if (user) {
+      undoDbBadHabitLog(dateLog.id).catch(() => {});
+    }
+    
     return true;
-  }, [badHabitLogs]);
+  }, [badHabitLogs, user]);
 
   const getBadHabitTapsForDate = useCallback((badHabitId: string, date: string) => {
     return badHabitLogs
