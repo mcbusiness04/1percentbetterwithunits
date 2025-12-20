@@ -118,66 +118,98 @@ export default function StatsScreen() {
   }, [getDayStats, currentDate, getDateString]);
 
   const totalImprovement = useMemo(() => {
-    // Use shared progress calculation for consistency
+    // Get today's progress for real-time updates
     const progress = getDailyProgress();
-    // Total Score = progress percentage / 100
-    // So 25% progress = +0.25%, 100% progress = +1%, 150% progress = +1.5%
-    const improvementPercent = progress.percentage / 100;
     const hasBadHabits = progress.hasBadHabits;
     
-    // Format the display percentage - show real-time updates with decimals
-    // Round to 2 decimal places for precision (e.g., +0.25, +0.5, +1.25)
-    const roundedValue = Math.round(improvementPercent * 100) / 100;
+    // CUMULATIVE Total Score = sum of each day's (progress % / 100) over all time
+    // Each day contributes: (effective units / goal) / 100
+    // Example: Day 1 at 100% = +1, Day 2 at 50% = +0.5, Total = +1.5
+    
+    // Only consider dates from ACTIVE (non-archived) habits
+    const activeHabitIds = new Set(activeHabits.map((h) => h.id));
+    
+    // Get all unique dates from logs of active habits only
+    const allDates = new Set<string>();
+    logs.forEach((l) => {
+      if (activeHabitIds.has(l.habitId)) {
+        allDates.add(l.date);
+      }
+    });
+    badHabitLogs.forEach((l) => {
+      const bh = badHabits.find((b) => b.id === l.badHabitId);
+      if (bh && !bh.isArchived) {
+        allDates.add(l.date);
+      }
+    });
+    
+    // Always include today
+    allDates.add(currentDate);
+    
+    let cumulativeScore = 0;
+    let goodDays = 0;
+    let trackedDays = 0;
+    
+    // Sort dates and calculate cumulative score
+    const sortedDates = [...allDates].sort();
+    
+    for (const dateStr of sortedDates) {
+      const dayStats = getDayStats(dateStr);
+      
+      // Only count days where there was a goal (active habits existed)
+      if (dayStats.totalGoal > 0) {
+        trackedDays++;
+        
+        // Each day's contribution = (effective units / goal) / 100
+        // This means 100% progress = +1%, 50% = +0.5%, 200% = +2%
+        const dayProgress = dayStats.total / dayStats.totalGoal;
+        cumulativeScore += dayProgress / 100;
+        
+        if (dayStats.isGoodDay) goodDays++;
+      }
+    }
+    
+    // Round to 2 decimal places for display
+    const roundedValue = Math.round(cumulativeScore * 100) / 100;
     let displayPercent: string;
     const sign = roundedValue >= 0 ? "+" : "";
     
-    // Show 2 decimals for small values, 1 decimal for larger values
+    // Format with appropriate decimal places
     if (roundedValue === 0) {
       displayPercent = "+0";
     } else if (Number.isInteger(roundedValue)) {
       displayPercent = sign + roundedValue.toFixed(0);
     } else if (Math.abs(roundedValue) < 1) {
-      // For values like 0.25, 0.5, show 2 decimals
+      // For values like 0.25, 0.5, show up to 2 decimals
       displayPercent = sign + roundedValue.toFixed(2).replace(/0$/, "");
     } else {
-      // For values >= 1, show 1 or 2 decimals as needed
+      // For values >= 1, show up to 2 decimals as needed
       displayPercent = sign + roundedValue.toFixed(2).replace(/\.?0+$/, "");
     }
     
-    // isPositive is false when there are bad habits (shows red)
+    // isPositive is false when there are any bad habits today (shows red)
     const isPositive = !hasBadHabits;
     
-    // Count good days over last 30 days using effective (penalty-adjusted) units
-    let goodDays = 0;
-    let trackedDays = 0;
-    
-    for (let i = 0; i < 30; i++) {
-      const dateStr = getDateString(i);
-      const dayStats = getDayStats(dateStr);
-      
-      if (dayStats.totalGoal > 0) {
-        trackedDays++;
-        if (dayStats.isGoodDay) goodDays++;
-      }
-    }
-    
+    // Motivational message based on cumulative score
     let message = "";
     if (progress.totalGoal === 0) {
       message = "Start tracking to see progress!";
-    } else if (improvementPercent >= 2) {
+    } else if (cumulativeScore >= 5) {
+      message = "Incredible journey!";
+    } else if (cumulativeScore >= 2) {
       message = "You're crushing it!";
-    } else if (improvementPercent >= 1) {
+    } else if (cumulativeScore >= 1) {
       message = "Amazing progress!";
-    } else if (improvementPercent >= 0.5) {
+    } else if (cumulativeScore >= 0.5) {
       message = "Great work!";
-    } else if (improvementPercent >= 0) {
+    } else if (cumulativeScore >= 0) {
       message = "Keep going!";
     } else {
       message = "Time to bounce back!";
     }
     
     return { displayPercent, isPositive, message, goodDays, trackedDays, hasBadHabits };
-  }, [getDailyProgress, getDayStats, getDateString]);
+  }, [getDailyProgress, getDayStats, logs, badHabitLogs, currentDate, activeHabits, badHabits]);
 
   const trendData = useMemo(() => {
     const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;

@@ -155,7 +155,7 @@ server/
 - **Fixed: All date handling uses local time** - All date formatting and calculations use local time (not UTC) to prevent premature day resets
 - **New: FallingBlocks optimized** - View-based grid renders up to 500 blocks with dynamic sizing; switches to color bar visualization for 500+ units (Skia removed for Expo Go compatibility)
 - **New: Heatmap grids** - Week=7, Month=28, Year=365 squares with today indicator (border on last square)
-- **New: Cumulative % improvement** - Each day adds: (units/goal) multiplier minus 0.1 per bad habit tap, accumulates over 30 days
+- **New: Cumulative Total Score** - Accumulates over ALL time; each day contributes (progress%/100), so 100% = +1%, 50% = +0.5%. Only active habits count.
 - **New: Historical data editing** - addUnitsForDate/removeUnitsForDate allow editing any previous day through HabitWall tap
 - **Fixed: Heatmap colors** - Now shows green (all goals + no bad habits), yellow (in progress, no bad habits), red (bad habits OR missed goals), gray (no habits)
 - **Fixed: Real-time progress %** - Calculates from raw logs, updates instantly as units are logged throughout the day
