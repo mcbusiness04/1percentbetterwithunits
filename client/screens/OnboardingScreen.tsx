@@ -25,6 +25,7 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
+import { useAuth } from "@/lib/AuthContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
 import { PRODUCT_IDS } from "@/lib/storekit";
 
@@ -201,6 +202,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { setIsPro, completeOnboarding } = useUnits();
+  const { signOut: authSignOut } = useAuth();
   const { products, loading: productsLoading, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
 
   const [step, setStep] = useState<OnboardingStep>("welcome");
@@ -288,6 +290,12 @@ export default function OnboardingScreen() {
   const handleTerms = useCallback(() => {
     Linking.openURL("https://example.com/terms");
   }, []);
+
+  // DEV ONLY: Skip paywall and sign out any existing session
+  const handleDevSkip = useCallback(async () => {
+    await authSignOut();
+    await completeOnboarding();
+  }, [authSignOut, completeOnboarding]);
 
   const ProgressDots = () => (
     <View style={styles.progressContainer}>
@@ -644,7 +652,7 @@ export default function OnboardingScreen() {
 
           {/* DEV ONLY – REMOVE BEFORE TESTFLIGHT */}
           {__DEV__ ? (
-            <DevSkipButton onSkip={completeOnboarding} />
+            <DevSkipButton onSkip={handleDevSkip} />
           ) : null}
         </View>
       </View>
