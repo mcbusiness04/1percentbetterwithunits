@@ -133,7 +133,9 @@ export default function RootStackNavigator() {
   // GATE 3: PREMIUM VALIDATION (after auth)
   // ============================================================================
   // User must have premium access (validated from local, Supabase, or App Store)
-  if (!isPro && !premiumValidated) {
+  // DEV ONLY: Bypass for test account – REMOVE BEFORE TESTFLIGHT
+  const isDevBypass = __DEV__ && user?.email === "rappacarlos1@gmail.com";
+  if (!isPro && !premiumValidated && !isDevBypass) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
