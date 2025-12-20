@@ -1,11 +1,30 @@
+/**
+ * ============================================================================
+ * STOREKIT REACT HOOK
+ * ============================================================================
+ * 
+ * React hook for Apple In-App Purchases.
+ * Wraps the storekit.ts module functions for use in React components.
+ * 
+ * Usage:
+ *   const { products, purchase, restore, iapAvailable } = useStoreKit();
+ * 
+ * ============================================================================
+ */
+
 import { useState, useEffect, useCallback } from "react";
-import { Platform, Alert } from "react-native";
+import { Platform } from "react-native";
 import { 
   PRODUCT_IDS, 
   SubscriptionProduct, 
   getFallbackProducts,
-  updateSupabasePremiumStatus,
   loadIAPModule,
+  initializeIAP,
+  endIAPConnection,
+  purchaseSubscription,
+  restorePurchasesFromStore,
+  PurchaseResult,
+  RestoreResult,
 } from "@/lib/storekit";
 
 type UseStoreKitReturn = {
@@ -13,8 +32,8 @@ type UseStoreKitReturn = {
   loading: boolean;
   purchasing: boolean;
   iapAvailable: boolean;
-  purchase: (productId: string, userId?: string) => Promise<{ success: boolean; error?: string }>;
-  restore: (userId?: string) => Promise<{ success: boolean; hasPremium: boolean; error?: string }>;
+  purchase: (productId: string, userId?: string) => Promise<PurchaseResult>;
+  restore: (userId?: string) => Promise<RestoreResult>;
   getProductByType: (type: "monthly" | "yearly") => SubscriptionProduct | undefined;
 };
 
@@ -23,13 +42,12 @@ export function useStoreKit(): UseStoreKitReturn {
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);
   const [iapAvailable, setIapAvailable] = useState(false);
-  const [iapHook, setIapHook] = useState<any>(null);
 
   useEffect(() => {
     let mounted = true;
-    let cleanup: (() => void) | undefined;
 
     async function initIAP() {
+      // Skip on web
       if (Platform.OS !== "ios" && Platform.OS !== "android") {
         setLoading(false);
         return;
@@ -42,20 +60,23 @@ export function useStoreKit(): UseStoreKitReturn {
           return;
         }
 
+        // Check if module functions are available
         if (typeof module.initConnection !== "function") {
-          console.log("IAP native module not available (Expo Go)");
+          console.log("[useStoreKit] IAP native module not available (Expo Go)");
           setLoading(false);
           return;
         }
 
         setIapAvailable(true);
 
-        const connected = await module.initConnection();
+        // Initialize connection
+        const connected = await initializeIAP();
         if (!connected || !mounted) {
           setLoading(false);
           return;
         }
 
+        // Fetch products from App Store
         const skus = [PRODUCT_IDS.MONTHLY, PRODUCT_IDS.YEARLY];
         const fetchedProducts = await module.fetchProducts({ skus, type: "subs" });
         
@@ -70,13 +91,10 @@ export function useStoreKit(): UseStoreKitReturn {
             type: product.id.includes("monthly") ? "monthly" : "yearly",
           }));
           setProducts(mapped);
+          console.log("[useStoreKit] Loaded", mapped.length, "products from App Store");
         }
-
-        cleanup = () => {
-          module.endConnection().catch(() => {});
-        };
       } catch (error) {
-        console.log("IAP initialization error:", error);
+        console.log("[useStoreKit] IAP initialization error:", error);
       } finally {
         if (mounted) {
           setLoading(false);
@@ -88,120 +106,66 @@ export function useStoreKit(): UseStoreKitReturn {
 
     return () => {
       mounted = false;
-      cleanup?.();
+      // Clean up IAP connection on unmount
+      endIAPConnection().catch(() => {});
     };
   }, []);
 
+  /**
+   * Purchase a subscription product
+   */
   const purchase = useCallback(async (
     productId: string, 
     userId?: string
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<PurchaseResult> => {
     if (Platform.OS === "web") {
-      return { success: false, error: "Purchases are not available on web. Please use the iOS or Android app." };
+      return { success: false, error: "Purchases are not available on web. Please use the iOS app." };
     }
 
-    const module = await loadIAPModule();
-    if (!module) {
-      return { success: false, error: "In-app purchases require a development build. This feature is not available in Expo Go." };
+    if (!iapAvailable) {
+      return { 
+        success: false, 
+        error: "In-app purchases require a development build. This feature is not available in Expo Go." 
+      };
     }
 
     setPurchasing(true);
 
     try {
-      if (typeof module.requestPurchase !== "function") {
-        return { 
-          success: false, 
-          error: "In-app purchases require a development build. Expo Go does not support StoreKit." 
-        };
-      }
-      
-      const purchase = await module.requestPurchase({ 
-        request: {
-          apple: { sku: productId },
-          google: { skus: [productId] },
-        },
-        type: "subs",
-      });
-      
-      if (!purchase) {
-        return { success: false, error: "Purchase was cancelled" };
-      }
-
-      const transactionId = Array.isArray(purchase) 
-        ? purchase[0]?.transactionId 
-        : purchase.transactionId;
-
-      if (!transactionId) {
-        return { success: false, error: "Invalid purchase response" };
-      }
-
-      if (userId) {
-        await updateSupabasePremiumStatus(userId);
-      }
-
-      try {
-        await module.finishTransaction({ 
-          purchase: Array.isArray(purchase) ? purchase[0] : purchase,
-          isConsumable: false,
-        });
-      } catch (finishError) {
-        console.error("Failed to finish transaction:", finishError);
-      }
-
-      return { success: true };
-    } catch (error: any) {
-      const errorMessage = error?.message || "Purchase failed";
-      
-      if (errorMessage.includes("cancelled") || errorMessage.includes("canceled") || error?.code === "user-cancelled") {
-        return { success: false, error: "Purchase was cancelled" };
-      }
-
-      console.error("Purchase error:", error);
-      return { success: false, error: errorMessage };
+      const result = await purchaseSubscription(productId, userId);
+      return result;
     } finally {
       setPurchasing(false);
     }
-  }, []);
+  }, [iapAvailable]);
 
+  /**
+   * Restore previous purchases (required by App Store)
+   */
   const restore = useCallback(async (
     userId?: string
-  ): Promise<{ success: boolean; hasPremium: boolean; error?: string }> => {
+  ): Promise<RestoreResult> => {
     if (Platform.OS === "web") {
       return { success: false, hasPremium: false, error: "Restore is not available on web." };
     }
 
-    const module = await loadIAPModule();
-    if (!module) {
+    if (!iapAvailable) {
       return { success: false, hasPremium: false, error: "Restore requires a development build." };
     }
 
     setPurchasing(true);
 
     try {
-      const purchases = await module.getAvailablePurchases();
-      
-      const hasValidSubscription = purchases.some((p) => 
-        p.productId === PRODUCT_IDS.MONTHLY || 
-        p.productId === PRODUCT_IDS.YEARLY
-      );
-
-      if (hasValidSubscription && userId) {
-        await updateSupabasePremiumStatus(userId);
-      }
-
-      return { success: true, hasPremium: hasValidSubscription };
-    } catch (error: any) {
-      console.error("Restore purchases error:", error);
-      return { 
-        success: false, 
-        hasPremium: false, 
-        error: error?.message || "Failed to restore purchases" 
-      };
+      const result = await restorePurchasesFromStore(userId);
+      return result;
     } finally {
       setPurchasing(false);
     }
-  }, []);
+  }, [iapAvailable]);
 
+  /**
+   * Get a product by type (monthly or yearly)
+   */
   const getProductByType = useCallback((type: "monthly" | "yearly"): SubscriptionProduct | undefined => {
     return products.find(p => p.type === type);
   }, [products]);

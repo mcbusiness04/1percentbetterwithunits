@@ -1,6 +1,37 @@
+/**
+ * ============================================================================
+ * APPLE IN-APP PURCHASE (IAP) MODULE
+ * ============================================================================
+ * 
+ * This file contains ALL Apple StoreKit / In-App Purchase related code.
+ * 
+ * PRODUCT IDS (configured in App Store Connect):
+ * - units.fullaccess.monthly  - $4.99/month subscription
+ * - units.fullaccess.yearly   - $19.99/year subscription
+ * 
+ * KEY FUNCTIONS:
+ * - loadIAPModule()           - Dynamically loads expo-iap (dev builds only)
+ * - initializeIAP()           - Establishes StoreKit connection
+ * - getSubscriptionProducts() - Fetches product info from App Store
+ * - purchaseSubscription()    - Triggers Apple's native payment sheet
+ * - restorePurchasesFromStore() - Restores previous purchases (App Store requirement)
+ * - validatePremiumAccess()   - Validates subscription status
+ * 
+ * EXPO GO LIMITATION:
+ * IAP requires a development/production build. This module returns fallback
+ * data when running in Expo Go to prevent crashes.
+ * 
+ * ============================================================================
+ */
+
 import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { setIsPro as setLocalIsPro, getIsPro as getLocalIsPro } from "./storage";
+
+// ============================================================================
+// PRODUCT CONFIGURATION
+// ============================================================================
 
 export const PRODUCT_IDS = {
   MONTHLY: "units.fullaccess.monthly",
@@ -17,23 +48,60 @@ export type SubscriptionProduct = {
   type: "monthly" | "yearly";
 };
 
+// ============================================================================
+// MODULE STATE
+// ============================================================================
+
 let iapModule: typeof import("expo-iap") | null = null;
 let isIAPAvailable = false;
+let isIAPInitialized = false;
 
+// ============================================================================
+// ENVIRONMENT DETECTION
+// ============================================================================
+
+/**
+ * Detects if app is running in Expo Go (where IAP is not available)
+ */
 function isExpoGo(): boolean {
   return Constants.appOwnership === "expo";
 }
 
+/**
+ * Checks if IAP is supported on current platform
+ */
+export function isIAPSupported(): boolean {
+  return (Platform.OS === "ios" || Platform.OS === "android") && !isExpoGo();
+}
+
+/**
+ * Returns whether IAP module was successfully loaded
+ */
+export function getIAPAvailability(): boolean {
+  return isIAPAvailable;
+}
+
+// ============================================================================
+// IAP MODULE LOADING
+// ============================================================================
+
+/**
+ * Dynamically loads the expo-iap module.
+ * Returns null if:
+ * - Running on web platform
+ * - Running in Expo Go
+ * - Native module unavailable
+ */
 export async function loadIAPModule(): Promise<typeof import("expo-iap") | null> {
   if (iapModule !== null) return iapModule;
   
   if (Platform.OS !== "ios" && Platform.OS !== "android") {
-    console.log("IAP not available on web platform");
+    console.log("[StoreKit] IAP not available on web platform");
     return null;
   }
   
   if (isExpoGo()) {
-    console.log("IAP not available in Expo Go - requires development build");
+    console.log("[StoreKit] IAP not available in Expo Go - requires development build");
     return null;
   }
   
@@ -41,53 +109,82 @@ export async function loadIAPModule(): Promise<typeof import("expo-iap") | null>
     const module = await import("expo-iap");
     iapModule = module;
     isIAPAvailable = true;
+    console.log("[StoreKit] IAP module loaded successfully");
     return module;
   } catch (error) {
-    console.log("IAP module not available (requires development build):", error);
+    console.log("[StoreKit] IAP module not available (requires development build):", error);
     isIAPAvailable = false;
     return null;
   }
 }
 
+// ============================================================================
+// STOREKIT CONNECTION
+// ============================================================================
+
+/**
+ * Initializes connection to Apple StoreKit
+ */
 export async function initializeIAP(): Promise<boolean> {
+  if (isIAPInitialized) return true;
+  
   const module = await loadIAPModule();
   if (!module) return false;
   
   try {
     const result = await module.initConnection();
-    console.log("IAP connection initialized:", result);
+    isIAPInitialized = true;
+    console.log("[StoreKit] Connection initialized:", result);
     return true;
   } catch (error) {
-    console.error("Failed to initialize IAP connection:", error);
+    console.error("[StoreKit] Failed to initialize connection:", error);
     return false;
   }
 }
 
+/**
+ * Ends StoreKit connection (call on app unmount)
+ */
 export async function endIAPConnection(): Promise<void> {
   const module = await loadIAPModule();
   if (!module) return;
   
   try {
     await module.endConnection();
+    isIAPInitialized = false;
+    console.log("[StoreKit] Connection ended");
   } catch (error) {
-    console.error("Failed to end IAP connection:", error);
+    console.error("[StoreKit] Failed to end connection:", error);
   }
 }
 
+// ============================================================================
+// PRODUCT FETCHING
+// ============================================================================
+
+/**
+ * Fetches subscription products from App Store Connect.
+ * Returns fallback products if StoreKit unavailable.
+ */
 export async function getSubscriptionProducts(): Promise<SubscriptionProduct[]> {
   const module = await loadIAPModule();
   if (!module) {
+    console.log("[StoreKit] Using fallback products (IAP unavailable)");
     return getFallbackProducts();
   }
   
   try {
+    await initializeIAP();
+    
     const skus = [PRODUCT_IDS.MONTHLY, PRODUCT_IDS.YEARLY];
     const products = await module.fetchProducts({ skus, type: "subs" });
     
     if (!products || products.length === 0) {
-      console.log("No products found from StoreKit, using fallback");
+      console.log("[StoreKit] No products found from App Store, using fallback");
       return getFallbackProducts();
     }
+    
+    console.log("[StoreKit] Fetched", products.length, "products from App Store");
     
     return products.map((product) => ({
       productId: product.id,
@@ -99,12 +196,15 @@ export async function getSubscriptionProducts(): Promise<SubscriptionProduct[]> 
       type: product.id.includes("monthly") ? "monthly" : "yearly",
     }));
   } catch (error) {
-    console.error("Failed to fetch subscription products:", error);
+    console.error("[StoreKit] Failed to fetch products:", error);
     return getFallbackProducts();
   }
 }
 
-function getFallbackProducts(): SubscriptionProduct[] {
+/**
+ * Returns fallback product info when StoreKit is unavailable
+ */
+export function getFallbackProducts(): SubscriptionProduct[] {
   return [
     {
       productId: PRODUCT_IDS.MONTHLY,
@@ -127,6 +227,236 @@ function getFallbackProducts(): SubscriptionProduct[] {
   ];
 }
 
+// ============================================================================
+// PURCHASE FLOW
+// ============================================================================
+
+export type PurchaseResult = {
+  success: boolean;
+  error?: string;
+  transactionId?: string;
+};
+
+/**
+ * Initiates Apple's native payment sheet for a subscription.
+ * Handles the complete purchase flow including transaction finishing.
+ */
+export async function purchaseSubscription(
+  productId: string,
+  userId?: string
+): Promise<PurchaseResult> {
+  const module = await loadIAPModule();
+  
+  if (!module) {
+    if (Platform.OS === "web") {
+      return { success: false, error: "Purchases are not available on web. Please use the iOS app." };
+    }
+    return { 
+      success: false, 
+      error: "In-app purchases require a development build. This feature is not available in Expo Go." 
+    };
+  }
+
+  try {
+    await initializeIAP();
+    
+    console.log("[StoreKit] Requesting purchase for:", productId);
+    
+    // Trigger Apple's native payment sheet
+    const purchase = await module.requestPurchase({
+      request: {
+        apple: { sku: productId },
+        google: { skus: [productId] },
+      },
+      type: "subs",
+    });
+    
+    if (!purchase) {
+      return { success: false, error: "Purchase was cancelled" };
+    }
+
+    const transactionId = Array.isArray(purchase) 
+      ? purchase[0]?.transactionId 
+      : purchase.transactionId;
+
+    if (!transactionId) {
+      return { success: false, error: "Invalid purchase response" };
+    }
+
+    console.log("[StoreKit] Purchase successful, transaction:", transactionId);
+
+    // Finish the transaction with Apple
+    try {
+      await module.finishTransaction({ 
+        purchase: Array.isArray(purchase) ? purchase[0] : purchase,
+        isConsumable: false,
+      });
+      console.log("[StoreKit] Transaction finished");
+    } catch (finishError) {
+      console.error("[StoreKit] Failed to finish transaction:", finishError);
+    }
+
+    // Save premium status locally
+    await setLocalIsPro(true);
+
+    // Sync to Supabase if user is logged in
+    if (userId) {
+      await updateSupabasePremiumStatus(userId);
+    }
+
+    return { success: true, transactionId };
+  } catch (error: any) {
+    const errorMessage = error?.message || "Purchase failed";
+    
+    // Handle user cancellation gracefully
+    if (errorMessage.includes("cancelled") || errorMessage.includes("canceled") || error?.code === "user-cancelled") {
+      return { success: false, error: "Purchase was cancelled" };
+    }
+
+    console.error("[StoreKit] Purchase error:", error);
+    return { success: false, error: errorMessage };
+  }
+}
+
+// ============================================================================
+// RESTORE PURCHASES (Required by App Store Review)
+// ============================================================================
+
+export type RestoreResult = {
+  success: boolean;
+  hasPremium: boolean;
+  error?: string;
+};
+
+/**
+ * Restores previous purchases from App Store.
+ * This is REQUIRED by App Store Review Guidelines.
+ */
+export async function restorePurchasesFromStore(
+  userId?: string
+): Promise<RestoreResult> {
+  const module = await loadIAPModule();
+  
+  if (!module) {
+    if (Platform.OS === "web") {
+      return { success: false, hasPremium: false, error: "Restore is not available on web." };
+    }
+    return { success: false, hasPremium: false, error: "Restore requires a development build." };
+  }
+  
+  try {
+    await initializeIAP();
+    
+    console.log("[StoreKit] Restoring purchases...");
+    
+    const purchases = await module.getAvailablePurchases();
+    
+    const hasValidSubscription = purchases.some((purchase) => {
+      return (
+        purchase.productId === PRODUCT_IDS.MONTHLY ||
+        purchase.productId === PRODUCT_IDS.YEARLY
+      );
+    });
+    
+    console.log("[StoreKit] Restore complete. Has valid subscription:", hasValidSubscription);
+    
+    if (hasValidSubscription) {
+      // Save premium status locally
+      await setLocalIsPro(true);
+      
+      // Sync to Supabase if user is logged in
+      if (userId) {
+        await updateSupabasePremiumStatus(userId);
+      }
+    }
+    
+    return { success: true, hasPremium: hasValidSubscription };
+  } catch (error: any) {
+    console.error("[StoreKit] Restore purchases error:", error);
+    return { 
+      success: false, 
+      hasPremium: false, 
+      error: error?.message || "Failed to restore purchases" 
+    };
+  }
+}
+
+// ============================================================================
+// PREMIUM VALIDATION
+// ============================================================================
+
+/**
+ * Validates premium access from multiple sources:
+ * 1. Local storage (AsyncStorage)
+ * 2. Supabase profile (if authenticated)
+ * 3. App Store (if available)
+ */
+export async function validatePremiumAccess(userId?: string): Promise<boolean> {
+  // Check local storage first (fastest)
+  const localPremium = await getLocalIsPro();
+  if (localPremium) {
+    console.log("[StoreKit] Premium validated from local storage");
+    return true;
+  }
+  
+  // Check Supabase profile if authenticated
+  if (userId && isSupabaseConfigured) {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("is_premium")
+        .eq("id", userId)
+        .single();
+      
+      if (data?.is_premium) {
+        // Sync to local storage
+        await setLocalIsPro(true);
+        console.log("[StoreKit] Premium validated from Supabase");
+        return true;
+      }
+    } catch (error) {
+      console.log("[StoreKit] Error checking Supabase premium:", error);
+    }
+  }
+  
+  // Try to validate with App Store (if IAP available)
+  const module = await loadIAPModule();
+  if (module) {
+    try {
+      await initializeIAP();
+      const purchases = await module.getAvailablePurchases();
+      
+      const hasValidSubscription = purchases.some((purchase) => {
+        return (
+          purchase.productId === PRODUCT_IDS.MONTHLY ||
+          purchase.productId === PRODUCT_IDS.YEARLY
+        );
+      });
+      
+      if (hasValidSubscription) {
+        await setLocalIsPro(true);
+        if (userId) {
+          await updateSupabasePremiumStatus(userId);
+        }
+        console.log("[StoreKit] Premium validated from App Store");
+        return true;
+      }
+    } catch (error) {
+      console.log("[StoreKit] Error validating with App Store:", error);
+    }
+  }
+  
+  console.log("[StoreKit] No premium access found");
+  return false;
+}
+
+// ============================================================================
+// SUPABASE SYNC
+// ============================================================================
+
+/**
+ * Updates premium status in Supabase profile
+ */
 export async function updateSupabasePremiumStatus(userId: string): Promise<void> {
   if (!isSupabaseConfigured) return;
   
@@ -138,54 +468,28 @@ export async function updateSupabasePremiumStatus(userId: string): Promise<void>
         updated_at: new Date().toISOString() 
       })
       .eq("id", userId);
+    console.log("[StoreKit] Synced premium status to Supabase");
   } catch (error) {
-    console.error("Failed to update premium status in Supabase:", error);
+    console.error("[StoreKit] Failed to update Supabase premium status:", error);
   }
 }
 
-export async function restorePurchasesFromStore(
-  userId?: string
-): Promise<{ success: boolean; hasPremium: boolean; error?: string }> {
-  const module = await loadIAPModule();
-  
-  if (!module) {
-    if (Platform.OS === "web") {
-      return { success: false, hasPremium: false, error: "Restore is not available on web." };
-    }
-    return { success: false, hasPremium: false, error: "Restore requires a development build." };
-  }
+/**
+ * Checks Supabase profile for premium status
+ */
+export async function checkSupabasePremiumStatus(userId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
   
   try {
-    const purchases = await module.getAvailablePurchases();
+    const { data } = await supabase
+      .from("profiles")
+      .select("is_premium")
+      .eq("id", userId)
+      .single();
     
-    const hasValidSubscription = purchases.some((purchase) => {
-      return (
-        purchase.productId === PRODUCT_IDS.MONTHLY ||
-        purchase.productId === PRODUCT_IDS.YEARLY
-      );
-    });
-    
-    if (hasValidSubscription && userId) {
-      await updateSupabasePremiumStatus(userId);
-    }
-    
-    return { success: true, hasPremium: hasValidSubscription };
-  } catch (error: any) {
-    console.error("Restore purchases error:", error);
-    return { 
-      success: false, 
-      hasPremium: false, 
-      error: error?.message || "Failed to restore purchases" 
-    };
+    return data?.is_premium ?? false;
+  } catch (error) {
+    console.error("[StoreKit] Failed to check Supabase premium status:", error);
+    return false;
   }
 }
-
-export function isIAPSupported(): boolean {
-  return Platform.OS === "ios" || Platform.OS === "android";
-}
-
-export function getIAPAvailability(): boolean {
-  return isIAPAvailable;
-}
-
-export { getFallbackProducts };
