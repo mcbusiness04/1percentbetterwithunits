@@ -43,3 +43,12 @@ The application is built with Expo React Native. Data is stored locally using As
 
 ## Database Setup
 Run `supabase/migrations/001_create_tables.sql` in your Supabase SQL Editor to create the required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions).
+
+## Supabase Email Configuration
+To disable email confirmation for development:
+1. Go to Supabase Dashboard → Authentication → Providers → Email
+2. Toggle OFF "Confirm email"
+
+## DEV ITEMS TO REMOVE BEFORE TESTFLIGHT
+### client/navigation/RootStackNavigator.tsx
+- **Line ~175**: Dev bypass for test account `rappacarlos1@gmail.com` - remove the `isDevBypass` check
