@@ -20,9 +20,8 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator, Platform } from "react-native";
+import { View, ActivityIndicator } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import Constants from "expo-constants";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import NewHabitScreen from "@/screens/NewHabitScreen";
 import QuickAddScreen from "@/screens/QuickAddScreen";
@@ -34,47 +33,6 @@ import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import { validatePremiumAccess } from "@/lib/storekit";
-
-// ============================================================================
-// DEV-ONLY BYPASS – REMOVE BEFORE SHIP
-// ============================================================================
-// This bypass allows navigation past the paywall in development environments
-// (Expo Go and web) for UI/navigation testing purposes ONLY.
-// 
-// TO REMOVE THIS BYPASS:
-// 1. Delete this entire section (lines marked DEV-ONLY)
-// 2. Delete the `isDevBypassActive` check in Gate 3 below
-// 3. Search for "DEV-ONLY" to ensure all bypass code is removed
-// ============================================================================
-
-/**
- * DEV-ONLY: Detects if running in a development environment where paywall
- * should be bypassed for testing purposes.
- * 
- * Returns true ONLY when:
- * - Running in Expo Go (Constants.appOwnership === "expo")
- * - Running on web platform
- * 
- * Returns false (paywall enforced) when:
- * - Running in a standalone/production build
- * - Running in TestFlight
- * - Running in App Store build
- */
-function isDevBypassActive(): boolean {
-  // DEV-ONLY – REMOVE BEFORE SHIP
-  const isExpoGo = Constants.appOwnership === "expo";
-  const isWeb = Platform.OS === "web";
-  const isDev = isExpoGo || isWeb;
-  
-  if (isDev) {
-    console.log("[DEV BYPASS] Paywall bypass ACTIVE - Expo Go or web detected");
-  }
-  
-  return isDev;
-}
-// ============================================================================
-// END DEV-ONLY BYPASS
-// ============================================================================
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -124,13 +82,6 @@ export default function RootStackNavigator() {
   }, [user]);
 
   const loading = unitsLoading || authLoading || validatingPremium;
-  
-  // ============================================================================
-  // DEV ONLY – REMOVE BEFORE APP STORE SUBMISSION
-  // ============================================================================
-  // This bypass skips ALL gates (onboarding, auth, paywall) in dev environments
-  const devBypass = isDevBypassActive();
-  // ============================================================================
 
   if (loading) {
     return (
@@ -144,8 +95,7 @@ export default function RootStackNavigator() {
   // GATE 1: ONBOARDING (includes paywall as final step)
   // ============================================================================
   // First-time users must complete onboarding AND purchase to proceed
-  // DEV ONLY: Skip onboarding in Expo Go / web
-  if (!hasCompletedOnboarding && !devBypass) {
+  if (!hasCompletedOnboarding) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -164,8 +114,7 @@ export default function RootStackNavigator() {
   // GATE 2: AUTHENTICATION (after onboarding/purchase)
   // ============================================================================
   // User must sign in to sync their subscription
-  // DEV ONLY: Skip auth in Expo Go / web
-  if (!session && !devBypass) {
+  if (!session) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -184,8 +133,7 @@ export default function RootStackNavigator() {
   // GATE 3: PREMIUM VALIDATION (after auth)
   // ============================================================================
   // User must have premium access (validated from local, Supabase, or App Store)
-  // DEV ONLY: Skip paywall in Expo Go / web
-  if (!isPro && !premiumValidated && !devBypass) {
+  if (!isPro && !premiumValidated) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen

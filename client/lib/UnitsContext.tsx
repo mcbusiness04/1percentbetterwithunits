@@ -27,6 +27,7 @@ import {
   isOnboardingComplete,
   setOnboardingComplete,
   resetOnboarding as resetOnboardingStorage,
+  clearUserData,
 } from "@/lib/storage";
 import { useAuth } from "@/lib/AuthContext";
 import {
@@ -154,6 +155,42 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   const [badHabitLogs, setBadHabitLogs] = useState<BadHabitLog[]>([]);
   const [currentDate, setCurrentDate] = useState(getTodayDate());
   const appState = useRef(AppState.currentState);
+  const previousUserIdRef = useRef<string | null>(null);
+  const clearingPromiseRef = useRef<Promise<void> | null>(null);
+
+  // Clear all local state and storage when user logs out or changes
+  const clearLocalState = useCallback(async () => {
+    console.log("[Units] Clearing local state and storage - user logged out or changed");
+    // Clear in-memory state
+    setHabits([]);
+    setLogs([]);
+    setBadHabits([]);
+    setBadHabitLogs([]);
+    setUndoAction(null);
+    // Clear AsyncStorage user data (preserves settings, onboarding, isPro)
+    await clearUserData();
+    console.log("[Units] Local state and storage cleared");
+  }, []);
+
+  // Detect user changes and clear state appropriately
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+    const previousUserId = previousUserIdRef.current;
+
+    // If user logged out (was logged in, now not)
+    if (previousUserId !== null && currentUserId === null) {
+      console.log("[Units] User logged out - clearing state");
+      clearingPromiseRef.current = clearLocalState();
+    }
+    // If user changed (different user ID)
+    else if (previousUserId !== null && currentUserId !== null && previousUserId !== currentUserId) {
+      console.log("[Units] User changed - clearing state for new user");
+      clearingPromiseRef.current = clearLocalState();
+    }
+
+    // Update the ref for next comparison
+    previousUserIdRef.current = currentUserId;
+  }, [user, clearLocalState]);
 
   // Day change detection - check if date has changed
   const checkDayChange = useCallback(() => {
@@ -211,6 +248,13 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(async () => {
     try {
+      // Wait for any pending clear operation to complete first
+      if (clearingPromiseRef.current) {
+        console.log("[Units] refreshData: Waiting for clear operation to complete...");
+        await clearingPromiseRef.current;
+        clearingPromiseRef.current = null;
+      }
+      
       console.log("[Units] refreshData: Starting data load...");
       
       const [loadedSettings, loadedIsPro, loadedOnboarding, loadedBadHabits, loadedBadHabitLogs] = await Promise.all([

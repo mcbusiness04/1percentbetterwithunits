@@ -207,6 +207,16 @@ export async function clearAllData(): Promise<void> {
   ]);
 }
 
+export async function clearUserData(): Promise<void> {
+  console.log("[Storage] clearUserData: Clearing user-specific data (habits, logs, bad habits)");
+  await AsyncStorage.multiRemove([
+    KEYS.HABITS,
+    KEYS.LOGS,
+    KEYS.BAD_HABITS,
+    KEYS.BAD_HABIT_LOGS,
+  ]);
+}
+
 export type IconColorSuggestion = { icon: string; color: string };
 
 const HABIT_SUGGESTIONS: Record<string, IconColorSuggestion> = {
