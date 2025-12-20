@@ -58,6 +58,7 @@ export interface BadHabitLog {
   date: string;
   createdAt: string;
   penaltyAdjustments?: PenaltyAdjustment[];
+  penaltyUnits?: number; // Fixed penalty captured at tap time (10% of raw total at that moment)
   isUndone?: boolean;
 }
 
