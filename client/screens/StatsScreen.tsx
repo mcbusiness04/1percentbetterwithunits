@@ -261,6 +261,9 @@ export default function StatsScreen() {
     // Calculate the start date of the current period
     const periodStartDate = addDaysToDate(accountStartDate, currentPeriodIndex * periodLength);
     
+    // DEBUG: Log period calculations
+    console.log(`[Stats ${timeRange}] accountStart=${accountStartDate}, currentDate=${currentDate}, daysSinceStart=${daysSinceStart}, periodIndex=${currentPeriodIndex}, dayInPeriod=${dayInPeriod}, periodStart=${periodStartDate}`);
+    
     // Build data for each day in the period
     for (let i = 0; i < periodLength; i++) {
       const dateStr = addDaysToDate(periodStartDate, i);
