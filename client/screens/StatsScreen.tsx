@@ -246,17 +246,19 @@ export default function StatsScreen() {
       // Use effective (penalty-adjusted) today units
       const todayUnits = getEffectiveHabitUnitsForDate(habit.id, currentDate);
       
-      // Get all unique dates for this habit
+      // Get all unique dates for this habit (excluding current date for bestDay calculation)
       const habitLogs = logs.filter((l) => l.habitId === habit.id);
       const uniqueDates = [...new Set(habitLogs.map((l) => l.date))];
+      const historicalDates = uniqueDates.filter((d) => d !== currentDate);
       
-      // Calculate effective day totals for each date
+      // Calculate effective day totals for each historical date (excluding today)
       const dayTotals: Record<string, number> = {};
-      uniqueDates.forEach((date) => {
+      historicalDates.forEach((date) => {
         dayTotals[date] = getEffectiveHabitUnitsForDate(habit.id, date);
       });
       const dayValues = Object.values(dayTotals);
       const bestDay = dayValues.length > 0 ? Math.max(...dayValues) : 0;
+      // avgDay also uses historical data only (excluding current day)
       const avgDay = dayValues.length > 0 ? Math.round(dayValues.reduce((a, b) => a + b, 0) / dayValues.length) : 0;
       
       // Year and all-time totals using effective units
