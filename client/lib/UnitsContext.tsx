@@ -211,6 +211,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
   const refreshData = useCallback(async () => {
     try {
+      console.log("[Units] refreshData: Starting data load...");
+      
       const [loadedSettings, loadedIsPro, loadedOnboarding, loadedBadHabits, loadedBadHabitLogs] = await Promise.all([
         getSettings(),
         getIsPro(),
@@ -218,6 +220,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getBadHabits(),
         getBadHabitLogs(),
       ]);
+
+      console.log("[Units] refreshData: Loaded bad habits:", loadedBadHabits.length, "bad habit logs:", loadedBadHabitLogs.length);
 
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
@@ -231,6 +235,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         getHabits(),
         getLogs(),
       ]);
+      
+      console.log("[Units] refreshData: Loaded habits:", loadedHabits.length, "logs:", loadedLogs.length);
       
       // Normalize habits with default values (in-memory only, save only if needed)
       const normalizedHabits = loadedHabits.map((h) => ({
@@ -249,6 +255,8 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       // Logs for deleted habits are harmless and will be cleaned up on next habit deletion
       setHabits(normalizedHabits);
       setLogs(loadedLogs); // Keep ALL historical logs
+      
+      console.log("[Units] refreshData: Data loaded successfully. Habits:", normalizedHabits.length);
 
       // Try to sync with Supabase in background if logged in (non-blocking)
       if (user) {
@@ -257,7 +265,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         });
       }
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("[Units] Error loading data:", error);
     } finally {
       setLoading(false);
     }

@@ -170,6 +170,13 @@ server/
 - **Added: perfectDay indicator** - Separate from allGoalsMet; perfectDay = goals met AND no bad habits (for stats/heatmaps)
 - **Fixed: Total Score calculation** - Removed /100 so 100% progress = +1%, 50% = +0.5% (cumulative over all time)
 - **Added: Bad habit Supabase sync** - Bad habits and logs now sync to Supabase in background for backup
+- **Added: Debug logging** - Storage operations now log to console for troubleshooting data persistence issues
+
+## Data Persistence
+- **Local Storage**: All habits, bad habits, and logs are stored in AsyncStorage (device local storage)
+- **Supabase Sync**: Data syncs to Supabase in background for backup (not yet bi-directional)
+- **Day Change**: Only daily progress resets (units logged for today start at 0), habits and bad habits persist forever
+- **Known Issue**: Expo Go may lose AsyncStorage data if the app is reinstalled or cache is cleared
 
 ## User Preferences
 - No emojis in the UI

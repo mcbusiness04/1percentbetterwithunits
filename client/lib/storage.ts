@@ -93,13 +93,17 @@ export function getStartOfWeek(): string {
 export async function getHabits(): Promise<Habit[]> {
   try {
     const data = await AsyncStorage.getItem(KEYS.HABITS);
-    return data ? JSON.parse(data) : [];
-  } catch {
+    const habits = data ? JSON.parse(data) : [];
+    console.log("[Storage] getHabits: Retrieved", habits.length, "habits from AsyncStorage");
+    return habits;
+  } catch (error) {
+    console.error("[Storage] getHabits: Error reading habits", error);
     return [];
   }
 }
 
 export async function saveHabits(habits: Habit[]): Promise<void> {
+  console.log("[Storage] saveHabits: Saving", habits.length, "habits to AsyncStorage");
   await AsyncStorage.setItem(KEYS.HABITS, JSON.stringify(habits));
 }
 
@@ -163,13 +167,17 @@ export async function resetOnboarding(): Promise<void> {
 export async function getBadHabits(): Promise<BadHabit[]> {
   try {
     const data = await AsyncStorage.getItem(KEYS.BAD_HABITS);
-    return data ? JSON.parse(data) : [];
-  } catch {
+    const badHabits = data ? JSON.parse(data) : [];
+    console.log("[Storage] getBadHabits: Retrieved", badHabits.length, "bad habits from AsyncStorage");
+    return badHabits;
+  } catch (error) {
+    console.error("[Storage] getBadHabits: Error reading bad habits", error);
     return [];
   }
 }
 
 export async function saveBadHabits(badHabits: BadHabit[]): Promise<void> {
+  console.log("[Storage] saveBadHabits: Saving", badHabits.length, "bad habits to AsyncStorage");
   await AsyncStorage.setItem(KEYS.BAD_HABITS, JSON.stringify(badHabits));
 }
 
@@ -187,6 +195,7 @@ export async function saveBadHabitLogs(logs: BadHabitLog[]): Promise<void> {
 }
 
 export async function clearAllData(): Promise<void> {
+  console.log("[Storage] clearAllData: CLEARING ALL DATA!");
   await AsyncStorage.multiRemove([
     KEYS.HABITS,
     KEYS.LOGS,
