@@ -234,6 +234,18 @@ export default function PaywallScreen() {
         <ThemedText type="small" style={[styles.disclaimer, { color: theme.textSecondary }]}>
           Subscription auto-renews. Cancel anytime in App Store settings.
         </ThemedText>
+
+        {/* DEV ONLY – REMOVE BEFORE TESTFLIGHT */}
+        {__DEV__ ? (
+          <Pressable
+            onPress={() => navigation.navigate("Auth")}
+            style={[styles.devButton, { borderColor: theme.textSecondary }]}
+          >
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              DEV ONLY - Skip Paywall
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
@@ -335,5 +347,14 @@ const styles = StyleSheet.create({
   disclaimer: {
     textAlign: "center",
     fontSize: 11,
+  },
+  devButton: {
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderWidth: 1,
+    borderRadius: BorderRadius.sm,
+    borderStyle: "dashed",
+    alignSelf: "center",
   },
 });
