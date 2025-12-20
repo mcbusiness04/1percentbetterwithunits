@@ -87,6 +87,7 @@ export default function AuthScreen() {
             <Feather name="layers" size={48} color="#FFFFFF" />
           </View>
           <ThemedText type="h1" style={styles.title}>Units</ThemedText>
+          <ThemedText type="small" style={styles.tagline}>1% better with Units</ThemedText>
           <ThemedText type="body" style={styles.subtitle}>
             {mode === "signup" ? "Create your account" : "Welcome back"}
           </ThemedText>
@@ -194,6 +195,12 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "bold",
     marginBottom: Spacing.sm,
+  },
+  tagline: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    fontStyle: "italic",
+    marginBottom: Spacing.md,
   },
   subtitle: {
     color: "rgba(255,255,255,0.8)",
