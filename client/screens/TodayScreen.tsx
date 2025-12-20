@@ -47,7 +47,8 @@ export default function TodayScreen() {
   const dailyProgress = getDailyProgress();
 
   const progressMessage = useMemo(() => {
-    if (activeHabits.length === 0) return null;
+    // Always show progress - default to 0% if no habits
+    if (activeHabits.length === 0) return "0%";
     
     // Progress is based on EFFECTIVE work (after penalties)
     const effectiveProgress = dailyProgress.percentage; // 0-100%+ based on effective work
