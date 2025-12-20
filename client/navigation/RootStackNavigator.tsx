@@ -168,10 +168,7 @@ export default function RootStackNavigator() {
   // ============================================================================
   // GATE 2: PREMIUM VALIDATION (HARD GATE - must have active subscription)
   // ============================================================================
-  // DEV ONLY: Bypass for test account – REMOVE BEFORE TESTFLIGHT
-  const isDevBypass = __DEV__ && user?.email === "rappacarlos1@gmail.com";
-  
-  if (!isPro && !isDevBypass) {
+  if (!isPro) {
     // Show paywall with sign-in option for existing subscribers
     // No dismiss, no skip, no back navigation
     return (

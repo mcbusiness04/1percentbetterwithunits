@@ -41,17 +41,5 @@ The application is built with Expo React Native. Data is stored locally using As
     -   **Environment Variables**: `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`.
 -   **expo-iap**: StoreKit integration for Apple in-app purchases.
 
-## DEV ITEMS TO REMOVE BEFORE TESTFLIGHT
-The following development-only code must be removed before submitting to TestFlight:
-
-### client/screens/OnboardingScreen.tsx
-- **Lines 189-200**: `DevSkipButton` component definition
-- **Lines 297-301**: `handleDevSkip` callback
-- **Lines 656-659**: DevSkipButton usage in paywall step
-- **Lines ~955-964**: `devButton` style in StyleSheet
-
-### client/navigation/RootStackNavigator.tsx
-- **Line ~139**: Dev bypass for test account `rappacarlos1@gmail.com` - remove the `isDevBypass` check
-
-### supabase/migrations/001_create_tables.sql
-- Run this SQL in your Supabase SQL Editor to create the required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions)
+## Database Setup
+Run `supabase/migrations/001_create_tables.sql` in your Supabase SQL Editor to create the required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions).

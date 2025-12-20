@@ -25,7 +25,6 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
-import { useAuth } from "@/lib/AuthContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
 import { PRODUCT_IDS } from "@/lib/storekit";
 
@@ -184,25 +183,10 @@ function DemoHabitRow({ name, icon, color, units, goal, delay }: { name: string;
   );
 }
 
-// DEV ONLY – REMOVE BEFORE TESTFLIGHT
-function DevSkipButton({ onSkip }: { onSkip: () => void }) {
-  return (
-    <Pressable
-      onPress={onSkip}
-      style={styles.devButton}
-    >
-      <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>
-        DEV ONLY - Skip Paywall
-      </ThemedText>
-    </Pressable>
-  );
-}
-
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { setIsPro, completeOnboarding } = useUnits();
-  const { signOut: authSignOut } = useAuth();
   const { products, loading: productsLoading, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
 
   const [step, setStep] = useState<OnboardingStep>("welcome");
@@ -290,12 +274,6 @@ export default function OnboardingScreen() {
   const handleTerms = useCallback(() => {
     Linking.openURL("https://example.com/terms");
   }, []);
-
-  // DEV ONLY: Skip paywall and sign out any existing session
-  const handleDevSkip = useCallback(async () => {
-    await authSignOut();
-    await completeOnboarding();
-  }, [authSignOut, completeOnboarding]);
 
   const ProgressDots = () => (
     <View style={styles.progressContainer}>
@@ -649,11 +627,6 @@ export default function OnboardingScreen() {
           <ThemedText type="small" style={styles.disclaimer}>
             Payment charged to Apple ID. Auto-renews unless cancelled 24hrs before period ends.
           </ThemedText>
-
-          {/* DEV ONLY – REMOVE BEFORE TESTFLIGHT */}
-          {__DEV__ ? (
-            <DevSkipButton onSkip={handleDevSkip} />
-          ) : null}
         </View>
       </View>
     </LinearGradient>
@@ -948,15 +921,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     color: "rgba(255,255,255,0.6)",
-  },
-  devButton: {
-    marginTop: Spacing.md,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderWidth: 1,
-    borderRadius: BorderRadius.sm,
-    borderStyle: "dashed",
-    borderColor: "rgba(255,255,255,0.5)",
-    alignSelf: "center",
   },
 });
