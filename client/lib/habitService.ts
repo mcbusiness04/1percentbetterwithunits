@@ -207,6 +207,39 @@ export async function fetchHabitLogsForDateRange(
   return { logs: data || [], error: error?.message ?? null };
 }
 
+export async function fetchAllHabitLogs(
+  userId: string
+): Promise<{ logs: DbHabitLog[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { logs: [], error: "Supabase not configured" };
+  }
+  
+  const { data, error } = await supabase
+    .from("habit_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("date", { ascending: false });
+
+  return { logs: data || [], error: error?.message ?? null };
+}
+
+export async function fetchAllHabits(
+  userId: string
+): Promise<{ habits: DbHabit[]; error: string | null }> {
+  if (!isSupabaseConfigured) {
+    return { habits: [], error: "Supabase not configured" };
+  }
+  
+  const { data, error } = await supabase
+    .from("habits")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("is_archived", false)
+    .order("sort_order", { ascending: true });
+
+  return { habits: data || [], error: error?.message ?? null };
+}
+
 export async function createHabit(
   userId: string,
   habit: {

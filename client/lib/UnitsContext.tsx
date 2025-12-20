@@ -7,19 +7,10 @@ import {
   AppSettings,
   BadHabit,
   BadHabitLog,
-  PenaltyAdjustment,
-  getHabits,
-  saveHabits,
-  getLogs,
-  saveLogs,
   getSettings,
   saveSettings,
   getIsPro,
   setIsPro as saveIsPro,
-  getBadHabits,
-  saveBadHabits,
-  getBadHabitLogs,
-  saveBadHabitLogs,
   generateId,
   getTodayDate,
   getStartOfWeek,
@@ -32,6 +23,10 @@ import {
 import { useAuth } from "@/lib/AuthContext";
 import {
   fetchHabitsWithTodayProgress,
+  fetchAllHabits,
+  fetchAllHabitLogs,
+  fetchBadHabits as fetchDbBadHabits,
+  fetchBadHabitLogs as fetchDbBadHabitLogs,
   addUnitsToHabit,
   setUnitsForHabit,
   createHabit as createDbHabit,
@@ -42,6 +37,10 @@ import {
   createBadHabitLog as createDbBadHabitLog,
   undoBadHabitLog as undoDbBadHabitLog,
   HabitWithProgress,
+  DbHabit,
+  DbHabitLog,
+  DbBadHabit,
+  DbBadHabitLog,
 } from "@/lib/habitService";
 
 interface UndoAction {
@@ -114,7 +113,7 @@ interface UnitsContextType {
 
 const UnitsContext = createContext<UnitsContextType | undefined>(undefined);
 
-function dbHabitToLocal(dbHabit: HabitWithProgress): Habit {
+function dbHabitToLocal(dbHabit: DbHabit | HabitWithProgress): Habit {
   return {
     id: dbHabit.id,
     name: dbHabit.name,
@@ -129,13 +128,34 @@ function dbHabitToLocal(dbHabit: HabitWithProgress): Habit {
   };
 }
 
-function dbHabitToLog(dbHabit: HabitWithProgress, date: string): UnitLog {
+function dbLogToLocal(dbLog: DbHabitLog): UnitLog {
   return {
-    id: dbHabit.todayLogId || generateId(),
-    habitId: dbHabit.id,
-    count: dbHabit.todayCount,
-    date,
-    createdAt: new Date().toISOString(),
+    id: dbLog.id,
+    habitId: dbLog.habit_id,
+    count: dbLog.count,
+    date: dbLog.date,
+    createdAt: dbLog.created_at,
+  };
+}
+
+function dbBadHabitToLocal(dbBadHabit: DbBadHabit): BadHabit {
+  return {
+    id: dbBadHabit.id,
+    name: dbBadHabit.name,
+    createdAt: dbBadHabit.created_at,
+    isArchived: dbBadHabit.is_archived,
+  };
+}
+
+function dbBadHabitLogToLocal(dbLog: DbBadHabitLog): BadHabitLog {
+  return {
+    id: dbLog.id,
+    badHabitId: dbLog.bad_habit_id,
+    count: dbLog.count,
+    date: dbLog.date,
+    createdAt: dbLog.created_at,
+    penaltyAdjustments: [],
+    isUndone: dbLog.is_undone,
   };
 }
 
@@ -257,56 +277,69 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       
       console.log("[Units] refreshData: Starting data load...");
       
-      const [loadedSettings, loadedIsPro, loadedOnboarding, loadedBadHabits, loadedBadHabitLogs] = await Promise.all([
+      // Load UI preferences from AsyncStorage (these are local-only)
+      const [loadedSettings, loadedIsPro, loadedOnboarding] = await Promise.all([
         getSettings(),
         getIsPro(),
         isOnboardingComplete(),
-        getBadHabits(),
-        getBadHabitLogs(),
       ]);
-
-      console.log("[Units] refreshData: Loaded bad habits:", loadedBadHabits.length, "bad habit logs:", loadedBadHabitLogs.length);
 
       setSettings(loadedSettings);
       setIsProState(loadedIsPro);
       setHasCompletedOnboarding(loadedOnboarding);
-      setBadHabits(loadedBadHabits);
-      setBadHabitLogs(loadedBadHabitLogs);
 
-      // Always load from local storage (local-first approach)
-      // IMPORTANT: Never overwrite storage during load - only during explicit mutations
-      const [loadedHabits, loadedLogs] = await Promise.all([
-        getHabits(),
-        getLogs(),
-      ]);
-      
-      console.log("[Units] refreshData: Loaded habits:", loadedHabits.length, "logs:", loadedLogs.length);
-      
-      // Normalize habits with default values (in-memory only, save only if needed)
-      const normalizedHabits = loadedHabits.map((h) => ({
-        ...h,
-        tapIncrement: h.tapIncrement ?? 1,
-        habitType: h.habitType ?? "count",
-      }));
-      
-      // Only save if actual migration is needed (one-time migration)
-      const needsMigration = loadedHabits.some((h) => h.tapIncrement === undefined || h.habitType === undefined);
-      if (needsMigration && loadedHabits.length > 0) {
-        await saveHabits(normalizedHabits);
-      }
-      
-      // Set state with all loaded data - DO NOT filter or clean during load
-      // Logs for deleted habits are harmless and will be cleaned up on next habit deletion
-      setHabits(normalizedHabits);
-      setLogs(loadedLogs); // Keep ALL historical logs
-      
-      console.log("[Units] refreshData: Data loaded successfully. Habits:", normalizedHabits.length);
-
-      // Try to sync with Supabase in background if logged in (non-blocking)
+      // Supabase is the single source of truth for all user data
+      // Only load from Supabase when user is authenticated
       if (user) {
-        fetchHabitsWithTodayProgress(user.id).catch(() => {
-          // Silently ignore Supabase errors - local storage is source of truth
-        });
+        console.log("[Units] refreshData: Loading user data from Supabase...");
+        
+        const [habitsResult, logsResult, badHabitsResult, badHabitLogsResult] = await Promise.all([
+          fetchAllHabits(user.id),
+          fetchAllHabitLogs(user.id),
+          fetchDbBadHabits(user.id),
+          fetchDbBadHabitLogs(user.id),
+        ]);
+
+        if (habitsResult.error) {
+          console.error("[Units] Error fetching habits from Supabase:", habitsResult.error);
+        } else {
+          const localHabits = habitsResult.habits.map(dbHabitToLocal);
+          setHabits(localHabits);
+          console.log("[Units] refreshData: Loaded", localHabits.length, "habits from Supabase");
+        }
+
+        if (logsResult.error) {
+          console.error("[Units] Error fetching logs from Supabase:", logsResult.error);
+        } else {
+          const localLogs = logsResult.logs.map(dbLogToLocal);
+          setLogs(localLogs);
+          console.log("[Units] refreshData: Loaded", localLogs.length, "logs from Supabase");
+        }
+
+        if (badHabitsResult.error) {
+          console.error("[Units] Error fetching bad habits from Supabase:", badHabitsResult.error);
+        } else {
+          const localBadHabits = badHabitsResult.badHabits.map(dbBadHabitToLocal);
+          setBadHabits(localBadHabits);
+          console.log("[Units] refreshData: Loaded", localBadHabits.length, "bad habits from Supabase");
+        }
+
+        if (badHabitLogsResult.error) {
+          console.error("[Units] Error fetching bad habit logs from Supabase:", badHabitLogsResult.error);
+        } else {
+          const localBadHabitLogs = badHabitLogsResult.logs.map(dbBadHabitLogToLocal);
+          setBadHabitLogs(localBadHabitLogs);
+          console.log("[Units] refreshData: Loaded", localBadHabitLogs.length, "bad habit logs from Supabase");
+        }
+
+        console.log("[Units] refreshData: Data loaded successfully from Supabase");
+      } else {
+        // No user - clear all user data (user must be authenticated to access data)
+        console.log("[Units] refreshData: No user authenticated - clearing user data");
+        setHabits([]);
+        setLogs([]);
+        setBadHabits([]);
+        setBadHabitLogs([]);
       }
     } catch (error) {
       console.error("[Units] Error loading data:", error);
@@ -337,81 +370,98 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [settings.hapticsEnabled]);
 
   const handleAddHabit = useCallback(async (habit: Omit<Habit, "id" | "createdAt" | "isArchived">) => {
+    if (!user) {
+      console.error("[Units] Cannot add habit: user not authenticated");
+      return false;
+    }
+
     const activeHabits = habits.filter((h) => !h.isArchived);
     if (!isPro && activeHabits.length >= FREE_LIMITS.MAX_HABITS) {
       return false;
     }
 
-    const newHabit: Habit = {
-      ...habit,
-      id: generateId(),
-      createdAt: new Date().toISOString(),
-      isArchived: false,
-    };
+    // Write to Supabase first (single source of truth)
+    const { habit: dbHabit, error } = await createDbHabit(user.id, {
+      name: habit.name,
+      icon: habit.icon,
+      color: habit.color,
+      unit_name: habit.unitName,
+      daily_goal: habit.dailyGoal,
+      tap_increment: habit.tapIncrement,
+      habit_type: habit.habitType,
+    });
 
-    // Always update local state first
-    const updated = [...habits, newHabit];
-    setHabits(updated);
-    await saveHabits(updated);
-
-    // Try to sync to Supabase in background (non-blocking)
-    if (user) {
-      createDbHabit(user.id, {
-        name: habit.name,
-        icon: habit.icon,
-        color: habit.color,
-        unit_name: habit.unitName,
-        daily_goal: habit.dailyGoal,
-        tap_increment: habit.tapIncrement,
-        habit_type: habit.habitType,
-      }).catch(() => {
-        // Silently ignore Supabase errors - local storage is source of truth for now
-      });
+    if (error || !dbHabit) {
+      console.error("[Units] Failed to create habit in Supabase:", error);
+      return false;
     }
+
+    // Update local state with the habit from Supabase
+    const newHabit = dbHabitToLocal(dbHabit);
+    setHabits([...habits, newHabit]);
 
     triggerSuccess();
     return true;
   }, [habits, user, isPro, triggerSuccess]);
 
   const handleUpdateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
-    const updated = habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
-    setHabits(updated);
-    await saveHabits(updated);
+    if (!user) {
+      console.error("[Units] Cannot update habit: user not authenticated");
+      return;
+    }
+
+    // Build Supabase update object
+    const dbUpdates: Partial<{ name: string; icon: string; color: string; unit_name: string; daily_goal: number; tap_increment: number; habit_type: "count" | "time"; is_archived: boolean }> = {};
+    if (updates.name !== undefined) dbUpdates.name = updates.name;
+    if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
+    if (updates.color !== undefined) dbUpdates.color = updates.color;
+    if (updates.unitName !== undefined) dbUpdates.unit_name = updates.unitName;
+    if (updates.dailyGoal !== undefined) dbUpdates.daily_goal = updates.dailyGoal;
+    if (updates.tapIncrement !== undefined) dbUpdates.tap_increment = updates.tapIncrement;
+    if (updates.habitType !== undefined) dbUpdates.habit_type = updates.habitType;
+    if (updates.isArchived !== undefined) dbUpdates.is_archived = updates.isArchived;
     
-    // Sync to Supabase in background
-    if (user) {
-      const dbUpdates: Partial<{ name: string; icon: string; color: string; unit_name: string; daily_goal: number; tap_increment: number; habit_type: "count" | "time"; is_archived: boolean }> = {};
-      if (updates.name !== undefined) dbUpdates.name = updates.name;
-      if (updates.icon !== undefined) dbUpdates.icon = updates.icon;
-      if (updates.color !== undefined) dbUpdates.color = updates.color;
-      if (updates.unitName !== undefined) dbUpdates.unit_name = updates.unitName;
-      if (updates.dailyGoal !== undefined) dbUpdates.daily_goal = updates.dailyGoal;
-      if (updates.tapIncrement !== undefined) dbUpdates.tap_increment = updates.tapIncrement;
-      if (updates.habitType !== undefined) dbUpdates.habit_type = updates.habitType;
-      if (updates.isArchived !== undefined) dbUpdates.is_archived = updates.isArchived;
-      
-      if (Object.keys(dbUpdates).length > 0) {
-        updateDbHabit(id, dbUpdates).catch(() => {});
+    if (Object.keys(dbUpdates).length > 0) {
+      // Write to Supabase first (single source of truth)
+      const { error } = await updateDbHabit(id, dbUpdates);
+      if (error) {
+        console.error("[Units] Failed to update habit in Supabase:", error);
+        return;
       }
     }
+
+    // Update local state
+    const updated = habits.map((h) => (h.id === id ? { ...h, ...updates } : h));
+    setHabits(updated);
   }, [habits, user]);
 
   const handleDeleteHabit = useCallback(async (id: string) => {
+    if (!user) {
+      console.error("[Units] Cannot delete habit: user not authenticated");
+      return;
+    }
+
+    // Delete from Supabase first (single source of truth)
+    const { error } = await deleteDbHabit(id);
+    if (error) {
+      console.error("[Units] Failed to delete habit from Supabase:", error);
+      return;
+    }
+
+    // Update local state
     const updated = habits.filter((h) => h.id !== id);
     setHabits(updated);
-    await saveHabits(updated);
     
     const updatedLogs = logs.filter((l) => l.habitId !== id);
     setLogs(updatedLogs);
-    await saveLogs(updatedLogs);
-    
-    // Sync to Supabase in background
-    if (user) {
-      deleteDbHabit(id).catch(() => {});
-    }
   }, [habits, logs, user]);
 
   const handleAddUnits = useCallback(async (habitId: string, count: number) => {
+    if (!user) {
+      console.error("[Units] Cannot add units: user not authenticated");
+      return false;
+    }
+
     const today = getTodayDate();
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return false;
@@ -420,7 +470,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const oldTotal = existingLog?.count ?? 0;
     const newTotal = oldTotal + count;
 
-    // Always update local state first (local-first approach)
+    // Write to Supabase first (single source of truth)
+    const { error } = await addUnitsToHabit(habitId, user.id, count, today);
+    if (error) {
+      console.error("[Units] Failed to add units in Supabase:", error);
+      return false;
+    }
+
+    // Update local state
     let updatedLogs: UnitLog[];
     if (existingLog) {
       updatedLogs = logs.map((l) =>
@@ -440,14 +497,6 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     }
     
     setLogs(updatedLogs);
-    await saveLogs(updatedLogs);
-
-    // Try to sync to Supabase in background (non-blocking)
-    if (user) {
-      addUnitsToHabit(habitId, user.id, count, today).catch(() => {
-        // Silently ignore Supabase errors - local storage is source of truth
-      });
-    }
 
     if (newTotal >= habit.dailyGoal && oldTotal < habit.dailyGoal) {
       triggerSuccess();
@@ -459,6 +508,11 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [habits, logs, user, triggerHaptic, triggerSuccess]);
 
   const handleRemoveUnits = useCallback(async (habitId: string, count: number) => {
+    if (!user) {
+      console.error("[Units] Cannot remove units: user not authenticated");
+      return false;
+    }
+
     const today = getTodayDate();
     const todayLogs = logs
       .filter((l) => l.habitId === habitId && l.date === today)
@@ -470,7 +524,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     if (totalAvailable === 0) return false;
 
     const actualCountToRemove = Math.min(count, totalAvailable);
+    const newTotal = totalAvailable - actualCountToRemove;
 
+    // Write to Supabase first (single source of truth)
+    const { error } = await setUnitsForHabit(habitId, user.id, newTotal, today);
+    if (error) {
+      console.error("[Units] Failed to remove units in Supabase:", error);
+      return false;
+    }
+
+    // Update local state
     let remaining = actualCountToRemove;
     const logsToRemove: string[] = [];
     const logsToUpdate: { id: string; newCount: number }[] = [];
@@ -498,22 +561,28 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       });
 
     setLogs(updated);
-    await saveLogs(updated);
-    
-    // Sync to Supabase - calculate new total and set it
-    if (user) {
-      const newTotal = totalAvailable - actualCountToRemove;
-      setUnitsForHabit(habitId, user.id, newTotal, today).catch(() => {});
-    }
     
     triggerHaptic("light");
     return true;
   }, [logs, user, triggerHaptic]);
 
   const handleAddUnitsForDate = useCallback(async (habitId: string, count: number, date: string) => {
+    if (!user) {
+      console.error("[Units] Cannot add units for date: user not authenticated");
+      return false;
+    }
+
     const habit = habits.find((h) => h.id === habitId);
     if (!habit) return false;
 
+    // Write to Supabase first (single source of truth)
+    const { error } = await addUnitsToHabit(habitId, user.id, count, date);
+    if (error) {
+      console.error("[Units] Failed to add units for date in Supabase:", error);
+      return false;
+    }
+
+    // Update local state
     const newLog: UnitLog = {
       id: generateId(),
       habitId,
@@ -524,18 +593,17 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
     const updated = [...logs, newLog];
     setLogs(updated);
-    await saveLogs(updated);
-    
-    // Sync to Supabase
-    if (user) {
-      addUnitsToHabit(habitId, user.id, count, date).catch(() => {});
-    }
     
     triggerHaptic("medium");
     return true;
   }, [habits, logs, user, triggerHaptic]);
 
   const handleRemoveUnitsForDate = useCallback(async (habitId: string, count: number, date: string) => {
+    if (!user) {
+      console.error("[Units] Cannot remove units for date: user not authenticated");
+      return false;
+    }
+
     const dateLogs = logs
       .filter((l) => l.habitId === habitId && l.date === date)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -546,7 +614,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     if (totalAvailable <= 0) return false;
 
     const actualCountToRemove = Math.min(count, totalAvailable);
+    const newTotal = totalAvailable - actualCountToRemove;
 
+    // Write to Supabase first (single source of truth)
+    const { error } = await setUnitsForHabit(habitId, user.id, newTotal, date);
+    if (error) {
+      console.error("[Units] Failed to remove units for date in Supabase:", error);
+      return false;
+    }
+
+    // Update local state
     let remaining = actualCountToRemove;
     const logsToRemove: string[] = [];
     const logsToUpdate: { id: string; newCount: number }[] = [];
@@ -574,27 +651,27 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       });
 
     setLogs(updated);
-    await saveLogs(updated);
-    
-    // Sync to Supabase - set new total for the date
-    if (user) {
-      const newTotal = totalAvailable - actualCountToRemove;
-      setUnitsForHabit(habitId, user.id, newTotal, date).catch(() => {});
-    }
     
     triggerHaptic("light");
     return true;
   }, [logs, user, triggerHaptic]);
 
   const handleUndoLastAdd = useCallback(async () => {
-    if (!undoAction) return;
+    if (!undoAction || !user) return;
 
+    // Set units to the previous count in Supabase (single source of truth)
+    const { error } = await setUnitsForHabit(undoAction.habitId, user.id, 0, currentDate);
+    if (error) {
+      console.error("[Units] Failed to undo last add in Supabase:", error);
+      return;
+    }
+
+    // Update local state
     const updated = logs.filter((l) => l.id !== undoAction.logId);
     setLogs(updated);
-    await saveLogs(updated);
     setUndoAction(null);
     triggerHaptic("light");
-  }, [undoAction, logs, triggerHaptic]);
+  }, [undoAction, logs, user, currentDate, triggerHaptic]);
 
   const clearUndo = useCallback(() => {
     setUndoAction(null);
@@ -922,40 +999,52 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleAddBadHabit = useCallback(async (name: string) => {
-    const newBadHabit: BadHabit = {
-      id: generateId(),
-      name,
-      createdAt: new Date().toISOString(),
-      isArchived: false,
-    };
-    const updated = [...badHabits, newBadHabit];
-    setBadHabits(updated);
-    await saveBadHabits(updated);
-    
-    // Sync to Supabase in background
-    if (user) {
-      createDbBadHabit(user.id, name).catch(() => {});
+    if (!user) {
+      console.error("[Units] Cannot add bad habit: user not authenticated");
+      return false;
     }
+
+    // Write to Supabase first (single source of truth)
+    const { badHabit: dbBadHabit, error } = await createDbBadHabit(user.id, name);
+    if (error || !dbBadHabit) {
+      console.error("[Units] Failed to create bad habit in Supabase:", error);
+      return false;
+    }
+
+    // Update local state with the bad habit from Supabase
+    const newBadHabit = dbBadHabitToLocal(dbBadHabit);
+    setBadHabits([...badHabits, newBadHabit]);
     
     triggerHaptic("medium");
     return true;
   }, [badHabits, triggerHaptic, user]);
 
   const handleDeleteBadHabit = useCallback(async (id: string) => {
+    if (!user) {
+      console.error("[Units] Cannot delete bad habit: user not authenticated");
+      return;
+    }
+
+    // Delete from Supabase first (single source of truth)
+    const { error } = await deleteDbBadHabit(id);
+    if (error) {
+      console.error("[Units] Failed to delete bad habit from Supabase:", error);
+      return;
+    }
+
+    // Update local state
     const updated = badHabits.filter((h) => h.id !== id);
     setBadHabits(updated);
-    await saveBadHabits(updated);
     const updatedLogs = badHabitLogs.filter((l) => l.badHabitId !== id);
     setBadHabitLogs(updatedLogs);
-    await saveBadHabitLogs(updatedLogs);
-    
-    // Sync to Supabase in background
-    if (user) {
-      deleteDbBadHabit(id).catch(() => {});
-    }
   }, [badHabits, badHabitLogs, user]);
 
   const handleTapBadHabit = useCallback(async (badHabitId: string) => {
+    if (!user) {
+      console.error("[Units] Cannot tap bad habit: user not authenticated");
+      return;
+    }
+
     const today = getTodayDate();
     
     const alreadyTappedToday = badHabitLogs.some(
@@ -964,7 +1053,6 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     if (alreadyTappedToday) return;
     
     // Calculate current EFFECTIVE total (raw - existing penalties) to determine penalty
-    // This ensures each bad habit takes 10% of what's LEFT, not 10% of original raw
     const activeHabits = habits.filter((h) => !h.isArchived);
     const currentRawTotal = logs
       .filter((l) => l.date === today && activeHabits.some((h) => h.id === l.habitId))
@@ -978,24 +1066,17 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const currentEffectiveTotal = Math.max(0, currentRawTotal - existingPenalty);
     const penaltyUnits = Math.round(currentEffectiveTotal * PENALTY_PERCENT_PER_TAP);
     
-    const newLog: BadHabitLog = {
-      id: generateId(),
-      badHabitId,
-      count: 1,
-      date: today,
-      createdAt: new Date().toISOString(),
-      penaltyAdjustments: [],
-      penaltyUnits, // Store the fixed penalty captured at tap time
-      isUndone: false,
-    };
-    const updatedBadLogs = [...badHabitLogs, newLog];
-    setBadHabitLogs(updatedBadLogs);
-    await saveBadHabitLogs(updatedBadLogs);
-    
-    // Sync to Supabase in background
-    if (user) {
-      createDbBadHabitLog(user.id, badHabitId, today, penaltyUnits).catch(() => {});
+    // Write to Supabase first (single source of truth)
+    const { log: dbLog, error } = await createDbBadHabitLog(user.id, badHabitId, today, penaltyUnits);
+    if (error || !dbLog) {
+      console.error("[Units] Failed to create bad habit log in Supabase:", error);
+      return;
     }
+
+    // Update local state with the log from Supabase
+    const newLog = dbBadHabitLogToLocal(dbLog);
+    newLog.penaltyUnits = penaltyUnits;
+    setBadHabitLogs([...badHabitLogs, newLog]);
     
     if (settings.hapticsEnabled) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -1003,22 +1084,29 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [badHabitLogs, settings.hapticsEnabled, habits, logs, user]);
 
   const handleUndoBadHabitTap = useCallback(async (badHabitId: string): Promise<boolean> => {
+    if (!user) {
+      console.error("[Units] Cannot undo bad habit tap: user not authenticated");
+      return false;
+    }
+
     const today = getTodayDate();
     const todayLog = badHabitLogs.find(
       (l) => l.badHabitId === badHabitId && l.date === today && !l.isUndone
     );
     if (!todayLog) return false;
     
+    // Write to Supabase first (single source of truth)
+    const { error } = await undoDbBadHabitLog(todayLog.id);
+    if (error) {
+      console.error("[Units] Failed to undo bad habit log in Supabase:", error);
+      return false;
+    }
+
+    // Update local state
     const updatedBadLogs = badHabitLogs.map((l) =>
       l.id === todayLog.id ? { ...l, isUndone: true } : l
     );
     setBadHabitLogs(updatedBadLogs);
-    await saveBadHabitLogs(updatedBadLogs);
-    
-    // Sync to Supabase in background
-    if (user) {
-      undoDbBadHabitLog(todayLog.id).catch(() => {});
-    }
     
     if (settings.hapticsEnabled) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1027,13 +1115,17 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
   }, [badHabitLogs, settings.hapticsEnabled, user]);
 
   const handleTapBadHabitForDate = useCallback(async (badHabitId: string, date: string) => {
+    if (!user) {
+      console.error("[Units] Cannot tap bad habit for date: user not authenticated");
+      return;
+    }
+
     const alreadyTapped = badHabitLogs.some(
       (l) => l.badHabitId === badHabitId && l.date === date && !l.isUndone
     );
     if (alreadyTapped) return;
     
     // Calculate EFFECTIVE total for that date (raw - existing penalties) to determine penalty
-    // This ensures each bad habit takes 10% of what's LEFT, not 10% of original raw
     const activeHabits = habits.filter((h) => !h.isArchived);
     const dateRawTotal = logs
       .filter((l) => l.date === date && activeHabits.some((h) => h.id === l.habitId))
@@ -1047,42 +1139,42 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     const currentEffectiveTotal = Math.max(0, dateRawTotal - existingPenalty);
     const penaltyUnits = Math.round(currentEffectiveTotal * PENALTY_PERCENT_PER_TAP);
     
-    const newLog: BadHabitLog = {
-      id: generateId(),
-      badHabitId,
-      count: 1,
-      date,
-      createdAt: new Date().toISOString(),
-      penaltyAdjustments: [],
-      penaltyUnits, // Store the fixed penalty captured at tap time
-      isUndone: false,
-    };
-    const updatedBadLogs = [...badHabitLogs, newLog];
-    setBadHabitLogs(updatedBadLogs);
-    await saveBadHabitLogs(updatedBadLogs);
-    
-    // Sync to Supabase in background
-    if (user) {
-      createDbBadHabitLog(user.id, badHabitId, date, penaltyUnits).catch(() => {});
+    // Write to Supabase first (single source of truth)
+    const { log: dbLog, error } = await createDbBadHabitLog(user.id, badHabitId, date, penaltyUnits);
+    if (error || !dbLog) {
+      console.error("[Units] Failed to create bad habit log for date in Supabase:", error);
+      return;
     }
+
+    // Update local state with the log from Supabase
+    const newLog = dbBadHabitLogToLocal(dbLog);
+    newLog.penaltyUnits = penaltyUnits;
+    setBadHabitLogs([...badHabitLogs, newLog]);
   }, [badHabitLogs, habits, logs, user]);
 
   const handleUndoBadHabitTapForDate = useCallback(async (badHabitId: string, date: string): Promise<boolean> => {
+    if (!user) {
+      console.error("[Units] Cannot undo bad habit tap for date: user not authenticated");
+      return false;
+    }
+
     const dateLog = badHabitLogs.find(
       (l) => l.badHabitId === badHabitId && l.date === date && !l.isUndone
     );
     if (!dateLog) return false;
     
+    // Write to Supabase first (single source of truth)
+    const { error } = await undoDbBadHabitLog(dateLog.id);
+    if (error) {
+      console.error("[Units] Failed to undo bad habit log for date in Supabase:", error);
+      return false;
+    }
+
+    // Update local state
     const updatedBadLogs = badHabitLogs.map((l) =>
       l.id === dateLog.id ? { ...l, isUndone: true } : l
     );
     setBadHabitLogs(updatedBadLogs);
-    await saveBadHabitLogs(updatedBadLogs);
-    
-    // Sync to Supabase in background
-    if (user) {
-      undoDbBadHabitLog(dateLog.id).catch(() => {});
-    }
     
     return true;
   }, [badHabitLogs, user]);
