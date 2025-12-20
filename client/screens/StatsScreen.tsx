@@ -160,10 +160,10 @@ export default function StatsScreen() {
       if (dayStats.totalGoal > 0) {
         trackedDays++;
         
-        // Each day's contribution = (effective units / goal) / 100
-        // This means 100% progress = +1%, 50% = +0.5%, 200% = +2%
+        // Each day's contribution = effective units / goal
+        // This means 100% progress = +1, 50% = +0.5, 200% = +2
         const dayProgress = dayStats.total / dayStats.totalGoal;
-        cumulativeScore += dayProgress / 100;
+        cumulativeScore += dayProgress;
         
         if (dayStats.isGoodDay) goodDays++;
       }
