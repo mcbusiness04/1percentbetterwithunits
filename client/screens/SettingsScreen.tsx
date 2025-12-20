@@ -11,6 +11,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { SettingsRow } from "@/components/SettingsRow";
 import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
+import { useStoreKit } from "@/hooks/useStoreKit";
 import { clearAllData } from "@/lib/storage";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
@@ -22,10 +23,12 @@ export default function SettingsScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const navigation = useNavigation<NavigationProp>();
-  const { settings, updateSettings, refreshData, resetOnboarding } = useUnits();
+  const { settings, updateSettings, refreshData, resetOnboarding, setIsPro } = useUnits();
   const { user, signOut, isPremium } = useAuth();
+  const { restore, purchasing, iapAvailable } = useStoreKit();
   const [eraseText, setEraseText] = useState("");
   const [showEraseInput, setShowEraseInput] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const handleHapticsToggle = useCallback(
     (value: boolean) => {
@@ -37,10 +40,45 @@ export default function SettingsScreen() {
   const handleManageSubscription = useCallback(() => {
     if (Platform.OS === "ios") {
       Linking.openURL("https://apps.apple.com/account/subscriptions");
-    } else {
+    } else if (Platform.OS === "android") {
       Linking.openURL("https://play.google.com/store/account/subscriptions");
+    } else {
+      Alert.alert("Not Available", "Subscription management is only available on iOS.");
     }
   }, []);
+
+  const handleRestorePurchases = useCallback(async () => {
+    if (Platform.OS === "web") {
+      Alert.alert("Not Available", "Restore purchases is only available on iOS.");
+      return;
+    }
+
+    if (!iapAvailable) {
+      Alert.alert(
+        "Not Available",
+        "Restore purchases requires a development or production build."
+      );
+      return;
+    }
+
+    setRestoring(true);
+    try {
+      const result = await restore(user?.id);
+      
+      if (result.success && result.hasPremium) {
+        await setIsPro(true);
+        Alert.alert("Restored", "Your subscription has been restored successfully.");
+      } else if (result.success && !result.hasPremium) {
+        Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
+      } else if (result.error) {
+        Alert.alert("Restore Failed", result.error);
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to restore purchases. Please try again.");
+    } finally {
+      setRestoring(false);
+    }
+  }, [iapAvailable, restore, user?.id, setIsPro]);
 
   const handleEraseAllData = useCallback(async () => {
     if (eraseText === "ERASE") {
@@ -126,8 +164,15 @@ export default function SettingsScreen() {
           Subscription
         </ThemedText>
         <SettingsRow
+          icon="refresh-cw"
+          title="Restore Purchases"
+          subtitle={restoring || purchasing ? "Restoring..." : undefined}
+          onPress={restoring || purchasing ? undefined : handleRestorePurchases}
+        />
+        <SettingsRow
           icon="credit-card"
           title="Manage Subscription"
+          subtitle="Opens App Store"
           onPress={handleManageSubscription}
         />
       </View>
@@ -246,25 +291,9 @@ export default function SettingsScreen() {
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Legal
         </ThemedText>
+        <SettingsRow icon="file-text" title="Terms of Use" onPress={handleTerms} />
         <SettingsRow icon="shield" title="Privacy Policy" onPress={handlePrivacyPolicy} />
-        <SettingsRow icon="file-text" title="Terms of Service" onPress={handleTerms} />
         <SettingsRow icon="mail" title="Contact Support" onPress={handleContactSupport} />
-      </View>
-
-      <View style={styles.section}>
-        <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-          Developer
-        </ThemedText>
-        <SettingsRow
-          icon="refresh-cw"
-          title="Reset Onboarding"
-          subtitle="View onboarding flow again"
-          onPress={async () => {
-            await resetOnboarding();
-            await refreshData();
-            Alert.alert("Reset", "Please restart the app to see the onboarding.");
-          }}
-        />
       </View>
 
       <View style={styles.footer}>
