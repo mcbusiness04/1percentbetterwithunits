@@ -1080,13 +1080,21 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
     }
     
     // PROGRESS % = based on EFFECTIVE work toward goals
-    const rawPercent = totalGoal > 0 ? (rawTotalUnits / totalGoal) * 100 : 0;
-    const effectivePercent = totalGoal > 0 ? (effectiveTotalUnits / totalGoal) * 100 : 0;
+    // For 0-100% progress, cap each habit's contribution at its goal (no overages)
+    // This ensures 23/20 + 18/20 = 95% (not 102.5%) because second habit hasn't met goal
+    let cappedEffectiveTotal = 0;
+    for (const habit of activeHabits) {
+      const effectiveUnits = effectiveUnitsPerHabit[habit.id] || 0;
+      cappedEffectiveTotal += Math.min(effectiveUnits, habit.dailyGoal);
+    }
     
-    // Cap at 100% for progress display until ALL goals are met
+    const rawPercent = totalGoal > 0 ? (rawTotalUnits / totalGoal) * 100 : 0;
+    const cappedPercent = totalGoal > 0 ? (cappedEffectiveTotal / totalGoal) * 100 : 0;
+    
+    // Use capped % until ALL goals met, then show actual effective %
     const finalPercent = allGoalsMetEffective 
-      ? Math.round(effectivePercent * 10) / 10 
-      : Math.min(100, Math.round(effectivePercent * 10) / 10);
+      ? Math.round((effectiveTotalUnits / totalGoal) * 100 * 10) / 10 
+      : Math.round(cappedPercent * 10) / 10;
     
     // IMPROVEMENT %: 
     // - Before ALL goals met: show 0-100%
