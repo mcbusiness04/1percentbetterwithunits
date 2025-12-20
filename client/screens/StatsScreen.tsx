@@ -123,19 +123,20 @@ export default function StatsScreen() {
     const improvementPercent = progress.improvementPercent;
     const hasBadHabits = progress.hasBadHabits;
     
-    // Format the display percentage - always show sign
-    const roundedValue = Math.round(improvementPercent * 100) / 100;
-    const absValue = Math.abs(roundedValue);
+    // Format the display percentage - show real-time updates with decimals
+    // Round to 1 decimal place for display
+    const roundedValue = Math.round(improvementPercent * 10) / 10;
     let displayPercent: string;
-    const sign = "+";
-    if (absValue === 0) {
+    const sign = roundedValue >= 0 ? "+" : "";
+    
+    // Always show 1 decimal place for real-time feedback (e.g., +0.5, +1.2, -0.3)
+    // Only drop decimal for exact whole numbers to keep display clean
+    if (roundedValue === 0) {
       displayPercent = "+0";
-    } else if (absValue === Math.floor(absValue)) {
+    } else if (Number.isInteger(roundedValue)) {
       displayPercent = sign + roundedValue.toFixed(0);
-    } else if (absValue < 1) {
-      displayPercent = sign + roundedValue.toFixed(1);
     } else {
-      displayPercent = sign + roundedValue.toFixed(1).replace(/\.0$/, "");
+      displayPercent = sign + roundedValue.toFixed(1);
     }
     
     // isPositive is false when there are bad habits (shows red)
