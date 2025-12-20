@@ -42,6 +42,22 @@ export default function StatsScreen() {
     [habits]
   );
 
+  // Find the earliest habit or bad habit creation date (account start date for period calculations)
+  const accountStartDate = useMemo(() => {
+    const allCreatedDates: string[] = [];
+    
+    // Include all habits (including archived) for accurate period tracking
+    habits.forEach((h) => allCreatedDates.push(getLocalDateFromISO(h.createdAt)));
+    
+    // Include all bad habits (including archived) for accurate period tracking  
+    badHabits.forEach((bh) => allCreatedDates.push(getLocalDateFromISO(bh.createdAt)));
+    
+    if (allCreatedDates.length === 0) return currentDate;
+    
+    allCreatedDates.sort();
+    return allCreatedDates[0];
+  }, [habits, badHabits, currentDate]);
+
   const getDateString = useCallback((daysAgo: number) => {
     const [year, month, day] = currentDate.split("-").map(Number);
     const date = new Date(year, month - 1, day);
@@ -211,32 +227,94 @@ export default function StatsScreen() {
     return { displayPercent, isPositive, message, goodDays, trackedDays, hasBadHabits };
   }, [getDailyProgress, getDayStats, logs, badHabitLogs, currentDate, activeHabits, badHabits]);
 
+  // Helper to calculate days between two date strings
+  const daysBetween = useCallback((startDateStr: string, endDateStr: string): number => {
+    const [sy, sm, sd] = startDateStr.split("-").map(Number);
+    const [ey, em, ed] = endDateStr.split("-").map(Number);
+    const start = new Date(sy, sm - 1, sd);
+    const end = new Date(ey, em - 1, ed);
+    return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  }, []);
+
+  // Helper to add days to a date string
+  const addDaysToDate = useCallback((dateStr: string, daysToAdd: number): string => {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    date.setDate(date.getDate() + daysToAdd);
+    const ny = date.getFullYear();
+    const nm = String(date.getMonth() + 1).padStart(2, "0");
+    const nd = String(date.getDate()).padStart(2, "0");
+    return `${ny}-${nm}-${nd}`;
+  }, []);
+
   const trendData = useMemo(() => {
-    const days = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;
-    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean; hasStarted: boolean; dateStr: string }[] = [];
+    const periodLength = timeRange === "week" ? 7 : timeRange === "month" ? 28 : 365;
+    const data: { isGood: boolean; total: number; goal: number; allGoalsMet: boolean; hadBadHabits: boolean; hasStarted: boolean; dateStr: string; isFuture: boolean; isEmpty: boolean }[] = [];
     
-    for (let i = days - 1; i >= 0; i--) {
-      const dateStr = getDateString(i);
-      const stats = getDayStats(dateStr);
-      const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
-      data.push({
-        isGood: stats.isGoodDay,
-        total: stats.total,
-        goal: stats.totalGoal,
-        allGoalsMet: stats.allGoalsMet,
-        hadBadHabits: dayBadLogs.length > 0,
-        hasStarted: stats.total > 0,
-        dateStr,
-      });
+    // Calculate days since account start
+    const daysSinceStart = daysBetween(accountStartDate, currentDate);
+    
+    // Determine which period we're in (0-indexed) and day within that period
+    const currentPeriodIndex = Math.floor(daysSinceStart / periodLength);
+    const dayInPeriod = daysSinceStart % periodLength; // 0 = first day of period
+    
+    // Calculate the start date of the current period
+    const periodStartDate = addDaysToDate(accountStartDate, currentPeriodIndex * periodLength);
+    
+    // Build data for each day in the period
+    for (let i = 0; i < periodLength; i++) {
+      const dateStr = addDaysToDate(periodStartDate, i);
+      const isFuture = i > dayInPeriod; // Days after today in this period
+      
+      if (isFuture) {
+        // Future days in the current period - show as empty placeholder
+        data.push({
+          isGood: false,
+          total: 0,
+          goal: 0,
+          allGoalsMet: false,
+          hadBadHabits: false,
+          hasStarted: false,
+          dateStr,
+          isFuture: true,
+          isEmpty: true, // Future days are always empty
+        });
+      } else {
+        // Past days or today - check if there's any actual activity
+        const stats = getDayStats(dateStr);
+        const dayBadLogs = badHabitLogs.filter((l) => l.date === dateStr && !l.isUndone);
+        
+        // Check if there are any logs (positive or negative) for this day
+        const dayHasLogs = logs.some((l) => l.date === dateStr);
+        const dayHasBadLogs = dayBadLogs.length > 0;
+        
+        // A day is "empty" (no activity) if no one logged any units AND no bad habits were tapped
+        // Even if habits exist with goals, if no one worked on them, show as empty
+        const hasNoActivity = !dayHasLogs && !dayHasBadLogs;
+        
+        data.push({
+          isGood: stats.isGoodDay,
+          total: stats.total,
+          goal: stats.totalGoal,
+          allGoalsMet: stats.allGoalsMet,
+          hadBadHabits: dayHasBadLogs,
+          hasStarted: stats.total > 0,
+          dateStr,
+          isFuture: false,
+          isEmpty: hasNoActivity, // Empty if no actual work or bad habits logged
+        });
+      }
     }
     
-    const goodDays = data.filter(d => d.isGood).length;
-    const totalDays = data.filter(d => d.goal > 0).length;
+    // Only count non-empty days for stats
+    const activeDays = data.filter(d => !d.isEmpty);
+    const goodDays = activeDays.filter(d => d.isGood).length;
+    const totalDays = activeDays.filter(d => d.goal > 0).length;
     const successRate = totalDays > 0 ? Math.round((goodDays / totalDays) * 100) : 0;
-    const totalUnits = data.reduce((sum, d) => sum + d.total, 0);
+    const totalUnits = activeDays.reduce((sum, d) => sum + d.total, 0);
     
-    return { data, goodDays, totalDays, successRate, totalUnits };
-  }, [timeRange, getDayStats, getDateString, badHabitLogs]);
+    return { data, goodDays, totalDays, successRate, totalUnits, periodStartDate, dayInPeriod };
+  }, [timeRange, getDayStats, badHabitLogs, logs, accountStartDate, currentDate, daysBetween, addDaysToDate]);
 
   const habitStats = useMemo(() => {
     const now = new Date();
@@ -429,9 +507,11 @@ export default function StatsScreen() {
           timeRange === "year" && styles.heatmapYear,
         ]}>
           {trendData.data.map((day, i) => {
-            const isToday = i === trendData.data.length - 1;
-            let bgColor = theme.textSecondary + "20";
-            if (day.goal > 0) {
+            const isToday = day.dateStr === currentDate;
+            let bgColor = theme.textSecondary + "20"; // Default empty color
+            
+            // Only show colored data for non-empty days with actual goals/data
+            if (!day.isEmpty && day.goal > 0) {
               if (day.hadBadHabits) {
                 bgColor = RED;
               } else if (day.allGoalsMet) {
@@ -440,10 +520,12 @@ export default function StatsScreen() {
                 bgColor = YELLOW;
               }
             }
+            
             return (
               <Pressable
                 key={i}
-                onPress={() => setSelectedDate(day.dateStr)}
+                onPress={() => !day.isFuture ? setSelectedDate(day.dateStr) : null}
+                disabled={day.isFuture}
                 style={[
                   timeRange === "week" ? styles.weekSquare : 
                   timeRange === "month" ? styles.monthSquare : styles.yearSquare,
@@ -451,6 +533,9 @@ export default function StatsScreen() {
                   isToday && {
                     borderWidth: 2,
                     borderColor: theme.text,
+                  },
+                  day.isEmpty && {
+                    opacity: 0.3,
                   },
                 ]}
               />
