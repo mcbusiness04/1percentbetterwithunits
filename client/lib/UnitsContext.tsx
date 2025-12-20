@@ -300,8 +300,17 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
           fetchDbBadHabitLogs(user.id),
         ]);
 
+        // Handle table not found errors gracefully (tables may not exist yet)
+        const isTableNotFoundError = (error: string) => 
+          error?.includes("Could not find") || error?.includes("does not exist");
+
         if (habitsResult.error) {
-          console.error("[Units] Error fetching habits from Supabase:", habitsResult.error);
+          if (isTableNotFoundError(habitsResult.error)) {
+            console.log("[Units] Habits table not found - using empty data");
+          } else {
+            console.warn("[Units] Error fetching habits:", habitsResult.error);
+          }
+          setHabits([]);
         } else {
           const localHabits = habitsResult.habits.map(dbHabitToLocal);
           setHabits(localHabits);
@@ -309,7 +318,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         }
 
         if (logsResult.error) {
-          console.error("[Units] Error fetching logs from Supabase:", logsResult.error);
+          if (isTableNotFoundError(logsResult.error)) {
+            console.log("[Units] Habit logs table not found - using empty data");
+          } else {
+            console.warn("[Units] Error fetching logs:", logsResult.error);
+          }
+          setLogs([]);
         } else {
           const localLogs = logsResult.logs.map(dbLogToLocal);
           setLogs(localLogs);
@@ -317,7 +331,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         }
 
         if (badHabitsResult.error) {
-          console.error("[Units] Error fetching bad habits from Supabase:", badHabitsResult.error);
+          if (isTableNotFoundError(badHabitsResult.error)) {
+            console.log("[Units] Bad habits table not found - using empty data");
+          } else {
+            console.warn("[Units] Error fetching bad habits:", badHabitsResult.error);
+          }
+          setBadHabits([]);
         } else {
           const localBadHabits = badHabitsResult.badHabits.map(dbBadHabitToLocal);
           setBadHabits(localBadHabits);
@@ -325,7 +344,12 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         }
 
         if (badHabitLogsResult.error) {
-          console.error("[Units] Error fetching bad habit logs from Supabase:", badHabitLogsResult.error);
+          if (isTableNotFoundError(badHabitLogsResult.error)) {
+            console.log("[Units] Bad habit logs table not found - using empty data");
+          } else {
+            console.warn("[Units] Error fetching bad habit logs:", badHabitLogsResult.error);
+          }
+          setBadHabitLogs([]);
         } else {
           const localBadHabitLogs = badHabitLogsResult.logs.map(dbBadHabitLogToLocal);
           setBadHabitLogs(localBadHabitLogs);

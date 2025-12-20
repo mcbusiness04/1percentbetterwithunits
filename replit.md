@@ -50,5 +50,8 @@ The following development-only code must be removed before submitting to TestFli
 - **Lines 656-659**: DevSkipButton usage in paywall step
 - **Lines ~955-964**: `devButton` style in StyleSheet
 
+### client/navigation/RootStackNavigator.tsx
+- **Line ~139**: Dev bypass for test account `rappacarlos1@gmail.com` - remove the `isDevBypass` check
+
 ### supabase/migrations/001_create_tables.sql
 - Run this SQL in your Supabase SQL Editor to create the required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions)

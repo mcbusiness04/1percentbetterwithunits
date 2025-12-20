@@ -93,7 +93,18 @@ export default function PaywallScreen() {
     Linking.openURL("https://example.com/terms");
   }, []);
 
+  const isSubscriptionRequired = reason === "subscription_required";
   const isFromOnboarding = reason === "onboarding";
+
+  const getSubtitle = () => {
+    if (isSubscriptionRequired) {
+      return "Your subscription is required to continue using Units. Please subscribe or restore your purchase.";
+    }
+    if (isFromOnboarding) {
+      return "Start your journey to better habits with Units";
+    }
+    return "Get unlimited access to track every habit, every day";
+  };
 
   return (
     <View
@@ -107,18 +118,16 @@ export default function PaywallScreen() {
       ]}
     >
       <Animated.View entering={FadeIn} style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: theme.accent + "20" }]}>
-          <Feather name="star" size={48} color={theme.accent} />
+        <View style={[styles.iconContainer, { backgroundColor: isSubscriptionRequired ? theme.warning + "20" : theme.accent + "20" }]}>
+          <Feather name={isSubscriptionRequired ? "alert-circle" : "star"} size={48} color={isSubscriptionRequired ? theme.warning : theme.accent} />
         </View>
 
         <ThemedText type="h2" style={styles.title}>
-          Unlock Your{"\n"}Full Potential
+          {isSubscriptionRequired ? "Subscription\nRequired" : "Unlock Your\nFull Potential"}
         </ThemedText>
 
         <ThemedText type="body" style={[styles.subtitle, { color: theme.textSecondary }]}>
-          {isFromOnboarding
-            ? "Start your journey to better habits with Units"
-            : "Get unlimited access to track every habit, every day"}
+          {getSubtitle()}
         </ThemedText>
 
         <Animated.View entering={FadeInUp.delay(100)} style={styles.features}>
