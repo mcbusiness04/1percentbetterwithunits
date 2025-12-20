@@ -10,9 +10,10 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
+import { useAuth } from "@/lib/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useStoreKit } from "@/hooks/useStoreKit";
-import { PRODUCT_IDS } from "@/lib/storekit";
+import { PRODUCT_IDS, validatePremiumAccess } from "@/lib/storekit";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -31,10 +32,13 @@ export default function PaywallScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ScreenRouteProp>();
   const { setIsPro } = useUnits();
+  const { user, signOut } = useAuth();
   const { products, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
   const reason = route.params?.reason ?? "onboarding";
 
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
+  const [restoring, setRestoring] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const monthlyProduct = getProductByType("monthly");
   const yearlyProduct = getProductByType("yearly");
@@ -43,47 +47,102 @@ export default function PaywallScreen() {
     const productId = selectedPlan === "annual" ? PRODUCT_IDS.YEARLY : PRODUCT_IDS.MONTHLY;
     
     if (Platform.OS === "web" || !iapAvailable) {
+      // Web/dev bypass - set isPro directly
       await setIsPro(true);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      }
       return;
     }
 
-    const result = await purchase(productId);
+    const result = await purchase(productId, user?.id);
     
     if (result.success) {
-      await setIsPro(true);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
+      // After successful purchase, validate with server to confirm subscription
+      if (user?.id) {
+        const isValid = await validatePremiumAccess(user.id);
+        if (isValid) {
+          await setIsPro(true);
+        } else {
+          // Purchase succeeded but server validation failed
+          // Show error - user should try restore or contact support
+          Alert.alert(
+            "Verification Issue",
+            "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases' or contact support if the issue persists."
+          );
+          // Don't set isPro - validation failed
+        }
+      } else {
+        // No user yet, set premium optimistically (will be validated after auth)
+        await setIsPro(true);
       }
     } else if (result.error && !result.error.includes("cancelled")) {
       Alert.alert("Purchase Failed", result.error);
     }
-  }, [selectedPlan, iapAvailable, purchase, setIsPro, navigation]);
+  }, [selectedPlan, iapAvailable, purchase, setIsPro, user?.id]);
 
   const handleRestorePurchases = useCallback(async () => {
     if (Platform.OS === "web" || !iapAvailable) {
+      // Web/dev bypass - set isPro directly
       await setIsPro(true);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-      }
       return;
     }
 
-    const result = await restore();
-    
-    if (result.success && result.hasPremium) {
-      await setIsPro(true);
-      if (navigation.canGoBack()) {
-        navigation.goBack();
+    setRestoring(true);
+    try {
+      const result = await restore(user?.id);
+      
+      if (result.success && result.hasPremium) {
+        // After successful restore, validate with server to confirm subscription
+        if (user?.id) {
+          const isValid = await validatePremiumAccess(user.id);
+          if (isValid) {
+            await setIsPro(true);
+            Alert.alert("Restored", "Your subscription has been restored successfully.");
+          } else {
+            // Restore found purchases but server validation failed
+            // This could mean subscription expired - don't grant access
+            Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
+          }
+        } else {
+          // No user yet, set premium optimistically (will be validated after auth)
+          await setIsPro(true);
+          Alert.alert("Restored", "Your subscription has been restored successfully.");
+        }
+      } else if (result.success && !result.hasPremium) {
+        Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
+      } else if (result.error) {
+        Alert.alert("Restore Failed", result.error);
       }
-    } else if (result.success && !result.hasPremium) {
-      Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
-    } else if (result.error) {
-      Alert.alert("Restore Failed", result.error);
+    } catch (error) {
+      Alert.alert("Error", "Failed to restore purchases. Please try again.");
+    } finally {
+      setRestoring(false);
     }
-  }, [iapAvailable, restore, setIsPro, navigation]);
+  }, [iapAvailable, restore, setIsPro, user?.id]);
+
+  const handleSignIn = useCallback(() => {
+    navigation.navigate("Auth", { fromPaywall: true });
+  }, [navigation]);
+
+  const handleLogout = useCallback(async () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Sign Out",
+          style: "destructive",
+          onPress: async () => {
+            setSigningOut(true);
+            try {
+              await signOut();
+            } finally {
+              setSigningOut(false);
+            }
+          },
+        },
+      ]
+    );
+  }, [signOut]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://example.com/privacy");
@@ -94,16 +153,15 @@ export default function PaywallScreen() {
   }, []);
 
   const isSubscriptionRequired = reason === "subscription_required";
-  const isFromOnboarding = reason === "onboarding";
 
   const getSubtitle = () => {
+    if (user) {
+      return `Signed in as ${user.email}. Subscribe to continue using Units.`;
+    }
     if (isSubscriptionRequired) {
       return "Your subscription is required to continue using Units. Please subscribe or restore your purchase.";
     }
-    if (isFromOnboarding) {
-      return "Start your journey to better habits with Units";
-    }
-    return "Get unlimited access to track every habit, every day";
+    return "Start your journey to better habits with Units";
   };
 
   return (
@@ -212,13 +270,37 @@ export default function PaywallScreen() {
       </Animated.View>
 
       <View style={styles.footer}>
-        <Button onPress={handleSubscribe} disabled={purchasing}>
+        <Button onPress={handleSubscribe} disabled={purchasing || restoring || signingOut}>
           {purchasing 
             ? "Processing..." 
             : selectedPlan === "annual" 
               ? `Start for ${yearlyProduct?.price || "$19.99"}/year` 
               : `Start for ${monthlyProduct?.price || "$4.99"}/month`}
         </Button>
+
+        <View style={styles.actionRow}>
+          <Pressable onPress={handleRestorePurchases} disabled={restoring || purchasing || signingOut}>
+            <ThemedText type="body" style={[styles.actionText, { color: restoring ? theme.textSecondary : theme.accent }]}>
+              {restoring ? "Restoring..." : "Restore Purchases"}
+            </ThemedText>
+          </Pressable>
+        </View>
+
+        <View style={styles.actionRow}>
+          {user ? (
+            <Pressable onPress={handleLogout} disabled={signingOut || purchasing || restoring}>
+              <ThemedText type="body" style={[styles.actionText, { color: signingOut ? theme.textSecondary : theme.warning }]}>
+                {signingOut ? "Signing Out..." : "Sign Out"}
+              </ThemedText>
+            </Pressable>
+          ) : (
+            <Pressable onPress={handleSignIn} disabled={purchasing || restoring}>
+              <ThemedText type="body" style={[styles.actionText, { color: theme.accent }]}>
+                Already subscribed? Sign In
+              </ThemedText>
+            </Pressable>
+          )}
+        </View>
 
         <View style={styles.legalRow}>
           <Pressable onPress={handleTerms}>
@@ -230,12 +312,6 @@ export default function PaywallScreen() {
           <Pressable onPress={handlePrivacy}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Privacy
-            </ThemedText>
-          </Pressable>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
-          <Pressable onPress={handleRestorePurchases}>
-            <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Restore
             </ThemedText>
           </Pressable>
         </View>
@@ -335,6 +411,12 @@ const styles = StyleSheet.create({
   footer: {
     paddingTop: Spacing.lg,
     gap: Spacing.md,
+  },
+  actionRow: {
+    alignItems: "center",
+  },
+  actionText: {
+    fontWeight: "600",
   },
   legalRow: {
     flexDirection: "row",

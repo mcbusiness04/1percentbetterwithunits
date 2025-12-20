@@ -3,24 +3,23 @@
  * ROOT STACK NAVIGATOR - CENTRALIZED APP GATING
  * ============================================================================
  * 
- * This component controls the entire app flow and enforces the paywall gate.
+ * FLOW (strict paywall enforcement):
+ * 1. First launch → Onboarding (shown once, never again)
+ * 2. After onboarding → Paywall (HARD GATE - no skip/dismiss/back)
+ *    - From paywall: Purchase, Restore, Sign In, Log Out
+ * 3. If active subscription → Main app
  * 
- * FLOW:
- * 1. First launch → Onboarding (with HARD PAYWALL at final step)
- * 2. After purchase → Auth screen (sign up / log in)
- * 3. After auth → Premium validation check (uses isPro as single source of truth)
- * 4. If premium valid → Main app
- * 
- * SINGLE SOURCE OF TRUTH: isPro
- * - Onboarding sets isPro = true when purchase succeeds
- * - validatePremiumAccess updates isPro via storage
- * - If isPro is false after auth, show paywall
+ * SUBSCRIPTION CHECKS occur on:
+ * - App launch
+ * - App resume  
+ * - Login
+ * - Restore purchases
  * 
  * ============================================================================
  */
 
-import React, { useEffect, useState, useCallback } from "react";
-import { View, ActivityIndicator } from "react-native";
+import React, { useEffect, useState, useCallback, useRef } from "react";
+import { View, ActivityIndicator, AppState, AppStateStatus } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import NewHabitScreen from "@/screens/NewHabitScreen";
@@ -35,7 +34,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { validatePremiumAccess } from "@/lib/storekit";
 
 export type RootStackParamList = {
-  Auth: undefined;
+  Auth: { fromPaywall?: boolean };
   Main: undefined;
   Onboarding: undefined;
   NewHabit: undefined;
@@ -47,71 +46,89 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
-  const { hasCompletedOnboarding, isPro, setIsPro, loading: unitsLoading } = useUnits();
+  const { hasCompletedOnboarding, isPro, setIsPro, loading: unitsLoading, clearAllHabitData } = useUnits();
   const { session, user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   
-  // Validation state - only tracks if we've attempted validation this session
-  const [hasValidated, setHasValidated] = useState(false);
+  // Validation state
   const [validating, setValidating] = useState(false);
-  const [validationRetries, setValidationRetries] = useState(0);
-  const MAX_RETRIES = 3;
+  const [initialValidationDone, setInitialValidationDone] = useState(false);
+  const lastUserId = useRef<string | null>(null);
+  const appState = useRef(AppState.currentState);
 
-  // Run premium validation when user is authenticated but isPro is false
-  const runValidation = useCallback(async () => {
-    if (!user || isPro || hasValidated || validating) {
-      return;
-    }
-    
-    if (validationRetries >= MAX_RETRIES) {
-      // Max retries reached - mark as validated to stop trying
-      // User will see paywall but can use restore button
-      console.log("[RootStack] Max validation retries reached - showing paywall");
-      setHasValidated(true);
-      return;
-    }
+  // Run premium validation
+  const runValidation = useCallback(async (userId: string, reason: string) => {
+    if (validating) return;
     
     setValidating(true);
-    console.log("[RootStack] Running premium validation for user:", user.id, "attempt:", validationRetries + 1);
+    console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId);
     
     try {
-      const isValid = await validatePremiumAccess(user.id);
+      const isValid = await validatePremiumAccess(userId);
       
       if (isValid) {
-        // validatePremiumAccess already updates local storage, but also update context
         await setIsPro(true);
-        console.log("[RootStack] Premium validated successfully - user has active subscription");
+        console.log("[RootStack] Premium validated - user has active subscription");
       } else {
-        console.log("[RootStack] No valid subscription found - will show paywall");
+        await setIsPro(false);
+        console.log("[RootStack] No valid subscription - showing paywall");
       }
-      // Only mark validated on success (valid or not valid) - NOT on errors
-      setHasValidated(true);
     } catch (error) {
-      // On network error, increment retry count but don't block
-      // This allows a few retries before showing paywall
-      console.log("[RootStack] Premium validation error (will retry):", error);
-      setValidationRetries((prev) => prev + 1);
+      console.log("[RootStack] Premium validation error:", error);
+      // On error, don't change isPro state - will show paywall if isPro is false
     }
     
     setValidating(false);
-  }, [user, isPro, hasValidated, validating, validationRetries, setIsPro]);
+  }, [validating, setIsPro]);
 
-  // Trigger validation when conditions are right
+  // Subscription check on app launch (when user is authenticated)
   useEffect(() => {
-    if (user && hasCompletedOnboarding && !isPro && !hasValidated && !validating) {
-      runValidation();
+    if (user && hasCompletedOnboarding && !initialValidationDone) {
+      runValidation(user.id, "app_launch");
+      setInitialValidationDone(true);
     }
-  }, [user, hasCompletedOnboarding, isPro, hasValidated, validating, runValidation]);
+  }, [user, hasCompletedOnboarding, initialValidationDone, runValidation]);
 
-  // Reset validation state when user changes
+  // Subscription check on login (when user changes)
   useEffect(() => {
+    if (user && lastUserId.current !== user.id) {
+      // Clear previous user's data if switching accounts
+      if (lastUserId.current !== null) {
+        console.log("[RootStack] Account switch detected - clearing previous data");
+        clearAllHabitData();
+      }
+      lastUserId.current = user.id;
+      
+      if (hasCompletedOnboarding) {
+        runValidation(user.id, "login");
+      }
+    }
+    
     if (!user) {
-      setHasValidated(false);
-      setValidationRetries(0);
+      lastUserId.current = null;
+      setInitialValidationDone(false);
     }
-  }, [user]);
+  }, [user, hasCompletedOnboarding, runValidation, clearAllHabitData]);
 
-  const loading = unitsLoading || authLoading || validating;
+  // Subscription check on app resume
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === "active" &&
+        user &&
+        hasCompletedOnboarding
+      ) {
+        runValidation(user.id, "app_resume");
+      }
+      appState.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener("change", handleAppStateChange);
+    return () => subscription.remove();
+  }, [user, hasCompletedOnboarding, runValidation]);
+
+  const loading = unitsLoading || authLoading;
 
   if (loading) {
     return (
@@ -121,10 +138,18 @@ export default function RootStackNavigator() {
     );
   }
 
+  // Show validating spinner only on initial validation
+  if (validating && !initialValidationDone) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.backgroundRoot }}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
+    );
+  }
+
   // ============================================================================
-  // GATE 1: ONBOARDING (includes HARD PAYWALL as final step)
+  // GATE 1: ONBOARDING (first install only, never shown again)
   // ============================================================================
-  // First-time users must complete onboarding AND purchase to proceed.
   if (!hasCompletedOnboarding) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
@@ -141,9 +166,42 @@ export default function RootStackNavigator() {
   }
 
   // ============================================================================
-  // GATE 2: AUTHENTICATION (after onboarding/purchase)
+  // GATE 2: PREMIUM VALIDATION (HARD GATE - must have active subscription)
   // ============================================================================
-  // User must sign in to sync their data
+  // DEV ONLY: Bypass for test account – REMOVE BEFORE TESTFLIGHT
+  const isDevBypass = __DEV__ && user?.email === "rappacarlos1@gmail.com";
+  
+  if (!isPro && !isDevBypass) {
+    // Show paywall with sign-in option for existing subscribers
+    // No dismiss, no skip, no back navigation
+    return (
+      <Stack.Navigator screenOptions={screenOptions}>
+        <Stack.Screen
+          name="Paywall"
+          component={PaywallScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false,
+          }}
+          initialParams={{ reason: "subscription_required" }}
+        />
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: true,
+            presentation: "modal",
+          }}
+          initialParams={{ fromPaywall: true }}
+        />
+      </Stack.Navigator>
+    );
+  }
+
+  // ============================================================================
+  // GATE 3: AUTHENTICATION (premium users need account to sync data)
+  // ============================================================================
   if (!session) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
@@ -160,32 +218,9 @@ export default function RootStackNavigator() {
   }
 
   // ============================================================================
-  // GATE 3: PREMIUM VALIDATION (catches edge cases)
-  // ============================================================================
-  // If user completed onboarding but doesn't have premium, show paywall
-  // DEV ONLY: Bypass for test account – REMOVE BEFORE TESTFLIGHT
-  const isDevBypass = __DEV__ && user?.email === "rappacarlos1@gmail.com";
-  
-  if (!isPro && hasValidated && !isDevBypass) {
-    return (
-      <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen
-          name="Paywall"
-          component={PaywallScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-          initialParams={{ reason: "subscription_required" }}
-        />
-      </Stack.Navigator>
-    );
-  }
-
-  // ============================================================================
   // MAIN APP (all gates passed)
   // ============================================================================
-  // User has completed onboarding, is authenticated, AND has premium access
+  // User has: completed onboarding, active subscription, authenticated
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
@@ -207,14 +242,6 @@ export default function RootStackNavigator() {
         options={{
           presentation: "formSheet",
           headerTitle: "Quick Add",
-        }}
-      />
-      <Stack.Screen
-        name="Paywall"
-        component={PaywallScreen}
-        options={{
-          presentation: "modal",
-          headerShown: false,
         }}
       />
     </Stack.Navigator>

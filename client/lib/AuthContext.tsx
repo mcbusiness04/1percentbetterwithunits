@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase, Profile, isSupabaseConfigured } from "@/lib/supabase";
-import { getIsPro } from "@/lib/storage";
+import { getIsPro, setIsPro as saveIsPro } from "@/lib/storage";
 
 interface AuthContextType {
   session: Session | null;
@@ -159,6 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Reset premium status on logout to force re-validation on next login
+    await saveIsPro(false);
+    
     if (isSupabaseConfigured) {
       await supabase.auth.signOut();
     }

@@ -109,6 +109,7 @@ interface UnitsContextType {
   canAddUnits: (count: number) => boolean;
   
   refreshData: () => Promise<void>;
+  clearAllHabitData: () => Promise<void>;
   
   // DEV ONLY – REMOVE BEFORE TESTFLIGHT
   devSimulateNextDay: () => void;
@@ -202,12 +203,14 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
 
     // If user logged out (was logged in, now not)
     if (previousUserId !== null && currentUserId === null) {
-      console.log("[Units] User logged out - clearing state");
+      console.log("[Units] User logged out - clearing state and resetting premium");
+      setIsProState(false); // Reset premium state on logout
       clearingPromiseRef.current = clearLocalState();
     }
     // If user changed (different user ID)
     else if (previousUserId !== null && currentUserId !== null && previousUserId !== currentUserId) {
-      console.log("[Units] User changed - clearing state for new user");
+      console.log("[Units] User changed - clearing state and resetting premium for new user");
+      setIsProState(false); // Reset premium state on account switch (will be re-validated)
       clearingPromiseRef.current = clearLocalState();
     }
 
@@ -1435,6 +1438,7 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
         canAddHabit,
         canAddUnits,
         refreshData,
+        clearAllHabitData: clearLocalState,
         // DEV ONLY – REMOVE BEFORE TESTFLIGHT
         devSimulateNextDay,
       }}
