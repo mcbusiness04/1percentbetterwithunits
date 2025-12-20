@@ -60,8 +60,11 @@ export default function TodayScreen() {
       return `${formatted}% better`;
     }
     
-    // Otherwise show progress toward goals (e.g., "45%")
-    return `${Math.round(effectiveProgress)}%`;
+    // Show progress toward goals with 1 decimal for real-time updates
+    // Round to 1 decimal place, drop .0 for whole numbers
+    const rounded = Math.round(effectiveProgress * 10) / 10;
+    const formatted = Number.isInteger(rounded) ? `${rounded}` : `${rounded.toFixed(1)}`;
+    return `${formatted}%`;
   }, [dailyProgress, activeHabits.length]);
   
   // Color: green when goals met AND no bad habits, red if any bad habit tapped
