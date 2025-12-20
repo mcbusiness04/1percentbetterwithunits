@@ -120,23 +120,28 @@ export default function StatsScreen() {
   const totalImprovement = useMemo(() => {
     // Use shared progress calculation for consistency
     const progress = getDailyProgress();
-    const improvementPercent = progress.improvementPercent;
+    // Total Score = progress percentage / 100
+    // So 25% progress = +0.25%, 100% progress = +1%, 150% progress = +1.5%
+    const improvementPercent = progress.percentage / 100;
     const hasBadHabits = progress.hasBadHabits;
     
     // Format the display percentage - show real-time updates with decimals
-    // Round to 1 decimal place for display
-    const roundedValue = Math.round(improvementPercent * 10) / 10;
+    // Round to 2 decimal places for precision (e.g., +0.25, +0.5, +1.25)
+    const roundedValue = Math.round(improvementPercent * 100) / 100;
     let displayPercent: string;
     const sign = roundedValue >= 0 ? "+" : "";
     
-    // Always show 1 decimal place for real-time feedback (e.g., +0.5, +1.2, -0.3)
-    // Only drop decimal for exact whole numbers to keep display clean
+    // Show 2 decimals for small values, 1 decimal for larger values
     if (roundedValue === 0) {
       displayPercent = "+0";
     } else if (Number.isInteger(roundedValue)) {
       displayPercent = sign + roundedValue.toFixed(0);
+    } else if (Math.abs(roundedValue) < 1) {
+      // For values like 0.25, 0.5, show 2 decimals
+      displayPercent = sign + roundedValue.toFixed(2).replace(/0$/, "");
     } else {
-      displayPercent = sign + roundedValue.toFixed(1);
+      // For values >= 1, show 1 or 2 decimals as needed
+      displayPercent = sign + roundedValue.toFixed(2).replace(/\.?0+$/, "");
     }
     
     // isPositive is false when there are bad habits (shows red)
