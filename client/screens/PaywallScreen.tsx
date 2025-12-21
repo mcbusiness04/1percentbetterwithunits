@@ -35,6 +35,7 @@ export default function PaywallScreen() {
   const { user, signOut } = useAuth();
   const { products, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
   const reason = route.params?.reason ?? "onboarding";
+  const isFirstPaywall = route.params?.isFirstPaywall ?? false;
 
   const [selectedPlan, setSelectedPlan] = useState<"annual" | "monthly">("annual");
   const [restoring, setRestoring] = useState(false);
@@ -46,9 +47,19 @@ export default function PaywallScreen() {
   const handleSubscribe = useCallback(async () => {
     const productId = selectedPlan === "annual" ? PRODUCT_IDS.YEARLY : PRODUCT_IDS.MONTHLY;
     
-    if (Platform.OS === "web" || !iapAvailable) {
-      // Web/dev bypass - set isPro directly
-      await setIsPro(true);
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Not Available on Web",
+        "Subscriptions can only be purchased on iOS devices. Please use Expo Go or the native app to subscribe."
+      );
+      return;
+    }
+    
+    if (!iapAvailable) {
+      Alert.alert(
+        "In-App Purchases Unavailable",
+        "In-app purchases are not available in Expo Go. Please use a development build or TestFlight to test purchases."
+      );
       return;
     }
 
@@ -79,9 +90,19 @@ export default function PaywallScreen() {
   }, [selectedPlan, iapAvailable, purchase, setIsPro, user?.id]);
 
   const handleRestorePurchases = useCallback(async () => {
-    if (Platform.OS === "web" || !iapAvailable) {
-      // Web/dev bypass - set isPro directly
-      await setIsPro(true);
+    if (Platform.OS === "web") {
+      Alert.alert(
+        "Not Available on Web",
+        "Restore purchases is only available on iOS devices. Please use Expo Go or the native app."
+      );
+      return;
+    }
+    
+    if (!iapAvailable) {
+      Alert.alert(
+        "In-App Purchases Unavailable",
+        "Restore purchases is not available in Expo Go. Please use a development build or TestFlight."
+      );
       return;
     }
 
@@ -119,8 +140,8 @@ export default function PaywallScreen() {
   }, [iapAvailable, restore, setIsPro, user?.id]);
 
   const handleSignIn = useCallback(() => {
-    navigation.navigate("Auth", { fromPaywall: true });
-  }, [navigation]);
+    navigation.navigate("Auth", { fromPaywall: true, signInOnly: isFirstPaywall });
+  }, [navigation, isFirstPaywall]);
 
   const handleLogout = useCallback(async () => {
     Alert.alert(

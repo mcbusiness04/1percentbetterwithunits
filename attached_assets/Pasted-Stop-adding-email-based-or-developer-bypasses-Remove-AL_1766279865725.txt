@@ -1,0 +1,70 @@
+Stop adding email-based or developer bypasses.
+Remove ALL temporary bypass logic immediately, including:
+Hardcoded emails
+isPro = true overrides
+Dev-only premium grants
+The app must rely ONLY on:
+Apple subscription status
+Auth state
+FIX THE FLOW EXACTLY AS FOLLOWS
+STATE DEFINITIONS (IMPORTANT)
+hasCompletedOnboarding
+isAuthenticated
+hasActiveSubscription
+Navigation MUST be derived only from these states.
+REQUIRED BEHAVIOR
+1. First-time install (never onboarded)
+Show onboarding
+Then show paywall
+On this FIRST paywall:
+Show Sign In ONLY
+Do NOT show Sign Up
+Allow:
+Purchase
+Restore purchases
+Sign In (for existing paid users)
+2. Signing in from first paywall
+Signing in must be allowed EVEN IF NOT SUBSCRIBED
+After sign in:
+If subscription is active → allow app access
+If subscription is NOT active → show paywall again
+3. After successful subscription purchase
+Immediately remove paywall
+Navigate to Auth screen with:
+Sign In
+Sign Up
+After auth success:
+Grant app access
+Persist login
+4. Normal paid usage
+Once user is authenticated AND subscribed:
+Never show onboarding again
+Never show paywall again
+Keep user logged in across app restarts
+5. App deleted & reinstalled
+Do NOT show onboarding
+Do NOT show paywall immediately
+Show Sign In screen first
+After sign in:
+If subscription active → app access
+If subscription inactive → show paywall
+HARD RULES (NON-NEGOTIABLE)
+Paywall must NEVER block sign-in
+Paywall must block app access if subscription inactive
+Sign-in ≠ premium
+Subscription status must be checked AFTER sign-in
+Remove all hacks, bypasses, and forced state mutations
+IMPLEMENTATION REQUIREMENTS
+Centralize gating logic in ONE place (Root/App Navigator)
+Navigation must re-render on:
+Auth state change
+Subscription state change
+Do NOT conditionally navigate inside screens
+CONFIRM AFTER FIXING
+Where all bypass code was removed
+Where subscription state is checked
+Where auth state is checked
+Why sign-in can no longer get stuck behind the paywall
+Do not add new features.
+Do not add developer exceptions.
+Fix the flow.

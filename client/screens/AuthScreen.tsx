@@ -1,27 +1,29 @@
 import React, { useState } from "react";
 import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useAuth } from "@/lib/AuthContext";
-import { useUnits } from "@/lib/UnitsContext";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
-
-// DEV ONLY: Emails that bypass subscription check – REMOVE BEFORE TESTFLIGHT
-const DEV_BYPASS_EMAILS = ["rappacarlos1@gmail.com", "christosmachos@gmail.com"];
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 type AuthMode = "signin" | "signup";
+type ScreenRouteProp = RouteProp<RootStackParamList, "Auth">;
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const route = useRoute<ScreenRouteProp>();
   const { signIn, signUp } = useAuth();
-  const { setIsPro } = useUnits();
+  
+  const fromPaywall = route.params?.fromPaywall ?? false;
+  const signInOnly = route.params?.signInOnly ?? false;
+  
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -52,12 +54,6 @@ export default function AuthScreen() {
         if (error) {
           Alert.alert("Error", error.message);
         } else {
-          // DEV ONLY: Auto-grant premium for test accounts - REMOVE BEFORE TESTFLIGHT
-          const normalizedEmail = email.trim().toLowerCase();
-          if (DEV_BYPASS_EMAILS.includes(normalizedEmail)) {
-            console.log("[Auth] Dev bypass email detected, granting premium access");
-            await setIsPro(true);
-          }
           Alert.alert(
             "Account Created",
             "Your account has been created. You are now signed in.",
@@ -80,12 +76,6 @@ export default function AuthScreen() {
             Alert.alert("Error", error.message);
           }
         } else {
-          // DEV ONLY: Auto-grant premium for test accounts - REMOVE BEFORE TESTFLIGHT
-          const normalizedEmail = email.trim().toLowerCase();
-          if (DEV_BYPASS_EMAILS.includes(normalizedEmail)) {
-            console.log("[Auth] Dev bypass email detected, granting premium access");
-            await setIsPro(true);
-          }
           if (navigation.canGoBack()) {
             navigation.goBack();
           }
@@ -183,11 +173,13 @@ export default function AuthScreen() {
             {loading ? "Please wait..." : mode === "signup" ? "Create Account" : "Sign In"}
           </Button>
 
-          <Pressable onPress={toggleMode} style={styles.toggleButton}>
-            <ThemedText type="body" style={styles.toggleText}>
-              {mode === "signup" ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
-            </ThemedText>
-          </Pressable>
+          {!signInOnly ? (
+            <Pressable onPress={toggleMode} style={styles.toggleButton}>
+              <ThemedText type="body" style={styles.toggleText}>
+                {mode === "signup" ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
+              </ThemedText>
+            </Pressable>
+          ) : null}
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(300)} style={styles.footer}>

@@ -12,6 +12,27 @@ Units is a local-first mobile effort tracker built with Expo React Native. It al
 ## System Architecture
 The application is built with Expo React Native. Data is stored locally using AsyncStorage with background synchronization to Supabase for backup.
 
+### Navigation Flow (State-Based, No Bypasses)
+
+**Three States That Control Navigation:**
+- `hasCompletedOnboarding`: Has user completed onboarding?
+- `isAuthenticated`: Does user have active session?
+- `hasActiveSubscription`: Does user have valid subscription (validated via StoreKit)?
+
+**Flow:**
+1. First-time install → Onboarding → Paywall (Sign In only, no Sign Up)
+2. From paywall: Purchase, Restore Purchases, or Sign In (for existing subscribers)
+3. Sign-in is ALWAYS allowed (even without subscription)
+4. After sign-in → Check subscription → If active → Main app; If not → Paywall
+5. After successful purchase → isPro=true → Auth (Sign In/Sign Up) → Main app
+6. Reinstall → Sign In first → Check subscription → Main app or Paywall
+
+**Hard Rules:**
+- Paywall NEVER blocks sign-in
+- Paywall blocks app access if subscription inactive
+- Sign-in ≠ premium (subscription checked AFTER sign-in)
+- All gating logic centralized in RootStackNavigator.tsx
+
 ### Core Features:
 -   **Habit Tracking**: Users can create habits with custom icons, colors, unit definitions, and daily goals. Progress is logged with a single tap, and visual feedback includes color-coded habit rows (red for 0 units, yellow for in progress, green for goal met) and falling blocks animations.
 -   **Bad Habit Tracking**: Users can track bad habits, which, when logged, apply a penalty by removing a percentage of total logged units from the daily score, distributed evenly across good habits. Bad habits can only be tapped once per day.
@@ -49,7 +70,7 @@ To disable email confirmation for development:
 1. Go to Supabase Dashboard → Authentication → Providers → Email
 2. Toggle OFF "Confirm email"
 
-## DEV ITEMS TO REMOVE BEFORE TESTFLIGHT
-### client/navigation/RootStackNavigator.tsx
-- **Line ~185**: Dev bypass for test accounts - remove the `devBypassEmails` array and `isDevBypass` check
-- Test accounts with free access: `rappacarlos1@gmail.com`, `christosmachos@gmail.com`
+## Testing Notes
+- IAP is not available in Expo Go - requires development build for real subscription testing
+- On web platform, purchase/restore sets isPro=true directly for testing
+- The `validatePremiumAccess` function in `client/lib/storekit.ts` validates subscriptions with the server
