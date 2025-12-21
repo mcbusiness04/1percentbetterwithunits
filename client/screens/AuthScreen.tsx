@@ -37,14 +37,15 @@ export default function AuthScreen() {
       return;
     }
 
-    if (mode === "signup" && password !== confirmPassword) {
-      Alert.alert("Password Mismatch", "Passwords do not match.");
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert("Weak Password", "Password must be at least 6 characters.");
-      return;
+    if (mode === "signup") {
+      if (password !== confirmPassword) {
+        Alert.alert("Password Mismatch", "Passwords do not match.");
+        return;
+      }
+      if (password.length < 6) {
+        Alert.alert("Weak Password", "Password must be at least 6 characters.");
+        return;
+      }
     }
 
     setLoading(true);

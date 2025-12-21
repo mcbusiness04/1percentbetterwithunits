@@ -98,14 +98,16 @@ export default function SettingsScreen() {
             try {
               // Step 1: Delete user data from Supabase
               if (user?.id && isSupabaseConfigured) {
+                // Delete user's habit logs first (foreign key constraint)
+                await supabase.from("habit_logs").delete().eq("user_id", user.id);
                 // Delete user's habits
                 await supabase.from("habits").delete().eq("user_id", user.id);
-                // Delete user's unit logs
-                await supabase.from("unit_logs").delete().eq("user_id", user.id);
+                // Delete user's bad habit logs first (foreign key constraint)
+                await supabase.from("bad_habit_logs").delete().eq("user_id", user.id);
                 // Delete user's bad habits
                 await supabase.from("bad_habits").delete().eq("user_id", user.id);
-                // Delete user's bad habit logs
-                await supabase.from("bad_habit_logs").delete().eq("user_id", user.id);
+                // Delete user's subscription
+                await supabase.from("subscriptions").delete().eq("user_id", user.id);
                 // Delete user's profile
                 await supabase.from("profiles").delete().eq("id", user.id);
               }
@@ -142,15 +144,11 @@ export default function SettingsScreen() {
   }, [user?.id, signOut]);
 
   const handlePrivacyPolicy = useCallback(() => {
-    Linking.openURL("https://example.com/privacy");
-  }, []);
-
-  const handleTerms = useCallback(() => {
-    Linking.openURL("https://example.com/terms");
+    Linking.openURL("http://1betterwithunits.info/");
   }, []);
 
   const handleContactSupport = useCallback(() => {
-    Linking.openURL("mailto:support@example.com?subject=Units%20Support");
+    Linking.openURL("http://1betterwithunits.info/");
   }, []);
 
   const handleSignOut = useCallback(async () => {
@@ -246,7 +244,6 @@ export default function SettingsScreen() {
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Legal
         </ThemedText>
-        <SettingsRow icon="file-text" title="Terms of Use" onPress={handleTerms} />
         <SettingsRow icon="shield" title="Privacy Policy" onPress={handlePrivacyPolicy} />
         <SettingsRow icon="mail" title="Contact Support" onPress={handleContactSupport} />
       </View>
