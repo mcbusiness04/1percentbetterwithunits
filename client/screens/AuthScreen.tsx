@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -14,6 +15,7 @@ type AuthMode = "signin" | "signup";
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { signIn, signUp } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
@@ -47,11 +49,13 @@ export default function AuthScreen() {
         } else {
           Alert.alert(
             "Account Created",
-            "Your account has been created successfully. You can now sign in.",
-            [{ text: "OK", onPress: () => setMode("signin") }]
+            "Your account has been created. You are now signed in.",
+            [{ text: "OK", onPress: () => {
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              }
+            }}]
           );
-          setPassword("");
-          setConfirmPassword("");
         }
       } else {
         const { error } = await signIn(email.trim(), password);
@@ -63,6 +67,10 @@ export default function AuthScreen() {
             );
           } else {
             Alert.alert("Error", error.message);
+          }
+        } else {
+          if (navigation.canGoBack()) {
+            navigation.goBack();
           }
         }
       }
