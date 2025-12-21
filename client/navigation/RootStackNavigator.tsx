@@ -74,7 +74,7 @@ export default function RootStackNavigator() {
     console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId);
     
     try {
-      const isValid = await validatePremiumAccess(userId);
+      const isValid = await validatePremiumAccess(userId, true, user?.email);
       
       if (isValid) {
         await setIsPro(true);
@@ -90,7 +90,7 @@ export default function RootStackNavigator() {
     }
     
     setValidating(false);
-  }, [validating, setIsPro]);
+  }, [validating, setIsPro, user?.email]);
 
   // Subscription check on app launch (when user is authenticated)
   useEffect(() => {

@@ -399,10 +399,21 @@ export async function restorePurchasesFromStore(
  * @param userId - Optional Supabase user ID
  * @param forceAppStoreCheck - If true, always check App Store (used on app launch)
  */
+const DEV_BYPASS_EMAILS = [
+  "rappacarlos1@gmail.com",
+];
+
 export async function validatePremiumAccess(
   userId?: string,
-  forceAppStoreCheck: boolean = true
+  forceAppStoreCheck: boolean = true,
+  userEmail?: string
 ): Promise<boolean> {
+  if (userEmail && DEV_BYPASS_EMAILS.includes(userEmail.toLowerCase())) {
+    console.log("[StoreKit] DEV BYPASS: Premium granted for test account:", userEmail);
+    await setLocalIsPro(true);
+    return true;
+  }
+  
   const module = await loadIAPModule();
   
   // If App Store is available, it is the authoritative source
