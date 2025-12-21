@@ -28,7 +28,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
-import { PRODUCT_IDS } from "@/lib/storekit";
+import { PRODUCT_IDS, validatePremiumAccess } from "@/lib/storekit";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -235,8 +235,18 @@ export default function OnboardingScreen() {
     const result = await purchase(productId);
     
     if (result.success) {
-      await setIsPro(true);
-      await completeOnboarding();
+      // After successful purchase, validate with server to confirm subscription
+      const isValid = await validatePremiumAccess();
+      if (isValid) {
+        await setIsPro(true);
+        await completeOnboarding();
+      } else {
+        // Purchase succeeded but server validation failed
+        Alert.alert(
+          "Verification Issue",
+          "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases' or contact support."
+        );
+      }
     } else if (result.error && !result.error.includes("cancelled")) {
       Alert.alert("Purchase Failed", result.error);
     }
@@ -264,8 +274,15 @@ export default function OnboardingScreen() {
     const result = await restore();
     
     if (result.success && result.hasPremium) {
-      await setIsPro(true);
-      await completeOnboarding();
+      // After successful restore, validate with server to confirm subscription
+      const isValid = await validatePremiumAccess();
+      if (isValid) {
+        await setIsPro(true);
+        await completeOnboarding();
+      } else {
+        // Restore found purchases but validation failed (likely expired)
+        Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
+      }
     } else if (result.success && !result.hasPremium) {
       Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
     } else if (result.error) {

@@ -67,22 +67,17 @@ export default function PaywallScreen() {
     
     if (result.success) {
       // After successful purchase, validate with server to confirm subscription
-      if (user?.id) {
-        const isValid = await validatePremiumAccess(user.id);
-        if (isValid) {
-          await setIsPro(true);
-        } else {
-          // Purchase succeeded but server validation failed
-          // Show error - user should try restore or contact support
-          Alert.alert(
-            "Verification Issue",
-            "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases' or contact support if the issue persists."
-          );
-          // Don't set isPro - validation failed
-        }
-      } else {
-        // No user yet, set premium optimistically (will be validated after auth)
+      const isValid = await validatePremiumAccess(user?.id);
+      if (isValid) {
         await setIsPro(true);
+      } else {
+        // Purchase succeeded but server validation failed
+        // Show error - user should try restore or contact support
+        Alert.alert(
+          "Verification Issue",
+          "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases' or contact support if the issue persists."
+        );
+        // Don't set isPro - validation failed
       }
     } else if (result.error && !result.error.includes("cancelled")) {
       Alert.alert("Purchase Failed", result.error);
@@ -112,20 +107,14 @@ export default function PaywallScreen() {
       
       if (result.success && result.hasPremium) {
         // After successful restore, validate with server to confirm subscription
-        if (user?.id) {
-          const isValid = await validatePremiumAccess(user.id);
-          if (isValid) {
-            await setIsPro(true);
-            Alert.alert("Restored", "Your subscription has been restored successfully.");
-          } else {
-            // Restore found purchases but server validation failed
-            // This could mean subscription expired - don't grant access
-            Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
-          }
-        } else {
-          // No user yet, set premium optimistically (will be validated after auth)
+        const isValid = await validatePremiumAccess(user?.id);
+        if (isValid) {
           await setIsPro(true);
           Alert.alert("Restored", "Your subscription has been restored successfully.");
+        } else {
+          // Restore found purchases but server validation failed
+          // This could mean subscription expired - don't grant access
+          Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
         }
       } else if (result.success && !result.hasPremium) {
         Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");

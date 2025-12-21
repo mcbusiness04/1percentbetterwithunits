@@ -281,14 +281,16 @@ export function UnitsProvider({ children }: { children: ReactNode }) {
       console.log("[Units] refreshData: Starting data load...");
       
       // Load UI preferences from AsyncStorage (these are local-only)
-      const [loadedSettings, loadedIsPro, loadedOnboarding] = await Promise.all([
+      // NOTE: isPro is NOT loaded from local storage here - it's set only by
+      // validatePremiumAccess in RootStackNavigator after server-side validation.
+      // This prevents local storage manipulation from granting premium access.
+      const [loadedSettings, loadedOnboarding] = await Promise.all([
         getSettings(),
-        getIsPro(),
         isOnboardingComplete(),
       ]);
 
       setSettings(loadedSettings);
-      setIsProState(loadedIsPro);
+      // isPro state is managed by RootStackNavigator's validatePremiumAccess
       setHasCompletedOnboarding(loadedOnboarding);
 
       // Supabase is the single source of truth for all user data

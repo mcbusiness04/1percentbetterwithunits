@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
 import { clearAllData } from "@/lib/storage";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { validatePremiumAccess } from "@/lib/storekit";
 
 const APPLE_SUBSCRIPTION_URL = "https://apps.apple.com/account/subscriptions";
 
@@ -62,8 +63,15 @@ export default function SettingsScreen() {
       const result = await restore(user?.id);
       
       if (result.success && result.hasPremium) {
-        await setIsPro(true);
-        Alert.alert("Restored", "Your subscription has been restored successfully.");
+        // After successful restore, validate with server to confirm subscription
+        const isValid = await validatePremiumAccess(user?.id);
+        if (isValid) {
+          await setIsPro(true);
+          Alert.alert("Restored", "Your subscription has been restored successfully.");
+        } else {
+          // Restore found purchases but server validation failed (likely expired)
+          Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
+        }
       } else if (result.success && !result.hasPremium) {
         Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
       } else if (result.error) {

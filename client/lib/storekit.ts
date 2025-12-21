@@ -465,16 +465,14 @@ export async function validatePremiumAccess(
     }
   }
   
-  // Fallback: Check local storage (only when App Store unavailable)
-  if (!module) {
-    const localPremium = await getLocalIsPro();
-    if (localPremium) {
-      console.log("[StoreKit] Premium validated from local storage (App Store unavailable)");
-      return true;
-    }
-  }
+  // NOTE: Local storage is NOT used as a fallback for validation.
+  // Premium access requires either:
+  // 1. Valid App Store subscription (when available)
+  // 2. Active subscription record in Supabase (when App Store unavailable)
+  // This prevents local storage manipulation from granting premium access.
   
-  console.log("[StoreKit] No premium access found");
+  console.log("[StoreKit] No premium access found - requires server validation");
+  await setLocalIsPro(false); // Ensure local cache reflects server state
   return false;
 }
 
