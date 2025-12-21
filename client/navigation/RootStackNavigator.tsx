@@ -161,6 +161,16 @@ export default function RootStackNavigator() {
             gestureEnabled: false,
           }}
         />
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: true,
+            presentation: "modal",
+          }}
+          initialParams={{ fromPaywall: true }}
+        />
       </Stack.Navigator>
     );
   }
