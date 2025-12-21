@@ -278,30 +278,27 @@ export default function PaywallScreen() {
               : `Start for ${monthlyProduct?.price || "$4.99"}/month`}
         </Button>
 
-        <View style={styles.actionRowInline}>
+        <View style={styles.actionRow}>
           <Pressable onPress={handleRestorePurchases} disabled={restoring || purchasing || signingOut}>
             <ThemedText type="body" style={[styles.actionText, { color: restoring ? theme.textSecondary : theme.accent }]}>
-              {restoring ? "Restoring..." : "Restore"}
+              {restoring ? "Restoring..." : "Restore Purchases"}
             </ThemedText>
           </Pressable>
+        </View>
+
+        <View style={styles.actionRow}>
           {user ? (
-            <>
-              <ThemedText type="body" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
-              <Pressable onPress={handleLogout} disabled={signingOut || purchasing || restoring}>
-                <ThemedText type="body" style={[styles.actionText, { color: signingOut ? theme.textSecondary : theme.warning }]}>
-                  {signingOut ? "Signing Out..." : "Sign Out"}
-                </ThemedText>
-              </Pressable>
-            </>
+            <Pressable onPress={handleLogout} disabled={signingOut || purchasing || restoring}>
+              <ThemedText type="body" style={[styles.actionText, { color: signingOut ? theme.textSecondary : theme.warning }]}>
+                {signingOut ? "Signing Out..." : "Sign Out"}
+              </ThemedText>
+            </Pressable>
           ) : (
-            <>
-              <ThemedText type="body" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
-              <Pressable onPress={handleSignIn} disabled={purchasing || restoring}>
-                <ThemedText type="body" style={[styles.actionText, { color: theme.accent }]}>
-                  Sign In
-                </ThemedText>
-              </Pressable>
-            </>
+            <Pressable onPress={handleSignIn} disabled={purchasing || restoring}>
+              <ThemedText type="body" style={[styles.actionText, { color: theme.accent }]}>
+                Already subscribed? Sign In
+              </ThemedText>
+            </Pressable>
           )}
         </View>
 
@@ -417,11 +414,6 @@ const styles = StyleSheet.create({
   },
   actionRow: {
     alignItems: "center",
-  },
-  actionRowInline: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
   },
   actionText: {
     fontWeight: "600",

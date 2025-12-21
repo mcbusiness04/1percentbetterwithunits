@@ -20,6 +20,8 @@ import Animated, {
   interpolate,
   runOnJS,
 } from "react-native-reanimated";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
@@ -27,6 +29,7 @@ import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
 import { PRODUCT_IDS } from "@/lib/storekit";
+import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -183,9 +186,12 @@ function DemoHabitRow({ name, icon, color, units, goal, delay }: { name: string;
   );
 }
 
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
 export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
+  const navigation = useNavigation<NavigationProp>();
   const { setIsPro, completeOnboarding } = useUnits();
   const { products, loading: productsLoading, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
 
@@ -274,6 +280,10 @@ export default function OnboardingScreen() {
   const handleTerms = useCallback(() => {
     Linking.openURL("https://example.com/terms");
   }, []);
+
+  const handleSignIn = useCallback(() => {
+    navigation.navigate("Auth", { fromPaywall: true });
+  }, [navigation]);
 
   const ProgressDots = () => (
     <View style={styles.progressContainer}>
@@ -621,6 +631,10 @@ export default function OnboardingScreen() {
             <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
             <Pressable onPress={handleRestorePurchases}>
               <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Restore</ThemedText>
+            </Pressable>
+            <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
+            <Pressable onPress={handleSignIn}>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Sign In</ThemedText>
             </Pressable>
           </View>
 
