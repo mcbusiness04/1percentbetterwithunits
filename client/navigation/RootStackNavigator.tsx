@@ -22,7 +22,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { View, ActivityIndicator, AppState, AppStateStatus } from "react-native";
+import { View, ActivityIndicator, AppState, AppStateStatus, Platform } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import NewHabitScreen from "@/screens/NewHabitScreen";
@@ -236,6 +236,20 @@ export default function RootStackNavigator() {
   // GATE 2: SUBSCRIPTION (checked SECOND, only for authenticated users)
   // ============================================================================
   
+  // ============================================================================
+  // TEMPORARY LOCAL-ONLY BYPASS - DELETE THIS BLOCK FOR PRODUCTION
+  // Only active in __DEV__ mode on non-iOS platforms (web/Android in Expo)
+  // Does NOT activate on: iOS Simulator, TestFlight, App Store builds
+  // ============================================================================
+  const IS_LOCAL_TEST_BYPASS = __DEV__ && Platform.OS !== "ios";
+  
+  if (IS_LOCAL_TEST_BYPASS && isAuthenticated) {
+    console.log("[RootStack] LOCAL TEST BYPASS ACTIVE - Skipping subscription check");
+  }
+  // ============================================================================
+  // END TEMPORARY BYPASS
+  // ============================================================================
+  
   // Show loading while validating subscription after login
   if (validating && !initialValidationDone) {
     return (
@@ -246,7 +260,8 @@ export default function RootStackNavigator() {
   }
   
   // User is authenticated but no subscription → Show paywall (NOT onboarding)
-  if (!hasActiveSubscription) {
+  // BYPASS: Skip this gate entirely when IS_LOCAL_TEST_BYPASS is true
+  if (!hasActiveSubscription && !IS_LOCAL_TEST_BYPASS) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen

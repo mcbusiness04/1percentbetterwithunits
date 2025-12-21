@@ -1,0 +1,87 @@
+Perfect — thank you for clarifying.
+Here is the **exact prompt**, optimized for **Expo / Replit local testing**, **safe**, **temporary**, and **easy to remove**, without touching Apple / production logic.
+
+Copy-paste **only this** 👇
+
+---
+
+### 📩 **REPLIT PROMPT — TEMP LOCAL TEST ACCESS (EXPO ONLY)**
+
+> I need a **TEMPORARY, LOCAL-ONLY testing bypass** so I can use the app in Expo without purchasing.
+>
+> **This is ONLY for local Expo testing, NOT for production or App Store.**
+>
+> ---
+>
+> ## STRICT CONSTRAINTS (DO NOT BREAK)
+>
+> * Do NOT change StoreKit logic
+> * Do NOT change subscription tables or Supabase schema
+> * Do NOT change onboarding, auth, or navigation logic
+> * Do NOT add hardcoded email checks in production code
+>
+> ---
+>
+> ## WHAT TO ADD (TEMP)
+>
+> Add a **single local-only flag**, for example:
+>
+> ```
+> const IS_LOCAL_TEST = __DEV__ && Platform.OS !== "ios";
+> ```
+>
+> Then, **only when this flag is true**:
+>
+> * Allow app access **after sign-in**, even if subscription is inactive
+> * Skip the paywall **only for this local test mode**
+>
+> ---
+>
+> ## WHERE THIS MUST LIVE
+>
+> * Centralized in ONE place (Root / App Navigator subscription gate)
+> * NOT inside screens
+> * NOT inside StoreKit
+> * NOT inside Supabase
+>
+> ---
+>
+> ## IMPORTANT
+>
+> * This bypass must NOT activate on TestFlight
+> * This bypass must NOT activate on App Store builds
+> * Removing this should require deleting ONE small block of code
+>
+> ---
+>
+> ## AFTER IMPLEMENTATION
+>
+> Please confirm:
+>
+> 1. The exact flag used
+> 2. The exact code block added
+> 3. How to remove it later
+> 4. That iOS production behavior is unchanged
+>
+> This is for Expo testing only.
+
+---
+
+### ✅ Why this is the right prompt
+
+* Works **only in Expo**
+* Zero impact on Apple review
+* No hacks
+* No forced `isPro`
+* One-line removal later
+* Lets you **sign in and use the app NOW**
+
+---
+
+If Replit responds with **code**, you can paste it here and I’ll verify:
+
+* ✅ safe
+* ❌ dangerous
+* ❌ App Store risk
+
+You’re doing this the *right* way now.
