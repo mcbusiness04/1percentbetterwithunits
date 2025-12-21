@@ -6,10 +6,14 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Feather } from "@expo/vector-icons";
 import Animated, { FadeIn, FadeInDown, FadeInUp } from "react-native-reanimated";
 import { useAuth } from "@/lib/AuthContext";
+import { useUnits } from "@/lib/UnitsContext";
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
+
+// DEV ONLY: Emails that bypass subscription check – REMOVE BEFORE TESTFLIGHT
+const DEV_BYPASS_EMAILS = ["rappacarlos1@gmail.com", "christosmachos@gmail.com"];
 
 type AuthMode = "signin" | "signup";
 
@@ -17,6 +21,7 @@ export default function AuthScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { signIn, signUp } = useAuth();
+  const { setIsPro } = useUnits();
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,6 +52,12 @@ export default function AuthScreen() {
         if (error) {
           Alert.alert("Error", error.message);
         } else {
+          // DEV ONLY: Auto-grant premium for test accounts - REMOVE BEFORE TESTFLIGHT
+          const normalizedEmail = email.trim().toLowerCase();
+          if (DEV_BYPASS_EMAILS.includes(normalizedEmail)) {
+            console.log("[Auth] Dev bypass email detected, granting premium access");
+            await setIsPro(true);
+          }
           Alert.alert(
             "Account Created",
             "Your account has been created. You are now signed in.",
@@ -69,6 +80,12 @@ export default function AuthScreen() {
             Alert.alert("Error", error.message);
           }
         } else {
+          // DEV ONLY: Auto-grant premium for test accounts - REMOVE BEFORE TESTFLIGHT
+          const normalizedEmail = email.trim().toLowerCase();
+          if (DEV_BYPASS_EMAILS.includes(normalizedEmail)) {
+            console.log("[Auth] Dev bypass email detected, granting premium access");
+            await setIsPro(true);
+          }
           if (navigation.canGoBack()) {
             navigation.goBack();
           }
