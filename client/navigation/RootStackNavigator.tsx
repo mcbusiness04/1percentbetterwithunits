@@ -22,7 +22,7 @@
  */
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import { View, ActivityIndicator, AppState, AppStateStatus, Platform } from "react-native";
+import { View, ActivityIndicator, AppState, AppStateStatus } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import NewHabitScreen from "@/screens/NewHabitScreen";
@@ -32,6 +32,7 @@ import OnboardingScreen from "@/screens/OnboardingScreen";
 import AuthScreen from "@/screens/AuthScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useUnits } from "@/lib/UnitsContext";
+import Constants from "expo-constants";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import { validatePremiumAccess } from "@/lib/storekit";
@@ -237,17 +238,17 @@ export default function RootStackNavigator() {
   // ============================================================================
   
   // ============================================================================
-  // TEMPORARY LOCAL-ONLY BYPASS - DELETE THIS BLOCK FOR PRODUCTION
-  // Only active in __DEV__ mode on non-iOS platforms (web/Android in Expo)
-  // Does NOT activate on: iOS Simulator, TestFlight, App Store builds
+  // DEV ONLY – REMOVE BEFORE TESTFLIGHT
+  // Expo Go bypass: allows testing without IAP (purchases unavailable in Expo Go)
+  // Constants.appOwnership === "expo" ONLY in Expo Go, never in standalone builds
   // ============================================================================
-  const IS_LOCAL_TEST_BYPASS = __DEV__ && Platform.OS !== "ios";
+  const IS_EXPO_GO = __DEV__ && Constants.appOwnership === "expo";
   
-  if (IS_LOCAL_TEST_BYPASS && isAuthenticated) {
-    console.log("[RootStack] LOCAL TEST BYPASS ACTIVE - Skipping subscription check");
+  if (IS_EXPO_GO && isAuthenticated) {
+    console.log("[RootStack] EXPO GO BYPASS ACTIVE - Skipping subscription check");
   }
   // ============================================================================
-  // END TEMPORARY BYPASS
+  // END DEV ONLY BLOCK
   // ============================================================================
   
   // Show loading while validating subscription after login
@@ -260,8 +261,8 @@ export default function RootStackNavigator() {
   }
   
   // User is authenticated but no subscription → Show paywall (NOT onboarding)
-  // BYPASS: Skip this gate entirely when IS_LOCAL_TEST_BYPASS is true
-  if (!hasActiveSubscription && !IS_LOCAL_TEST_BYPASS) {
+  // BYPASS: Skip this gate entirely when IS_EXPO_GO is true
+  if (!hasActiveSubscription && !IS_EXPO_GO) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
