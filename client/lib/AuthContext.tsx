@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
+  resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>;
   updatePremiumStatus: (isPremium: boolean) => Promise<void>;
   updateOnboardingAnswers: (answers: Record<string, unknown>) => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -168,6 +169,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfile(null);
   };
 
+  const resendConfirmation = async (email: string) => {
+    if (!isSupabaseConfigured) {
+      return { error: { message: "Supabase not configured" } as AuthError };
+    }
+    
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+    });
+    
+    return { error };
+  };
+
   const updatePremiumStatus = async (isPremium: boolean) => {
     if (!user) return;
     const { error } = await supabase
@@ -203,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUp,
         signIn,
         signOut,
+        resendConfirmation,
         updatePremiumStatus,
         updateOnboardingAnswers,
         refreshProfile,

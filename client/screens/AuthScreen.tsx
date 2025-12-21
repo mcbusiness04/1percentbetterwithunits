@@ -14,13 +14,15 @@ type AuthMode = "signin" | "signup";
 
 export default function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, resendConfirmation } = useAuth();
   const [mode, setMode] = useState<AuthMode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  const [resending, setResending] = useState(false);
 
   const handleSubmit = async () => {
     if (!email.trim() || !password.trim()) {
@@ -45,10 +47,11 @@ export default function AuthScreen() {
         if (error) {
           Alert.alert("Error", error.message);
         } else {
+          setPendingEmail(email.trim());
           Alert.alert(
-            "Confirm Your Email",
-            "We sent a confirmation link to your email. Please check your inbox and confirm, then sign in.",
-            [{ text: "OK", onPress: () => setMode("signin") }]
+            "Check Your Email",
+            "We sent a confirmation link to your email. Check your inbox (and spam folder), then sign in.\n\nNot received? Tap 'Resend Email' below.",
+            [{ text: "OK" }]
           );
           setPassword("");
           setConfirmPassword("");
@@ -69,6 +72,25 @@ export default function AuthScreen() {
   const toggleMode = () => {
     setMode(mode === "signin" ? "signup" : "signin");
     setConfirmPassword("");
+    setPendingEmail(null);
+  };
+
+  const handleResendEmail = async () => {
+    if (!pendingEmail) return;
+    
+    setResending(true);
+    try {
+      const { error } = await resendConfirmation(pendingEmail);
+      if (error) {
+        Alert.alert("Error", error.message);
+      } else {
+        Alert.alert("Email Sent", "A new confirmation email has been sent. Check your inbox and spam folder.");
+      }
+    } catch {
+      Alert.alert("Error", "Failed to resend email. Please try again.");
+    } finally {
+      setResending(false);
+    }
   };
 
   return (
@@ -156,6 +178,15 @@ export default function AuthScreen() {
               {mode === "signup" ? "Already have an account? Sign In" : "Don't have an account? Sign Up"}
             </ThemedText>
           </Pressable>
+
+          {pendingEmail ? (
+            <Pressable onPress={handleResendEmail} disabled={resending} style={styles.resendButton}>
+              <Feather name="mail" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+              <ThemedText type="body" style={styles.toggleText}>
+                {resending ? "Sending..." : "Resend Confirmation Email"}
+              </ThemedText>
+            </Pressable>
+          ) : null}
         </Animated.View>
 
         <Animated.View entering={FadeInUp.delay(300)} style={styles.footer}>
@@ -236,6 +267,15 @@ const styles = StyleSheet.create({
   toggleButton: {
     alignItems: "center",
     paddingVertical: Spacing.md,
+  },
+  resendButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.sm,
   },
   toggleText: {
     color: "rgba(255,255,255,0.9)",
