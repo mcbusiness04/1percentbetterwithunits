@@ -56,7 +56,14 @@ export default function AuthScreen() {
       } else {
         const { error } = await signIn(email.trim(), password);
         if (error) {
-          Alert.alert("Error", error.message);
+          if (error.message.toLowerCase().includes("email not confirmed")) {
+            Alert.alert(
+              "Email Not Confirmed",
+              "Your email address has not been confirmed. Please ask the developer to disable email confirmation in Supabase, or check your email for a confirmation link."
+            );
+          } else {
+            Alert.alert("Error", error.message);
+          }
         }
       }
     } catch (err: unknown) {
