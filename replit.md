@@ -51,4 +51,5 @@ To disable email confirmation for development:
 
 ## DEV ITEMS TO REMOVE BEFORE TESTFLIGHT
 ### client/navigation/RootStackNavigator.tsx
-- **Line ~175**: Dev bypass for test account `rappacarlos1@gmail.com` - remove the `isDevBypass` check
+- **Line ~185**: Dev bypass for test accounts - remove the `devBypassEmails` array and `isDevBypass` check
+- Test accounts with free access: `rappacarlos1@gmail.com`, `christosmachos@gmail.com`
