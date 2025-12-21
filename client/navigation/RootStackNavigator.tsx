@@ -180,7 +180,9 @@ export default function RootStackNavigator() {
   // ============================================================================
   // DEV ONLY: Bypass for test accounts – REMOVE BEFORE TESTFLIGHT
   const devBypassEmails = ["rappacarlos1@gmail.com", "christosmachos@gmail.com"];
-  const isDevBypass = __DEV__ && user?.email && devBypassEmails.includes(user.email);
+  const isDevBypass = user?.email && devBypassEmails.includes(user.email);
+  
+  console.log("[RootStack] Gate check - user:", user?.email, "isPro:", isPro, "isDevBypass:", isDevBypass);
   
   if (!isPro && !isDevBypass) {
     // Show paywall with sign-in option for existing subscribers
