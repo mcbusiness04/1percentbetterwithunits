@@ -20,8 +20,8 @@ export default function SettingsScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
-  const { settings, updateSettings, setIsPro } = useUnits();
-  const { user, signOut, isPremium } = useAuth();
+  const { settings, updateSettings, setIsPro, isPro } = useUnits();
+  const { user, signOut } = useAuth();
   const { restore, purchasing, iapAvailable } = useStoreKit();
   const [restoring, setRestoring] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -183,8 +183,8 @@ export default function SettingsScreen() {
             <ThemedText type="body" style={{ fontWeight: "600" }}>
               {user?.email ?? "Not signed in"}
             </ThemedText>
-            <ThemedText type="small" style={{ color: isPremium ? "#FFD700" : theme.textSecondary }}>
-              {isPremium ? "Premium Member" : "Free Account"}
+            <ThemedText type="small" style={{ color: isPro ? "#FFD700" : theme.textSecondary }}>
+              {isPro ? "Premium Member" : "Free Account"}
             </ThemedText>
           </View>
         </View>

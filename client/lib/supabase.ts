@@ -27,8 +27,20 @@ export const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON
 export type Profile = {
   id: string;
   email: string;
-  is_premium: boolean;
   onboarding_answers: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Subscription = {
+  id: string;
+  user_id: string;
+  product_id: string;
+  transaction_id: string | null;
+  original_transaction_id: string | null;
+  purchase_date: string | null;
+  expires_date: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 };

@@ -1,19 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { supabase, Profile, isSupabaseConfigured } from "@/lib/supabase";
-import { getIsPro, setIsPro as saveIsPro } from "@/lib/storage";
+import { setIsPro as saveIsPro } from "@/lib/storage";
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  isPremium: boolean;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   resendConfirmation: (email: string) => Promise<{ error: AuthError | null }>;
-  updatePremiumStatus: (isPremium: boolean) => Promise<void>;
   updateOnboardingAnswers: (answers: Record<string, unknown>) => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -43,7 +41,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .upsert({
             id: userId,
             email: userEmail,
-            is_premium: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           }, { onConflict: "id" });
@@ -103,40 +100,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const syncLocalPremiumStatus = async (userId: string, userEmail?: string) => {
-    // Check if user has local premium status (from onboarding paywall)
-    const localIsPro = await getIsPro();
-    if (localIsPro) {
-      // Sync local premium status to Supabase profile
-      const { error } = await supabase
-        .from("profiles")
-        .update({ is_premium: true, updated_at: new Date().toISOString() })
-        .eq("id", userId);
-      
-      if (!error) {
-        // Refresh profile to get updated premium status
-        const profileData = await fetchProfile(userId, userEmail);
-        if (profileData) {
-          setProfile(profileData);
-        }
-      }
-    }
-  };
-
   const signUp = async (email: string, password: string) => {
     if (!isSupabaseConfigured) {
       return { error: { message: "Supabase not configured" } as AuthError };
     }
     
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     });
-    
-    // After successful signup, sync local premium status
-    if (!error && data.user) {
-      await syncLocalPremiumStatus(data.user.id, data.user.email ?? undefined);
-    }
     
     return { error };
   };
@@ -146,15 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: { message: "Supabase not configured" } as AuthError };
     }
     
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    
-    // After successful signin, sync local premium status
-    if (!error && data.user) {
-      await syncLocalPremiumStatus(data.user.id, data.user.email ?? undefined);
-    }
     
     return { error };
   };
@@ -182,18 +149,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const updatePremiumStatus = async (isPremium: boolean) => {
-    if (!user) return;
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_premium: isPremium, updated_at: new Date().toISOString() })
-      .eq("id", user.id);
-
-    if (!error) {
-      setProfile((prev) => (prev ? { ...prev, is_premium: isPremium } : null));
-    }
-  };
-
   const updateOnboardingAnswers = async (answers: Record<string, unknown>) => {
     if (!user) return;
     const { error } = await supabase
@@ -213,12 +168,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         profile,
         loading,
-        isPremium: profile?.is_premium ?? false,
         signUp,
         signIn,
         signOut,
         resendConfirmation,
-        updatePremiumStatus,
         updateOnboardingAnswers,
         refreshProfile,
       }}

@@ -441,23 +441,27 @@ export async function validatePremiumAccess(
     }
   }
   
-  // Fallback: Check Supabase profile if authenticated (for when App Store unavailable)
+  // Fallback: Check Supabase subscriptions table if authenticated (for when App Store unavailable)
   if (userId && isSupabaseConfigured) {
     try {
       const { data } = await supabase
-        .from("profiles")
-        .select("is_premium")
-        .eq("id", userId)
+        .from("subscriptions")
+        .select("is_active, expires_date")
+        .eq("user_id", userId)
         .single();
       
-      if (data?.is_premium) {
-        // Sync to local storage
-        await setLocalIsPro(true);
-        console.log("[StoreKit] Premium validated from Supabase (App Store unavailable)");
-        return true;
+      if (data?.is_active) {
+        // Check if subscription hasn't expired
+        const isExpired = data.expires_date && new Date(data.expires_date) < new Date();
+        if (!isExpired) {
+          // Sync to local storage
+          await setLocalIsPro(true);
+          console.log("[StoreKit] Premium validated from Supabase subscriptions (App Store unavailable)");
+          return true;
+        }
       }
     } catch (error) {
-      console.log("[StoreKit] Error checking Supabase premium:", error);
+      console.log("[StoreKit] Error checking Supabase subscription:", error);
     }
   }
   
@@ -475,20 +479,20 @@ export async function validatePremiumAccess(
 }
 
 /**
- * Revokes premium status in Supabase profile
+ * Revokes premium status in Supabase subscriptions table
  */
 export async function revokeSupabasePremiumStatus(userId: string): Promise<void> {
   if (!isSupabaseConfigured) return;
   
   try {
     await supabase
-      .from("profiles")
+      .from("subscriptions")
       .update({ 
-        is_premium: false, 
+        is_active: false, 
         updated_at: new Date().toISOString() 
       })
-      .eq("id", userId);
-    console.log("[StoreKit] Revoked premium status in Supabase");
+      .eq("user_id", userId);
+    console.log("[StoreKit] Revoked premium status in Supabase subscriptions");
   } catch (error) {
     console.error("[StoreKit] Failed to revoke Supabase premium status:", error);
   }
@@ -499,39 +503,47 @@ export async function revokeSupabasePremiumStatus(userId: string): Promise<void>
 // ============================================================================
 
 /**
- * Updates premium status in Supabase profile
+ * Updates/creates subscription record in Supabase subscriptions table
+ * Called after successful App Store purchase validation
  */
-export async function updateSupabasePremiumStatus(userId: string): Promise<void> {
+export async function updateSupabasePremiumStatus(userId: string, productId?: string): Promise<void> {
   if (!isSupabaseConfigured) return;
   
   try {
+    // Upsert subscription record
     await supabase
-      .from("profiles")
-      .update({ 
-        is_premium: true, 
-        updated_at: new Date().toISOString() 
-      })
-      .eq("id", userId);
-    console.log("[StoreKit] Synced premium status to Supabase");
+      .from("subscriptions")
+      .upsert({ 
+        user_id: userId,
+        product_id: productId || "unknown",
+        is_active: true, 
+        updated_at: new Date().toISOString(),
+        purchase_date: new Date().toISOString(),
+      }, { onConflict: "user_id" });
+    console.log("[StoreKit] Synced premium status to Supabase subscriptions");
   } catch (error) {
     console.error("[StoreKit] Failed to update Supabase premium status:", error);
   }
 }
 
 /**
- * Checks Supabase profile for premium status
+ * Checks Supabase subscriptions table for premium status
  */
 export async function checkSupabasePremiumStatus(userId: string): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
   
   try {
     const { data } = await supabase
-      .from("profiles")
-      .select("is_premium")
-      .eq("id", userId)
+      .from("subscriptions")
+      .select("is_active, expires_date")
+      .eq("user_id", userId)
       .single();
     
-    return data?.is_premium ?? false;
+    if (!data?.is_active) return false;
+    
+    // Check if subscription hasn't expired
+    const isExpired = data.expires_date && new Date(data.expires_date) < new Date();
+    return !isExpired;
   } catch (error) {
     console.error("[StoreKit] Failed to check Supabase premium status:", error);
     return false;
