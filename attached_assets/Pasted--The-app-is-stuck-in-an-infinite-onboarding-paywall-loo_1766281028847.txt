@@ -1,0 +1,62 @@
+
+The app is stuck in an infinite onboarding paywall loop. Signing in works, but after sign-in the app immediately routes back to the onboarding paywall, making it impossible to use the app.
+This is NOT a StoreKit issue. This is a navigation / gating order bug.
+
+REMOVE ALL BYPASSES
+First, remove all of the following immediately:
+* Email-based developer bypasses
+* Forced isPro = true
+* Any dev-only premium overrides
+* Any logic that grants premium without StoreKit verification
+
+CORE BUG TO FIX (IMPORTANT)
+The paywall is currently blocking authentication, which is incorrect.
+Rule: 👉 Paywall must block app usage, NOT sign-in.
+Signing in must always be allowed.
+
+REQUIRED FLOW (MUST MATCH EXACTLY)
+1. First-time install
+* Show onboarding
+* Then show onboarding paywall
+* On this paywall:
+    * Allow Sign In
+    * Allow Purchase
+    * Allow Restore
+2. When user taps Sign In on onboarding paywall
+* Navigate to Sign In screen
+* User signs in successfully
+* Set:
+    * isAuthenticated = true
+* DO NOT route back to onboarding
+3. After sign-in
+* Check subscription status
+* If subscription is active:
+    * Navigate to app
+* If subscription is NOT active:
+    * Show post-auth paywall
+    * NOT onboarding
+4. Paywall behavior
+* Paywall should:
+    * Block app content
+    * NOT reset navigation stack
+    * NOT re-trigger onboarding
+
+NAVIGATION RULES (CRITICAL)
+* Onboarding runs ONLY when:
+    * hasCompletedOnboarding === false
+* Onboarding must NEVER run again after completion
+* Authentication state must be checked FIRST
+* Subscription state must be checked SECOND
+Navigation order must be:
+if (!isAuthenticated) → Auth Stack
+else if (!hasActiveSubscription) → Paywall Stack
+else → App Stack
+Do NOT gate sign-in behind subscription.
+
+CONFIRM AFTER FIX
+Explicitly explain:
+1. Where onboarding is now gated
+2. Where sign-in is allowed unconditionally
+3. Where subscription enforcement happens
+4. Why signing in can no longer loop back to onboarding
+Do NOT add new features. Do NOT add bypasses. Fix navigation logic only.

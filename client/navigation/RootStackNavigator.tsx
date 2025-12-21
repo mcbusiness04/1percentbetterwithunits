@@ -3,23 +3,20 @@
  * ROOT STACK NAVIGATOR - CENTRALIZED APP GATING
  * ============================================================================
  * 
- * STATE-BASED NAVIGATION (no bypasses, no hacks):
- * - hasCompletedOnboarding: Has user completed onboarding?
- * - isAuthenticated: Does user have active session?
- * - hasActiveSubscription: Does user have valid subscription?
+ * NAVIGATION ORDER (CRITICAL):
+ * 1. Check authentication FIRST
+ * 2. Check subscription SECOND
+ * 3. Onboarding ONLY for unauthenticated first-time users
  * 
  * FLOW:
- * 1. First install → Onboarding → Paywall (Sign In only, no Sign Up)
- * 2. Paywall allows: Purchase, Restore, Sign In
- * 3. Sign-in ALWAYS allowed (even without subscription)
- * 4. After sign-in → Check subscription → If active → Main app, else → Paywall
- * 5. After purchase → Auth (Sign In/Sign Up) → Main app
- * 6. Reinstall → Sign In → Check subscription → Main app or Paywall
+ * - if (!isAuthenticated) → Auth Stack (includes onboarding for first-time users)
+ * - else if (!hasActiveSubscription) → Paywall Stack
+ * - else → App Stack
  * 
- * HARD RULES:
- * - Paywall NEVER blocks sign-in
- * - Paywall blocks app access if subscription inactive
- * - Sign-in ≠ premium (subscription checked AFTER sign-in)
+ * RULES:
+ * - Signing in ALWAYS allowed (paywall blocks app, NOT sign-in)
+ * - Signing in auto-completes onboarding (never loops back)
+ * - Onboarding NEVER runs for authenticated users
  * 
  * ============================================================================
  */
@@ -52,7 +49,14 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function RootStackNavigator() {
   const screenOptions = useScreenOptions();
-  const { hasCompletedOnboarding, isPro, setIsPro, loading: unitsLoading, clearAllHabitData } = useUnits();
+  const { 
+    hasCompletedOnboarding, 
+    completeOnboarding,
+    isPro, 
+    setIsPro, 
+    loading: unitsLoading, 
+    clearAllHabitData 
+  } = useUnits();
   const { session, user, loading: authLoading } = useAuth();
   const { theme } = useTheme();
   
@@ -66,6 +70,17 @@ export default function RootStackNavigator() {
   const isAuthenticated = !!session && !!user;
   const hasActiveSubscription = isPro;
 
+  // ============================================================================
+  // CRITICAL: When user signs in, auto-complete onboarding
+  // This prevents the infinite loop back to onboarding after sign-in
+  // ============================================================================
+  useEffect(() => {
+    if (isAuthenticated && !hasCompletedOnboarding) {
+      console.log("[RootStack] User authenticated - auto-completing onboarding");
+      completeOnboarding();
+    }
+  }, [isAuthenticated, hasCompletedOnboarding, completeOnboarding]);
+
   // Run premium validation
   const runValidation = useCallback(async (userId: string, reason: string) => {
     if (validating) return;
@@ -74,7 +89,7 @@ export default function RootStackNavigator() {
     console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId);
     
     try {
-      const isValid = await validatePremiumAccess(userId, true, user?.email);
+      const isValid = await validatePremiumAccess(userId);
       
       if (isValid) {
         await setIsPro(true);
@@ -85,22 +100,13 @@ export default function RootStackNavigator() {
       }
     } catch (error) {
       console.log("[RootStack] Premium validation error:", error);
-      // On error, set to false to require re-validation
       await setIsPro(false);
     }
     
     setValidating(false);
-  }, [validating, setIsPro, user?.email]);
+  }, [validating, setIsPro]);
 
-  // Subscription check on app launch (when user is authenticated)
-  useEffect(() => {
-    if (user && hasCompletedOnboarding && !initialValidationDone) {
-      runValidation(user.id, "app_launch");
-      setInitialValidationDone(true);
-    }
-  }, [user, hasCompletedOnboarding, initialValidationDone, runValidation]);
-
-  // Subscription check on login (when user changes)
+  // Subscription check on login (when user authenticates)
   useEffect(() => {
     if (user && lastUserId.current !== user.id) {
       // Clear previous user's data if switching accounts
@@ -110,16 +116,16 @@ export default function RootStackNavigator() {
       }
       lastUserId.current = user.id;
       
-      if (hasCompletedOnboarding) {
-        runValidation(user.id, "login");
-      }
+      // Always validate when user changes (regardless of onboarding state)
+      runValidation(user.id, "login");
+      setInitialValidationDone(true);
     }
     
     if (!user) {
       lastUserId.current = null;
       setInitialValidationDone(false);
     }
-  }, [user, hasCompletedOnboarding, runValidation, clearAllHabitData]);
+  }, [user, runValidation, clearAllHabitData]);
 
   // Subscription check on app resume
   useEffect(() => {
@@ -127,8 +133,7 @@ export default function RootStackNavigator() {
       if (
         appState.current.match(/inactive|background/) &&
         nextAppState === "active" &&
-        user &&
-        hasCompletedOnboarding
+        user
       ) {
         runValidation(user.id, "app_resume");
       }
@@ -137,7 +142,7 @@ export default function RootStackNavigator() {
 
     const subscription = AppState.addEventListener("change", handleAppStateChange);
     return () => subscription.remove();
-  }, [user, hasCompletedOnboarding, runValidation]);
+  }, [user, runValidation]);
 
   const loading = unitsLoading || authLoading;
 
@@ -159,61 +164,49 @@ export default function RootStackNavigator() {
     );
   }
 
-  // Show validating spinner only on initial validation after login
-  if (validating && !initialValidationDone && isAuthenticated) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.backgroundRoot }}>
-        <ActivityIndicator size="large" color={theme.accent} />
-      </View>
-    );
-  }
-
   // ============================================================================
-  // GATE 1: ONBOARDING (first install only, never shown again)
-  // This includes Paywall and Auth screens since onboarding ends with paywall
-  // ============================================================================
-  if (!hasCompletedOnboarding) {
-    return (
-      <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen
-          name="Onboarding"
-          component={OnboardingScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-        />
-        <Stack.Screen
-          name="Paywall"
-          component={PaywallScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-          initialParams={{ reason: "subscription_required", isFirstPaywall: true }}
-        />
-        <Stack.Screen
-          name="Auth"
-          component={AuthScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: true,
-            presentation: "modal",
-          }}
-          initialParams={{ fromPaywall: true, signInOnly: true }}
-        />
-      </Stack.Navigator>
-    );
-  }
-
-  // ============================================================================
-  // GATE 2: SUBSCRIPTION CHECK
-  // After onboarding, check if user has active subscription
+  // GATE 1: AUTHENTICATION (checked FIRST)
   // ============================================================================
   
-  // Case A: User is authenticated but no subscription → Show paywall
-  // They can sign out and try another account, or purchase
-  if (isAuthenticated && !hasActiveSubscription) {
+  if (!isAuthenticated) {
+    // User is NOT authenticated
+    
+    // First-time user: Show onboarding → paywall → auth (sign-in only pre-purchase)
+    if (!hasCompletedOnboarding) {
+      return (
+        <Stack.Navigator screenOptions={screenOptions}>
+          <Stack.Screen
+            name="Onboarding"
+            component={OnboardingScreen}
+            options={{ 
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+          />
+          <Stack.Screen
+            name="Paywall"
+            component={PaywallScreen}
+            options={{ 
+              headerShown: false,
+              gestureEnabled: false,
+            }}
+            initialParams={{ reason: "subscription_required", isFirstPaywall: true }}
+          />
+          <Stack.Screen
+            name="Auth"
+            component={AuthScreen}
+            options={{ 
+              headerShown: false,
+              gestureEnabled: true,
+              presentation: "modal",
+            }}
+            initialParams={{ fromPaywall: true, signInOnly: true }}
+          />
+        </Stack.Navigator>
+      );
+    }
+    
+    // Returning user (onboarding done, but not signed in): Show paywall with auth
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -239,28 +232,21 @@ export default function RootStackNavigator() {
     );
   }
 
-  // Case B: User is NOT authenticated but HAS subscription → Show Auth (Sign In/Sign Up)
-  // This happens after a successful purchase - user needs to create account to continue
-  if (!isAuthenticated && hasActiveSubscription) {
+  // ============================================================================
+  // GATE 2: SUBSCRIPTION (checked SECOND, only for authenticated users)
+  // ============================================================================
+  
+  // Show loading while validating subscription after login
+  if (validating && !initialValidationDone) {
     return (
-      <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen
-          name="Auth"
-          component={AuthScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-          initialParams={{ fromPaywall: false, signInOnly: false }}
-        />
-      </Stack.Navigator>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: theme.backgroundRoot }}>
+        <ActivityIndicator size="large" color={theme.accent} />
+      </View>
     );
   }
-
-  // Case C: User is NOT authenticated and NO subscription → Show paywall with Sign In option
-  // This is the "first paywall" after onboarding - Sign In only, no Sign Up
-  // They must either: purchase (then create account), or sign in (if existing user)
-  if (!isAuthenticated) {
+  
+  // User is authenticated but no subscription → Show paywall (NOT onboarding)
+  if (!hasActiveSubscription) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen
@@ -270,26 +256,15 @@ export default function RootStackNavigator() {
             headerShown: false,
             gestureEnabled: false,
           }}
-          initialParams={{ reason: "subscription_required", isFirstPaywall: true }}
-        />
-        <Stack.Screen
-          name="Auth"
-          component={AuthScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: true,
-            presentation: "modal",
-          }}
-          initialParams={{ fromPaywall: true, signInOnly: true }}
+          initialParams={{ reason: "subscription_required", isFirstPaywall: false }}
         />
       </Stack.Navigator>
     );
   }
 
   // ============================================================================
-  // MAIN APP (all gates passed)
+  // MAIN APP (authenticated + subscribed)
   // ============================================================================
-  // User has: completed onboarding, active subscription, authenticated
   return (
     <Stack.Navigator screenOptions={screenOptions}>
       <Stack.Screen
