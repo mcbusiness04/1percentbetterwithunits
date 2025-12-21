@@ -170,6 +170,7 @@ export default function RootStackNavigator() {
 
   // ============================================================================
   // GATE 1: ONBOARDING (first install only, never shown again)
+  // This includes Paywall and Auth screens since onboarding ends with paywall
   // ============================================================================
   if (!hasCompletedOnboarding) {
     return (
@@ -181,6 +182,25 @@ export default function RootStackNavigator() {
             headerShown: false,
             gestureEnabled: false,
           }}
+        />
+        <Stack.Screen
+          name="Paywall"
+          component={PaywallScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: false,
+          }}
+          initialParams={{ reason: "subscription_required", isFirstPaywall: true }}
+        />
+        <Stack.Screen
+          name="Auth"
+          component={AuthScreen}
+          options={{ 
+            headerShown: false,
+            gestureEnabled: true,
+            presentation: "modal",
+          }}
+          initialParams={{ fromPaywall: true, signInOnly: true }}
         />
       </Stack.Navigator>
     );
