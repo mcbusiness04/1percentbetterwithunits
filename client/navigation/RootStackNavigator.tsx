@@ -3,20 +3,31 @@
  * ROOT STACK NAVIGATOR - CENTRALIZED APP GATING
  * ============================================================================
  * 
- * NAVIGATION ORDER (CRITICAL):
- * 1. Check authentication FIRST
- * 2. Check subscription SECOND
- * 3. Onboarding ONLY for unauthenticated first-time users
+ * NAVIGATION FLOW:
  * 
- * FLOW:
- * - if (!isAuthenticated) → Auth Stack (includes onboarding for first-time users)
- * - else if (!hasActiveSubscription) → Paywall Stack
- * - else → App Stack
+ * A. First install (fresh user / no session):
+ *    1. Show Onboarding (once)
+ *    2. Then show Paywall (hard gate)
+ *    3. First paywall shows ONLY: Subscribe, Restore, Sign In (NO Sign Up)
  * 
- * RULES:
- * - Signing in ALWAYS allowed (paywall blocks app, NOT sign-in)
- * - Signing in auto-completes onboarding (never loops back)
- * - Onboarding NEVER runs for authenticated users
+ * B. Sign In from paywall:
+ *    - Allow sign in
+ *    - After sign-in, validate subscription
+ *    - If active → app
+ *    - If not active → show paywall (Restore + Sign Out only)
+ * 
+ * C. After successful purchase:
+ *    - Validate purchase
+ *    - Navigate to Auth (allow Sign Up + Sign In)
+ *    - After account creation/sign in → app
+ * 
+ * D. Returning user (app reopened):
+ *    - Session exists + subscription active → straight to app
+ *    - Session exists + subscription inactive → paywall
+ * 
+ * E. Reinstall / logged out (onboarding already complete):
+ *    - Show Auth screen (Sign In) first
+ *    - After sign in → validate subscription → allow if active, else paywall
  * 
  * ============================================================================
  */
@@ -32,7 +43,6 @@ import OnboardingScreen from "@/screens/OnboardingScreen";
 import AuthScreen from "@/screens/AuthScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useUnits } from "@/lib/UnitsContext";
-import Constants from "expo-constants";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import { validatePremiumAccess } from "@/lib/storekit";
@@ -166,13 +176,12 @@ export default function RootStackNavigator() {
   }
 
   // ============================================================================
-  // GATE 1: AUTHENTICATION (checked FIRST)
+  // GATE 1: NOT AUTHENTICATED
   // ============================================================================
   
   if (!isAuthenticated) {
-    // User is NOT authenticated
-    
-    // First-time user: Show onboarding → paywall → auth (sign-in only pre-purchase)
+    // CASE A: First-time user (onboarding not complete)
+    // Show Onboarding → Paywall → Auth (sign-in only)
     if (!hasCompletedOnboarding) {
       return (
         <Stack.Navigator screenOptions={screenOptions}>
@@ -207,48 +216,25 @@ export default function RootStackNavigator() {
       );
     }
     
-    // Returning user (onboarding done, but not signed in): Show paywall with auth
+    // CASE E: Reinstall / logged out (onboarding already complete)
+    // Show Auth screen first (not paywall)
     return (
       <Stack.Navigator screenOptions={screenOptions}>
-        <Stack.Screen
-          name="Paywall"
-          component={PaywallScreen}
-          options={{ 
-            headerShown: false,
-            gestureEnabled: false,
-          }}
-          initialParams={{ reason: "subscription_required", isFirstPaywall: false }}
-        />
         <Stack.Screen
           name="Auth"
           component={AuthScreen}
           options={{ 
             headerShown: false,
-            gestureEnabled: true,
-            presentation: "modal",
+            gestureEnabled: false,
           }}
-          initialParams={{ fromPaywall: true, signInOnly: false }}
+          initialParams={{ fromPaywall: false, signInOnly: false }}
         />
       </Stack.Navigator>
     );
   }
 
   // ============================================================================
-  // GATE 2: SUBSCRIPTION (checked SECOND, only for authenticated users)
-  // ============================================================================
-  
-  // ============================================================================
-  // DEV ONLY – REMOVE BEFORE TESTFLIGHT
-  // Expo Go bypass: allows testing without IAP (purchases unavailable in Expo Go)
-  // Constants.appOwnership === "expo" ONLY in Expo Go, never in standalone builds
-  // ============================================================================
-  const IS_EXPO_GO = __DEV__ && Constants.appOwnership === "expo";
-  
-  if (IS_EXPO_GO && isAuthenticated) {
-    console.log("[RootStack] EXPO GO BYPASS ACTIVE - Skipping subscription check");
-  }
-  // ============================================================================
-  // END DEV ONLY BLOCK
+  // GATE 2: AUTHENTICATED - CHECK SUBSCRIPTION
   // ============================================================================
   
   // Show loading while validating subscription after login
@@ -260,9 +246,9 @@ export default function RootStackNavigator() {
     );
   }
   
-  // User is authenticated but no subscription → Show paywall (NOT onboarding)
-  // BYPASS: Skip this gate entirely when IS_EXPO_GO is true
-  if (!hasActiveSubscription && !IS_EXPO_GO) {
+  // CASE B/D: Authenticated but no active subscription → Paywall
+  // User can Restore, Subscribe, or Sign Out
+  if (!hasActiveSubscription) {
     return (
       <Stack.Navigator screenOptions={screenOptions}>
         <Stack.Screen

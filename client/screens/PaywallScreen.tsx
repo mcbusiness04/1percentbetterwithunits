@@ -155,11 +155,11 @@ export default function PaywallScreen() {
   }, [signOut]);
 
   const handlePrivacy = useCallback(() => {
-    Linking.openURL("https://example.com/privacy");
+    Linking.openURL("http://1betterwithunits.info/");
   }, []);
 
   const handleTerms = useCallback(() => {
-    Linking.openURL("https://example.com/terms");
+    Linking.openURL("http://1betterwithunits.info/");
   }, []);
 
   const isSubscriptionRequired = reason === "subscription_required";

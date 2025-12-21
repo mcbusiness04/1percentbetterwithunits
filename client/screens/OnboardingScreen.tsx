@@ -240,6 +240,8 @@ export default function OnboardingScreen() {
       if (isValid) {
         await setIsPro(true);
         await completeOnboarding();
+        // Navigate to Auth to create account or sign in (requirement C)
+        navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
       } else {
         // Purchase succeeded but server validation failed
         Alert.alert(
@@ -279,6 +281,8 @@ export default function OnboardingScreen() {
       if (isValid) {
         await setIsPro(true);
         await completeOnboarding();
+        // Navigate to Auth to sign in (requirement C)
+        navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
       } else {
         // Restore found purchases but validation failed (likely expired)
         Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
@@ -291,15 +295,15 @@ export default function OnboardingScreen() {
   }, [iapAvailable, restore, setIsPro, completeOnboarding]);
 
   const handlePrivacy = useCallback(() => {
-    Linking.openURL("https://example.com/privacy");
+    Linking.openURL("http://1betterwithunits.info/");
   }, []);
 
   const handleTerms = useCallback(() => {
-    Linking.openURL("https://example.com/terms");
+    Linking.openURL("http://1betterwithunits.info/");
   }, []);
 
   const handleSignIn = useCallback(() => {
-    navigation.navigate("Auth", { fromPaywall: true });
+    navigation.navigate("Auth", { fromPaywall: true, signInOnly: true });
   }, [navigation]);
 
   const ProgressDots = () => (
@@ -638,20 +642,20 @@ export default function OnboardingScreen() {
           </Pressable>
 
           <View style={styles.legalRow}>
-            <Pressable onPress={handleTerms}>
-              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Terms</ThemedText>
-            </Pressable>
-            <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
-            <Pressable onPress={handlePrivacy}>
-              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Privacy</ThemedText>
-            </Pressable>
-            <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
             <Pressable onPress={handleRestorePurchases}>
               <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Restore</ThemedText>
             </Pressable>
             <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
             <Pressable onPress={handleSignIn}>
               <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Sign In</ThemedText>
+            </Pressable>
+            <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
+            <Pressable onPress={handleTerms}>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Terms</ThemedText>
+            </Pressable>
+            <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
+            <Pressable onPress={handlePrivacy}>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Privacy</ThemedText>
             </Pressable>
           </View>
 

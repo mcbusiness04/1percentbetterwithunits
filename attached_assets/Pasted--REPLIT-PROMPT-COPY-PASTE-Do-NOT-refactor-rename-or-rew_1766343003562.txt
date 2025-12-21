@@ -1,0 +1,47 @@
+📩 REPLIT PROMPT (COPY/PASTE)
+Do NOT refactor, rename, or rewrite the app. Do NOT change habits/logs logic, daily reset logic, stats logic, or Supabase data logic. Only fix paywall + auth gating so it works correctly for App Store submission.
+0) Remove all temporary/testing bypasses (MUST)
+Search the entire codebase for any of these and remove them completely:
+* bypass, dev bypass, IS_LOCAL_TEST_BYPASS, expo bypass, test email bypass, TEMPORARY, __DEV__ gate skip, Constants.appOwnership === "expo", any logic that sets premium true based on email or dev mode. Premium must never be granted by email or local storage.
+1) Required flow (must match exactly)
+A. First install (fresh user / no session):
+1. Show Onboarding (once)
+2. Then show Paywall (hard gate)
+3. On this FIRST paywall, show ONLY:
+* “Subscribe” (Apple IAP)
+* “Restore Purchases”
+* “Sign In” (existing users only)
+* Terms / Privacy ❌ No “Sign Up” here.
+B. What happens when user taps “Sign In” from the paywall:
+* Allow them to sign in.
+* After sign-in, immediately validate subscription.
+* If subscription is ACTIVE → allow access to the app.
+* If subscription is NOT active → show “Subscription Required” paywall again and block access (only Restore + Sign Out).
+C. After successful purchase (Apple IAP):
+* Immediately validate the purchase and mark subscription active (using StoreKit result + server validation that you already built).
+* Then navigate to Auth and allow Sign Up + Sign In.
+* After they create an account or sign in, they can access the app.
+D. Returning user (app reopened later):
+* If a valid session exists AND subscription is active → go straight into the app (no onboarding, no paywall).
+* If session exists but subscription inactive/expired → show “Subscription Required” paywall and block app.
+E. Reinstall / deleted app / logged out:
+* Onboarding must NOT show again if it was completed previously.
+* App should open to Sign In screen (not the first paywall).
+* After sign in → validate subscription → allow app if active, else show paywall.
+2) Fix the current bug (sign-in loops back to paywall)
+Right now, after sign-in it keeps returning to paywall and never enters the app. Fix by ensuring navigation re-renders when:
+* auth session changes (login/logout)
+* subscription status changes (purchase/restore/expire) There must be a single “source of truth” state for:
+* session/user
+* hasActiveSubscription and RootStackNavigator must use those values to route correctly.
+3) Expo Go limitation (important)
+In Expo Go, Apple IAP is unavailable. For Expo Go builds, the paywall should:
+* still display the paywall screen
+* but “Subscribe” should show a message: “Purchases require TestFlight or a development build”
+* and NOT unlock premium Do NOT add any bypass to access premium.
+4) Deliverables (tell me exactly what changed)
+After fixing, provide:
+1. The file(s) you modified
+2. The exact routing rules in RootStackNavigator (in plain English)
+3. A 6-step test checklist to verify the flows above
+Again: do not modify any unrelated app logic. Only paywall/auth gating.
