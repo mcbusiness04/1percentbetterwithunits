@@ -552,7 +552,7 @@ export default function OnboardingScreen() {
 
           <Animated.View entering={FadeInUp.delay(400)} style={styles.paywallFeatures}>
             {[
-              { icon: "infinity", text: "Unlimited habits" },
+              { icon: "layers", text: "Unlimited habits" },
               { icon: "calendar", text: "Track every day, forever" },
               { icon: "pie-chart", text: "Advanced analytics" },
               { icon: "shield", text: "Daily accountability" },
