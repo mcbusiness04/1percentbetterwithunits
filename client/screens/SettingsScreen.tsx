@@ -143,12 +143,16 @@ export default function SettingsScreen() {
     );
   }, [user?.id, signOut]);
 
+  const handleTermsOfService = useCallback(() => {
+    Linking.openURL("https://1betterwithunits.info/");
+  }, []);
+
   const handlePrivacyPolicy = useCallback(() => {
-    Linking.openURL("http://1betterwithunits.info/");
+    Linking.openURL("https://1betterwithunits.info/");
   }, []);
 
   const handleContactSupport = useCallback(() => {
-    Linking.openURL("http://1betterwithunits.info/");
+    Linking.openURL("https://1betterwithunits.info/");
   }, []);
 
   const handleSignOut = useCallback(async () => {
@@ -244,6 +248,7 @@ export default function SettingsScreen() {
         <ThemedText type="small" style={[styles.sectionTitle, { color: theme.textSecondary }]}>
           Legal
         </ThemedText>
+        <SettingsRow icon="file-text" title="Terms of Service" onPress={handleTermsOfService} />
         <SettingsRow icon="shield" title="Privacy Policy" onPress={handlePrivacyPolicy} />
         <SettingsRow icon="mail" title="Contact Support" onPress={handleContactSupport} />
       </View>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, TextInput, Pressable, Alert, KeyboardAvoidingView, Platform } from "react-native";
+import { View, StyleSheet, TextInput, Pressable, Alert, Modal, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -11,6 +11,8 @@ import { Button } from "@/components/Button";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
+
+const LEGAL_URL = "https://1betterwithunits.info/";
 
 type AuthMode = "signin" | "signup";
 type ScreenRouteProp = RouteProp<RootStackParamList, "Auth">;
@@ -30,24 +32,39 @@ export default function AuthScreen() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
-  const handleSubmit = async () => {
+  const validateForm = (): boolean => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("Missing Information", "Please enter your email and password.");
-      return;
+      return false;
     }
 
     if (mode === "signup") {
       if (password !== confirmPassword) {
         Alert.alert("Password Mismatch", "Passwords do not match.");
-        return;
+        return false;
       }
       if (password.length < 6) {
         Alert.alert("Weak Password", "Password must be at least 6 characters.");
-        return;
+        return false;
       }
     }
+    return true;
+  };
 
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
+
+    if (mode === "signup") {
+      setShowTermsModal(true);
+      return;
+    }
+
+    await performAuth();
+  };
+
+  const performAuth = async () => {
     setLoading(true);
     try {
       if (mode === "signup") {
@@ -87,6 +104,23 @@ export default function AuthScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleAgreeToTerms = async () => {
+    setShowTermsModal(false);
+    await performAuth();
+  };
+
+  const handleCancelTerms = () => {
+    setShowTermsModal(false);
+  };
+
+  const openTermsOfService = () => {
+    Linking.openURL(LEGAL_URL);
+  };
+
+  const openPrivacyPolicy = () => {
+    Linking.openURL(LEGAL_URL);
   };
 
   const toggleMode = () => {
@@ -185,10 +219,66 @@ export default function AuthScreen() {
 
         <Animated.View entering={FadeInUp.delay(300)} style={styles.footer}>
           <ThemedText type="small" style={styles.footerText}>
-            By continuing, you agree to our Terms of Service and Privacy Policy
+            By continuing, you agree to our{" "}
+            <ThemedText type="small" style={styles.linkText} onPress={openTermsOfService}>
+              Terms of Service
+            </ThemedText>
+            {" "}and{" "}
+            <ThemedText type="small" style={styles.linkText} onPress={openPrivacyPolicy}>
+              Privacy Policy
+            </ThemedText>
           </ThemedText>
         </Animated.View>
       </KeyboardAwareScrollViewCompat>
+
+      <Modal
+        visible={showTermsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCancelTerms}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ThemedText type="h3" style={styles.modalTitle}>
+              Terms Agreement
+            </ThemedText>
+            <ThemedText type="body" style={styles.modalText}>
+              By creating an account, you agree to our:
+            </ThemedText>
+            
+            <View style={styles.modalLinks}>
+              <Pressable onPress={openTermsOfService} style={styles.modalLinkRow}>
+                <Feather name="file-text" size={18} color="#667eea" />
+                <ThemedText type="body" style={styles.modalLinkText}>
+                  Terms of Service
+                </ThemedText>
+                <Feather name="external-link" size={16} color="#667eea" />
+              </Pressable>
+              
+              <Pressable onPress={openPrivacyPolicy} style={styles.modalLinkRow}>
+                <Feather name="shield" size={18} color="#667eea" />
+                <ThemedText type="body" style={styles.modalLinkText}>
+                  Privacy Policy
+                </ThemedText>
+                <Feather name="external-link" size={16} color="#667eea" />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable onPress={handleCancelTerms} style={styles.cancelButton}>
+                <ThemedText type="body" style={styles.cancelButtonText}>
+                  Cancel
+                </ThemedText>
+              </Pressable>
+              <Pressable onPress={handleAgreeToTerms} style={styles.agreeButton}>
+                <ThemedText type="body" style={styles.agreeButtonText}>
+                  I Agree
+                </ThemedText>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </LinearGradient>
   );
 }
@@ -274,5 +364,77 @@ const styles = StyleSheet.create({
     color: "rgba(255,255,255,0.6)",
     textAlign: "center",
     lineHeight: 20,
+  },
+  linkText: {
+    color: "rgba(255,255,255,0.9)",
+    textDecorationLine: "underline",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: Spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    width: "100%",
+    maxWidth: 340,
+  },
+  modalTitle: {
+    color: "#1a1a2e",
+    textAlign: "center",
+    marginBottom: Spacing.md,
+    fontWeight: "700",
+  },
+  modalText: {
+    color: "#444",
+    textAlign: "center",
+    marginBottom: Spacing.lg,
+  },
+  modalLinks: {
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  modalLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0f4ff",
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    gap: Spacing.sm,
+  },
+  modalLinkText: {
+    flex: 1,
+    color: "#667eea",
+    fontWeight: "600",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: Spacing.md,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: "#e0e0e0",
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#666",
+    fontWeight: "600",
+  },
+  agreeButton: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.md,
+    backgroundColor: "#667eea",
+    alignItems: "center",
+  },
+  agreeButtonText: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });
