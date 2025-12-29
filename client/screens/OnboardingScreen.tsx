@@ -662,19 +662,6 @@ export default function OnboardingScreen() {
           <ThemedText type="small" style={styles.disclaimer}>
             Payment charged to Apple ID. Auto-renews unless cancelled 24hrs before period ends.
           </ThemedText>
-
-          {/* DEV BYPASS - REMOVE BEFORE APP STORE SUBMISSION */}
-          <Pressable 
-            onPress={async () => {
-              await setIsPro(true);
-              await completeOnboarding();
-            }} 
-            style={styles.devBypassButton}
-          >
-            <ThemedText type="small" style={styles.devBypassText}>
-              [DEV] Skip Paywall
-            </ThemedText>
-          </Pressable>
         </View>
       </View>
     </LinearGradient>
@@ -969,20 +956,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     lineHeight: 14,
     color: "rgba(255,255,255,0.6)",
-  },
-  devBypassButton: {
-    marginTop: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: "rgba(255,0,0,0.3)",
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
-    borderColor: "rgba(255,0,0,0.5)",
-    alignSelf: "center",
-  },
-  devBypassText: {
-    color: "#FF6B6B",
-    fontWeight: "700",
-    fontSize: 12,
   },
 });
