@@ -330,16 +330,6 @@ export default function PaywallScreen() {
           A paid subscription is required to create an account and use this app. Subscription auto-renews. Cancel anytime in App Store settings.
         </ThemedText>
 
-        <Pressable 
-          onPress={async () => {
-            await setIsPro(true);
-          }} 
-          style={styles.devBypassButton}
-        >
-          <ThemedText type="small" style={styles.devBypassText}>
-            [DEV] Skip Paywall
-          </ThemedText>
-        </Pressable>
       </View>
     </View>
   );
@@ -447,17 +437,5 @@ const styles = StyleSheet.create({
   disclaimer: {
     textAlign: "center",
     fontSize: 11,
-  },
-  devBypassButton: {
-    marginTop: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    backgroundColor: "rgba(100,100,100,0.2)",
-    borderRadius: BorderRadius.sm,
-    alignSelf: "center",
-  },
-  devBypassText: {
-    color: "#888",
-    fontWeight: "600",
   },
 });
