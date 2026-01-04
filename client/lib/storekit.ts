@@ -240,6 +240,9 @@ export type PurchaseResult = {
 /**
  * Initiates Apple's native payment sheet for a subscription.
  * Handles the complete purchase flow including transaction finishing.
+ * 
+ * SANDBOX/REVIEW SAFE: This function gracefully handles all error cases
+ * including products not yet approved, sandbox account issues, and network errors.
  */
 export async function purchaseSubscription(
   productId: string,
@@ -258,18 +261,64 @@ export async function purchaseSubscription(
   }
 
   try {
-    await initializeIAP();
+    const initialized = await initializeIAP();
+    if (!initialized) {
+      return { 
+        success: false, 
+        error: "Unable to connect to the App Store. Please check your internet connection and try again." 
+      };
+    }
     
     console.log("[StoreKit] Requesting purchase for:", productId);
     
+    // Verify the product exists before attempting purchase
+    try {
+      const products = await module.fetchProducts({ skus: [productId], type: "subs" });
+      if (!products || products.length === 0) {
+        console.log("[StoreKit] Product not found:", productId);
+        return { 
+          success: false, 
+          error: "This subscription is temporarily unavailable. Please try again later." 
+        };
+      }
+    } catch (fetchError) {
+      console.log("[StoreKit] Error fetching product before purchase:", fetchError);
+      // Continue with purchase attempt - App Store will handle if product is invalid
+    }
+    
     // Trigger Apple's native payment sheet
-    const purchase = await module.requestPurchase({
-      request: {
-        apple: { sku: productId },
-        google: { skus: [productId] },
-      },
-      type: "subs",
-    });
+    let purchase;
+    try {
+      purchase = await module.requestPurchase({
+        request: {
+          apple: { sku: productId },
+          google: { skus: [productId] },
+        },
+        type: "subs",
+      });
+    } catch (purchaseError: any) {
+      const errorMsg = purchaseError?.message?.toLowerCase() || "";
+      const errorCode = purchaseError?.code || "";
+      
+      // Handle specific StoreKit errors gracefully
+      if (errorMsg.includes("cancelled") || errorMsg.includes("canceled") || errorCode === "E_USER_CANCELLED") {
+        return { success: false, error: "Purchase was cancelled" };
+      }
+      if (errorMsg.includes("not allowed") || errorCode === "E_NOT_PREPARED") {
+        return { success: false, error: "Purchases are not available on this device. Please check your App Store settings." };
+      }
+      if (errorMsg.includes("invalid") || errorCode === "E_UNKNOWN") {
+        return { success: false, error: "This subscription is temporarily unavailable. Please try again later." };
+      }
+      if (errorMsg.includes("network") || errorMsg.includes("connection")) {
+        return { success: false, error: "Unable to connect to the App Store. Please check your internet connection." };
+      }
+      if (errorMsg.includes("pending") || errorCode === "E_DEFERRED") {
+        return { success: false, error: "Your purchase is pending approval. Please check back later." };
+      }
+      
+      throw purchaseError;
+    }
     
     if (!purchase) {
       return { success: false, error: "Purchase was cancelled" };
@@ -280,7 +329,8 @@ export async function purchaseSubscription(
       : purchase.transactionId;
 
     if (!transactionId) {
-      return { success: false, error: "Invalid purchase response" };
+      console.log("[StoreKit] No transaction ID in purchase response");
+      return { success: false, error: "Purchase could not be completed. Please try again." };
     }
 
     console.log("[StoreKit] Purchase successful, transaction:", transactionId);
@@ -294,6 +344,7 @@ export async function purchaseSubscription(
       console.log("[StoreKit] Transaction finished");
     } catch (finishError) {
       console.error("[StoreKit] Failed to finish transaction:", finishError);
+      // Don't fail the purchase - transaction was successful, just couldn't finish
     }
 
     // Save premium status locally
@@ -306,15 +357,21 @@ export async function purchaseSubscription(
 
     return { success: true, transactionId };
   } catch (error: any) {
-    const errorMessage = error?.message || "Purchase failed";
+    const errorMessage = error?.message || "";
+    const errorCode = error?.code || "";
     
     // Handle user cancellation gracefully
-    if (errorMessage.includes("cancelled") || errorMessage.includes("canceled") || error?.code === "user-cancelled") {
+    if (errorMessage.includes("cancelled") || errorMessage.includes("canceled") || errorCode === "E_USER_CANCELLED") {
       return { success: false, error: "Purchase was cancelled" };
     }
 
     console.error("[StoreKit] Purchase error:", error);
-    return { success: false, error: errorMessage };
+    
+    // Provide user-friendly error message
+    return { 
+      success: false, 
+      error: "Unable to complete purchase. Please try again or contact support if the issue persists." 
+    };
   }
 }
 
@@ -331,6 +388,8 @@ export type RestoreResult = {
 /**
  * Restores previous purchases from App Store.
  * This is REQUIRED by App Store Review Guidelines.
+ * 
+ * SANDBOX/REVIEW SAFE: Gracefully handles all error cases during App Store review.
  */
 export async function restorePurchasesFromStore(
   userId?: string
@@ -345,11 +404,44 @@ export async function restorePurchasesFromStore(
   }
   
   try {
-    await initializeIAP();
+    const initialized = await initializeIAP();
+    if (!initialized) {
+      return { 
+        success: false, 
+        hasPremium: false, 
+        error: "Unable to connect to the App Store. Please check your internet connection and try again." 
+      };
+    }
     
     console.log("[StoreKit] Restoring purchases...");
     
-    const purchases = await module.getAvailablePurchases();
+    let purchases;
+    try {
+      purchases = await module.getAvailablePurchases();
+    } catch (fetchError: any) {
+      const errorMsg = fetchError?.message?.toLowerCase() || "";
+      
+      if (errorMsg.includes("network") || errorMsg.includes("connection")) {
+        return { 
+          success: false, 
+          hasPremium: false, 
+          error: "Unable to connect to the App Store. Please check your internet connection." 
+        };
+      }
+      
+      console.error("[StoreKit] Error fetching purchases:", fetchError);
+      return { 
+        success: false, 
+        hasPremium: false, 
+        error: "Unable to restore purchases. Please try again later." 
+      };
+    }
+    
+    // Handle case where purchases is null or undefined
+    if (!purchases) {
+      console.log("[StoreKit] No purchases returned (null/undefined)");
+      return { success: true, hasPremium: false };
+    }
     
     const hasValidSubscription = purchases.some((purchase) => {
       return (
@@ -373,10 +465,12 @@ export async function restorePurchasesFromStore(
     return { success: true, hasPremium: hasValidSubscription };
   } catch (error: any) {
     console.error("[StoreKit] Restore purchases error:", error);
+    
+    // Provide user-friendly error message
     return { 
       success: false, 
       hasPremium: false, 
-      error: error?.message || "Failed to restore purchases" 
+      error: "Unable to restore purchases. Please try again or contact support if the issue persists." 
     };
   }
 }

@@ -10,7 +10,10 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.units.app"
+      "bundleIdentifier": "com.units.app",
+      "infoPlist": {
+        "CFBundleDisplayName": "1% Better"
+      }
     },
     "android": {
       "adaptiveIcon": {
