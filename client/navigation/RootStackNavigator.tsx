@@ -93,14 +93,14 @@ export default function RootStackNavigator() {
   }, [isAuthenticated, hasCompletedOnboarding, completeOnboarding]);
 
   // Run premium validation
-  const runValidation = useCallback(async (userId: string, reason: string) => {
+  const runValidation = useCallback(async (userId: string, userEmail: string | undefined, reason: string) => {
     if (validating) return;
     
     setValidating(true);
     console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId);
     
     try {
-      const isValid = await validatePremiumAccess(userId);
+      const isValid = await validatePremiumAccess(userId, true, userEmail);
       
       if (isValid) {
         await setIsPro(true);
@@ -128,7 +128,7 @@ export default function RootStackNavigator() {
       lastUserId.current = user.id;
       
       // Always validate when user changes (regardless of onboarding state)
-      runValidation(user.id, "login");
+      runValidation(user.id, user.email ?? undefined, "login");
       setInitialValidationDone(true);
     }
     
@@ -146,7 +146,7 @@ export default function RootStackNavigator() {
         nextAppState === "active" &&
         user
       ) {
-        runValidation(user.id, "app_resume");
+        runValidation(user.id, user.email ?? undefined, "app_resume");
       }
       appState.current = nextAppState;
     };

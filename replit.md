@@ -74,3 +74,27 @@ To disable email confirmation for development:
 - IAP is not available in Expo Go - requires development build for real subscription testing
 - On web platform, purchase/restore sets isPro=true directly for testing
 - The `validatePremiumAccess` function in `client/lib/storekit.ts` validates subscriptions with the server
+
+## Demo Account (App Store Review / TestFlight)
+A demo account is available for Apple App Store review and TestFlight testing.
+
+**Credentials:**
+- Email: `demo@unitsapp.review`
+- Password: `UnitsDemo2024!`
+
+**Environment Restrictions:**
+- WORKS in: Development builds (`__DEV__`), Expo Go, TestFlight, EAS preview/development builds
+- DOES NOT WORK in: Production App Store builds
+
+**How it works:**
+1. Demo account detection is in `client/lib/demo-account.ts`
+2. `isDemoModeAllowed()` checks the environment before allowing demo access
+3. `isDemoUser()` is called during `validatePremiumAccess()` in storekit.ts
+4. If environment allows AND email matches → user is granted premium access
+5. Production builds will NEVER grant demo access (environment check fails)
+
+**Important:**
+- Demo account must sign in normally via the "Sign In" flow on the paywall
+- No UI exposes demo account existence
+- Normal users still require paid subscription
+- This does NOT bypass the paywall globally

@@ -67,7 +67,7 @@ export default function PaywallScreen() {
     
     if (result.success) {
       // After successful purchase, validate with server to confirm subscription
-      const isValid = await validatePremiumAccess(user?.id);
+      const isValid = await validatePremiumAccess(user?.id, true, user?.email ?? undefined);
       if (isValid) {
         await setIsPro(true);
       } else {
@@ -107,7 +107,7 @@ export default function PaywallScreen() {
       
       if (result.success && result.hasPremium) {
         // After successful restore, validate with server to confirm subscription
-        const isValid = await validatePremiumAccess(user?.id);
+        const isValid = await validatePremiumAccess(user?.id, true, user?.email ?? undefined);
         if (isValid) {
           await setIsPro(true);
           Alert.alert("Restored", "Your subscription has been restored successfully.");

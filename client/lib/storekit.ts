@@ -28,6 +28,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { setIsPro as setLocalIsPro, getIsPro as getLocalIsPro } from "./storage";
+import { isDemoUser } from "./demo-account";
 
 // ============================================================================
 // PRODUCT CONFIGURATION
@@ -486,17 +487,29 @@ export async function restorePurchasesFromStore(
  * and will REVOKE premium if the subscription is no longer active.
  * 
  * Validation order:
+ * 0. Demo account check (dev/TestFlight ONLY - see demo-account.ts)
  * 1. App Store (authoritative source - if available)
  * 2. Supabase profile (if authenticated)
  * 3. Local storage (fallback only when App Store unavailable)
  * 
  * @param userId - Optional Supabase user ID
  * @param forceAppStoreCheck - If true, always check App Store (used on app launch)
+ * @param userEmail - Optional user email for demo account detection
  */
 export async function validatePremiumAccess(
   userId?: string,
-  forceAppStoreCheck: boolean = true
+  forceAppStoreCheck: boolean = true,
+  userEmail?: string
 ): Promise<boolean> {
+  // DEMO ACCOUNT CHECK (dev/TestFlight only)
+  // This ONLY works if isDemoModeAllowed() returns true
+  // Production builds will never reach this code path
+  if (userEmail && isDemoUser(userEmail)) {
+    console.log("[StoreKit] Demo account detected - granting premium access (dev/TestFlight only)");
+    await setLocalIsPro(true);
+    return true;
+  }
+  
   const module = await loadIAPModule();
   
   // If App Store is available, it is the authoritative source
