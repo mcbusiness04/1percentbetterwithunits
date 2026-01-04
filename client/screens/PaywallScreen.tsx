@@ -166,12 +166,12 @@ export default function PaywallScreen() {
 
   const getSubtitle = () => {
     if (user) {
-      return `Signed in as ${user.email}. Subscribe to continue using Units.`;
+      return `Signed in as ${user.email}. An active subscription is required to access Units.`;
     }
     if (isSubscriptionRequired) {
-      return "Your subscription is required to continue using Units. Please subscribe or restore your purchase.";
+      return "An active subscription is required to use Units. Please subscribe or restore your purchase to continue.";
     }
-    return "Start your journey to better habits with Units";
+    return "Units is a paid app. A subscription is required to create an account and access all features.";
   };
 
   return (
@@ -327,7 +327,7 @@ export default function PaywallScreen() {
         </View>
 
         <ThemedText type="small" style={[styles.disclaimer, { color: theme.textSecondary }]}>
-          Subscription auto-renews. Cancel anytime in App Store settings.
+          A paid subscription is required to create an account and use this app. Subscription auto-renews. Cancel anytime in App Store settings.
         </ThemedText>
 
         <Pressable 

@@ -550,6 +550,10 @@ export default function OnboardingScreen() {
             Unlock Your{"\n"}Full Potential
           </Animated.Text>
 
+          <Animated.Text entering={FadeInUp.delay(350)} style={styles.paywallSubtitle}>
+            Units is a paid app. Subscribe to create your account and start tracking.
+          </Animated.Text>
+
           <Animated.View entering={FadeInUp.delay(400)} style={styles.paywallFeatures}>
             {[
               { icon: "layers", text: "Unlimited habits" },
@@ -660,7 +664,7 @@ export default function OnboardingScreen() {
           </View>
 
           <ThemedText type="small" style={styles.disclaimer}>
-            Payment charged to Apple ID. Auto-renews unless cancelled 24hrs before period ends.
+            A paid subscription is required to create an account and use this app. Payment charged to Apple ID. Auto-renews unless cancelled 24hrs before period ends.
           </ThemedText>
 
           <Pressable 
@@ -898,6 +902,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "800",
     color: "white",
+    textAlign: "center",
+    marginBottom: Spacing.sm,
+  },
+  paywallSubtitle: {
+    fontSize: 14,
+    color: "rgba(255,255,255,0.8)",
     textAlign: "center",
     marginBottom: Spacing.lg,
   },

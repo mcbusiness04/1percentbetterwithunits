@@ -148,6 +148,9 @@ export default function AuthScreen() {
           <ThemedText type="body" style={styles.subtitle}>
             {mode === "signup" ? "Create your account" : "Welcome back"}
           </ThemedText>
+          <ThemedText type="small" style={styles.paidAppNotice}>
+            Active subscription required for account access
+          </ThemedText>
         </Animated.View>
 
         <Animated.View entering={FadeIn.delay(200)} style={styles.form}>
@@ -320,6 +323,12 @@ const styles = StyleSheet.create({
   subtitle: {
     color: "rgba(255,255,255,0.8)",
     fontSize: 18,
+  },
+  paidAppNotice: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 12,
+    marginTop: Spacing.sm,
+    fontStyle: "italic",
   },
   form: {
     gap: Spacing.md,
