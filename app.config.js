@@ -20,9 +20,9 @@ module.exports = ({ config }) => {
       ...baseConfig.expo.extra,
       ALLOW_DEMO_REVIEW_LOGIN: allowDemoReviewLogin,
       eas: {
-        projectId: process.env.EAS_PROJECT_ID || undefined,
-        buildProfile: process.env.EAS_BUILD_PROFILE || undefined,
+  projectId: "fe7d098d-dfeb-4606-af8a-7d8cb1713ac0",
       },
+
     },
   };
 };
