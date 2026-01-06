@@ -82,22 +82,38 @@ A demo account is available for Apple App Store review and TestFlight testing.
 - Email: `demo@unitsapp.review`
 - Password: `UnitsDemo2024!`
 
-**Environment Restrictions:**
-- WORKS in: Development builds (`__DEV__`), Expo Go, TestFlight, EAS preview/development builds
-- DOES NOT WORK in: Production App Store builds
+**Security Control: ALLOW_DEMO_REVIEW_LOGIN Environment Variable**
+
+Demo bypass is controlled by an explicit environment variable. Default is OFF.
+
+| Environment | ALLOW_DEMO_REVIEW_LOGIN | Demo Bypass |
+|-------------|-------------------------|-------------|
+| Local dev (`__DEV__`) | N/A (always allowed) | Works |
+| Web (Replit) | N/A (always allowed) | Works |
+| Expo Go | N/A (always allowed) | Works |
+| EAS development build | `true` (set in eas.json) | Works |
+| EAS preview build (TestFlight) | `true` (set in eas.json) | Works |
+| EAS production build (App Store) | `false` (default) | **BLOCKED** |
+
+**Files involved:**
+1. `eas.json` - Sets env var per build profile (development/preview: true, production: false)
+2. `app.config.js` - Reads `process.env.ALLOW_DEMO_REVIEW_LOGIN` and injects into extra config
+3. `client/lib/demo-account.ts` - Reads from `Constants.expoConfig.extra.ALLOW_DEMO_REVIEW_LOGIN`
+4. `client/lib/storekit.ts` - Calls `isDemoUser()` BEFORE any StoreKit checks
 
 **How it works:**
-1. Demo account detection is in `client/lib/demo-account.ts`
-2. `isDemoModeAllowed()` checks the environment before allowing demo access
-3. `isDemoUser()` is called during `validatePremiumAccess()` in storekit.ts
-4. If environment allows AND email matches → user is granted premium access
-5. Production builds will NEVER grant demo access (environment check fails)
+1. EAS build reads env var from eas.json profile
+2. app.config.js injects it into `expo.extra.ALLOW_DEMO_REVIEW_LOGIN`
+3. `isDemoModeAllowed()` checks this value via expo-constants
+4. `isDemoUser()` is called during `validatePremiumAccess()` in storekit.ts
+5. If ALLOW_DEMO_REVIEW_LOGIN=true AND email matches → premium access granted
+6. Production builds have ALLOW_DEMO_REVIEW_LOGIN=false → demo NEVER works
 
 **Important:**
 - Demo account must sign in normally via the "Sign In" flow on the paywall
 - No UI exposes demo account existence
 - Normal users still require paid subscription
-- This does NOT bypass the paywall globally
+- Production App Store builds will NEVER grant demo access
 
 ## Product IDs (App Store Connect)
 - `units.subscription.monthly` - $4.99/month subscription

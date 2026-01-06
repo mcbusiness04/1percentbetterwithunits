@@ -1,0 +1,31 @@
+{
+  "cli": {
+    "version": ">= 5.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "ALLOW_DEMO_REVIEW_LOGIN": "true"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false
+      },
+      "env": {
+        "ALLOW_DEMO_REVIEW_LOGIN": "true"
+      }
+    },
+    "production": {
+      "env": {
+        "ALLOW_DEMO_REVIEW_LOGIN": "false"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -48,6 +48,9 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "ALLOW_DEMO_REVIEW_LOGIN": false
     }
   }
 }
