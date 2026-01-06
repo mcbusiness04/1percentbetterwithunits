@@ -72,7 +72,7 @@ To disable email confirmation for development:
 
 ## Testing Notes
 - IAP is not available in Expo Go - requires development build for real subscription testing
-- On web platform, purchase/restore sets isPro=true directly for testing
+- On web platform, purchase/restore returns an error (no bypass) - use demo account with ALLOW_DEMO_REVIEW_LOGIN=true for testing
 - The `validatePremiumAccess` function in `client/lib/storekit.ts` validates subscriptions with the server
 
 ## Demo Account (App Store Review / TestFlight)
@@ -84,16 +84,29 @@ A demo account is available for Apple App Store review and TestFlight testing.
 
 **Security Control: ALLOW_DEMO_REVIEW_LOGIN Environment Variable**
 
-Demo bypass is controlled by an explicit environment variable. Default is OFF.
+Demo bypass is controlled **EXCLUSIVELY** by an explicit environment variable. Default is OFF.
+
+**CRITICAL SECURITY REQUIREMENT:**
+- Demo bypass is NOT dependent on `__DEV__` (would allow bypass in dev builds)
+- Demo bypass is NOT dependent on `Platform.OS === "web"` (would allow bypass on web)
+- Demo bypass is NOT dependent on Expo Go detection
+- Demo bypass ONLY works when `ALLOW_DEMO_REVIEW_LOGIN === true`
 
 | Environment | ALLOW_DEMO_REVIEW_LOGIN | Demo Bypass |
 |-------------|-------------------------|-------------|
-| Local dev (`__DEV__`) | N/A (always allowed) | Works |
-| Web (Replit) | N/A (always allowed) | Works |
-| Expo Go | N/A (always allowed) | Works |
+| Local dev (without env var) | Not set (false) | **BLOCKED** |
+| Local dev (with env var) | `true` | Works |
+| Web (Replit, without env var) | Not set (false) | **BLOCKED** |
+| Expo Go (without env var) | Not set (false) | **BLOCKED** |
 | EAS development build | `true` (set in eas.json) | Works |
 | EAS preview build (TestFlight) | `true` (set in eas.json) | Works |
-| EAS production build (App Store) | `false` (default) | **BLOCKED** |
+| EAS production build (App Store) | `false` (set in eas.json) | **BLOCKED** |
+
+**For Local/Replit Testing:**
+To test demo login locally or on Replit, you must explicitly set the environment variable:
+```bash
+ALLOW_DEMO_REVIEW_LOGIN=true npm run all:dev
+```
 
 **Files involved:**
 1. `eas.json` - Sets env var per build profile (development/preview: true, production: false)
@@ -104,7 +117,7 @@ Demo bypass is controlled by an explicit environment variable. Default is OFF.
 **How it works:**
 1. EAS build reads env var from eas.json profile
 2. app.config.js injects it into `expo.extra.ALLOW_DEMO_REVIEW_LOGIN`
-3. `isDemoModeAllowed()` checks this value via expo-constants
+3. `isDemoModeAllowed()` checks this value via expo-constants (NO OTHER FALLBACKS)
 4. `isDemoUser()` is called during `validatePremiumAccess()` in storekit.ts
 5. If ALLOW_DEMO_REVIEW_LOGIN=true AND email matches → premium access granted
 6. Production builds have ALLOW_DEMO_REVIEW_LOGIN=false → demo NEVER works
@@ -114,6 +127,7 @@ Demo bypass is controlled by an explicit environment variable. Default is OFF.
 - No UI exposes demo account existence
 - Normal users still require paid subscription
 - Production App Store builds will NEVER grant demo access
+- There are NO fallback paths - the env var is the ONLY gate
 
 ## Product IDs (App Store Connect)
 - `units.subscription.monthly` - $4.99/month subscription

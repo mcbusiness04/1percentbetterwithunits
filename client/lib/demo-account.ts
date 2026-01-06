@@ -40,37 +40,34 @@ const DEMO_ACCOUNT = {
 /**
  * Checks if ALLOW_DEMO_REVIEW_LOGIN is explicitly enabled.
  * 
- * This is the PRIMARY security gate for demo account access.
+ * This is the ONLY security gate for demo account access.
+ * 
+ * CRITICAL SECURITY REQUIREMENTS:
+ * - Demo bypass is NOT dependent on __DEV__ (would allow bypass in dev builds)
+ * - Demo bypass is NOT dependent on Platform.OS === "web" (would allow bypass on web)
+ * - Demo bypass is NOT dependent on Expo Go detection
+ * - Demo bypass ONLY works when ALLOW_DEMO_REVIEW_LOGIN === true
  * 
  * Returns true ONLY if:
  * - ALLOW_DEMO_REVIEW_LOGIN is explicitly set to true in app config
  * 
  * Returns false in:
  * - All other cases (including production App Store builds)
+ * - Development builds without explicit ALLOW_DEMO_REVIEW_LOGIN=true
+ * - Web builds without explicit ALLOW_DEMO_REVIEW_LOGIN=true
  */
 function isAllowDemoReviewLoginEnabled(): boolean {
   // Check expo-constants extra config (set at build time)
   const extraConfig = Constants.expoConfig?.extra;
   
+  // ONLY the explicit environment variable controls demo access
+  // No fallbacks for __DEV__, web, or Expo Go - this is intentional
   if (extraConfig?.ALLOW_DEMO_REVIEW_LOGIN === true) {
     console.log("[DemoAccount] ALLOW_DEMO_REVIEW_LOGIN is explicitly enabled");
     return true;
   }
   
-  // For development environments (__DEV__), always allow demo mode
-  // This enables testing in Expo Go and local development
-  if (__DEV__) {
-    console.log("[DemoAccount] Development build - demo mode allowed");
-    return true;
-  }
-  
-  // Web platform in development (Replit testing)
-  if (Platform.OS === "web") {
-    console.log("[DemoAccount] Web platform - demo mode allowed for testing");
-    return true;
-  }
-  
-  // Default: Demo mode is OFF
+  // Default: Demo mode is OFF in all other cases
   console.log("[DemoAccount] ALLOW_DEMO_REVIEW_LOGIN is NOT enabled - demo mode denied");
   return false;
 }

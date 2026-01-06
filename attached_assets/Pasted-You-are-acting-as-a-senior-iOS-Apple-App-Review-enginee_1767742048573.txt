@@ -1,0 +1,88 @@
+You are acting as a senior iOS / Apple App Review engineer.
+
+I need you to do a FINAL Apple App Store & TestFlight compliance audit and fix, focused ONLY on code-level issues.
+
+IMPORTANT CONSTRAINTS:
+- Do NOT refactor unrelated code
+- Do NOT change product IDs unless required
+- Do NOT redo things already fixed unless they are incorrect
+- Do NOT touch App Store Connect metadata, screenshots, agreements, or pricing (report those separately if needed)
+- Only change code when a real issue is found
+
+PRIMARY GOALS (IN ORDER):
+
+1) DEMO ACCOUNT BYPASS (CRITICAL)
+There are MULTIPLE paywalls in the app (onboarding paywall, root navigation gating, feature-level gating).
+Ensure that the demo account:
+- demo@unitsapp.review
+- ALWAYS bypasses ALL paywalls
+- Works in TestFlight builds
+- Works regardless of navigation path (onboarding, cold start, sign-in, deep link)
+- Is checked BEFORE any StoreKit / subscription logic
+- Results in full app access exactly as if subscribed
+
+If ANY paywall still blocks the demo account:
+- Identify it
+- Fix it
+- Explain exactly why it was blocking
+- Ensure the fix is deterministic and Apple-safe
+
+2) ENVIRONMENT SAFETY
+Confirm demo bypass is:
+- ENABLED only when ALLOW_DEMO_REVIEW_LOGIN === true
+- DISABLED in App Store production builds
+- NOT dependent on credential secrecy
+- NOT dependent on __DEV__ or Expo Go
+- Uses app.config.js / EAS env vars correctly
+
+3) IN-APP PURCHASE FAILURE ("Subscription temporarily unavailable")
+Investigate and fix ALL possible code causes for:
+- Products not loading
+- StoreKit not initialized before purchase
+- Product IDs mismatching StoreKit fetch
+- Purchase attempted before products are loaded
+- Sandbox/TestFlight mis-handling
+- Missing restore or transaction finishing logic
+
+Ensure:
+- Products are fetched before UI allows purchase
+- Errors are user-friendly
+- StoreKit is initialized exactly once
+- Purchases do not silently fail
+- Restore Purchases always exists
+
+4) MULTIPLE PAYWALL CONSISTENCY
+Audit ALL paywall implementations and ensure:
+- They rely on the SAME source of truth (e.g. isPro / hasActiveSubscription)
+- No duplicate or stale checks exist
+- No paywall checks bypass the demo override
+- Navigation gating cannot regress to a paywall after demo login
+
+5) BUILD NUMBER & VERSION HANDLING
+Confirm and document:
+- Build numbers are auto-incremented by EAS
+- No manual buildNumber logic exists in code
+- No code is preventing TestFlight from accepting newer builds
+- Explain why Apple might report "build 1 should be build 3" and confirm code is not the cause
+
+6) APP NAME / DISPLAY NAME (CODE ONLY)
+Confirm:
+- CFBundleDisplayName matches App Store name intent ("1% Better" / "Units" alignment)
+- app.json / app.config.js values are correct
+- No hardcoded name conflicts exist in native config
+
+7) FINAL REPORT (REQUIRED)
+After auditing and fixing, output a FINAL REPORT with:
+- Every file changed (or explicitly state "no change needed")
+- Every Apple guideline addressed (2.1, 2.3.2, 2.3.8)
+- Clear separation of:
+  - FIXED IN CODE
+  - MUST BE DONE IN APP STORE CONNECT (do not fix these)
+- A clear statement:
+  "This build is code-ready for Apple App Review"
+
+DO NOT STOP EARLY.
+DO NOT SAY "looks fine" WITHOUT PROOF.
+ASSUME APPLE REVIEWERS WILL TEST EDGE CASES.
+
+Begin now.
