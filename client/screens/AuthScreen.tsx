@@ -143,8 +143,8 @@ export default function AuthScreen() {
           <View style={styles.iconContainer}>
             <Feather name="layers" size={48} color="#FFFFFF" />
           </View>
-          <ThemedText type="h1" style={styles.title}>Units</ThemedText>
-          <ThemedText type="small" style={styles.tagline}>1% better with Units</ThemedText>
+          <ThemedText type="h1" style={styles.title}>1% Better</ThemedText>
+          <ThemedText type="small" style={styles.tagline}>with Units</ThemedText>
           <ThemedText type="body" style={styles.subtitle}>
             {mode === "signup" ? "Create your account" : "Welcome back"}
           </ThemedText>
