@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Units",
-    "slug": "units",
+    "name": "1% Better",
+    "slug": "1% Better",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -12,7 +12,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.1withunits.app",
       "infoPlist": {
-        "CFBundleDisplayName": "1% Better"
+        "CFBundleDisplayName": "1% Better",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
