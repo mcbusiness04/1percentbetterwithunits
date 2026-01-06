@@ -1,0 +1,76 @@
+I need you to do a FINAL Apple App Review compliance audit and targeted fix pass.
+
+IMPORTANT CONSTRAINTS:
+- Do NOT refactor or rewrite working code.
+- Do NOT redo any fixes that are already correct.
+- Do NOT suggest or handle App Store Connect / metadata / screenshots / agreements.
+- ONLY fix or adjust code if there is a clear functional issue.
+- If something is already correct, VERIFY it and report it instead of changing it.
+
+PRIMARY ISSUE TO FIX (CRITICAL):
+The TestFlight demo account is NOT bypassing the paywall as intended.
+You must:
+1) Identify why the demo account does not unlock premium access in TestFlight builds.
+2) Fix the logic so that:
+   - The demo account ALWAYS bypasses the paywall
+   - The bypass works ONLY in TestFlight / development builds
+   - The bypass does NOT apply to production App Store builds
+3) Ensure the bypass happens BEFORE any StoreKit purchase checks.
+4) Ensure no purchase flow or subscription check can block the demo user.
+
+SECONDARY TASK: APPLE REJECTION COMPLIANCE AUDIT (CODE ONLY)
+
+Using the Apple rejection feedback below, verify CODE-LEVEL compliance only.
+Do NOT modify App Store metadata or external configuration.
+For each item:
+- Confirm whether the code already satisfies the requirement
+- If not, fix it minimally
+- Explain clearly what was verified or fixed
+
+Apple Rejection Issues to Audit Against:
+
+1) Guideline 2.3.8 – App name mismatch
+   - Verify CFBundleDisplayName matches the App Store name closely
+   - Report the exact value used and where it is defined
+
+2) Guideline 2.1 – In-App Purchases not submitted / buggy
+   - Verify the app only references the correct subscription product IDs:
+       units.subscription.monthly
+       units.subscription.yearly
+   - Verify products are fetched BEFORE purchase UI is shown
+   - Verify purchase errors are gracefully handled
+   - Verify restore purchases exists and functions
+
+3) Guideline 2.1 – Demo account required
+   - Verify demo account logic grants FULL access
+   - Verify no subscription or payment check can override demo access
+   - Verify demo logic is environment-gated (TestFlight/dev only)
+
+4) Guideline 2.3.2 – Paid features clarity
+   - Verify that paid features are code-gated behind subscription checks
+   - Verify no paid feature is accessible without entitlement
+   - Verify paywall gating logic is consistent across navigation
+
+FINAL REQUIREMENTS:
+
+After completing the above, produce a FINAL REPORT with:
+
+SECTION A — Demo Account Fix
+- Root cause identified
+- Exact logic change made
+- Files touched (if any)
+- Proof that demo bypass occurs before StoreKit
+
+SECTION B — Apple Compliance Audit Results
+For EACH guideline listed:
+- Status: PASS / FIXED
+- Explanation of why it is compliant
+- Code locations involved
+
+SECTION C — Apple Readiness Statement
+- Explicitly state whether the app is CODE-READY for Apple review
+- List ONLY remaining non-code items (if any), without instructions on how to fix them
+
+Do NOT be vague.
+Do NOT say “should work”.
+Use definitive language and evidence from the codebase.
