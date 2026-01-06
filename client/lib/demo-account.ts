@@ -49,7 +49,15 @@ const DEMO_ACCOUNT = {
 export function isDemoModeAllowed(): boolean {
   // Development builds always allow demo mode
   if (__DEV__) {
-    console.log("[DemoAccount] Demo mode allowed: Development build");
+    console.log("[DemoAccount] Demo mode allowed: Development build (__DEV__)");
+    return true;
+  }
+  
+  // Web platform in development (Metro bundler)
+  if (Platform.OS === "web") {
+    // On web, if we're not in production, allow demo mode
+    // This covers local development and Replit preview
+    console.log("[DemoAccount] Demo mode allowed: Web platform (development)");
     return true;
   }
   
