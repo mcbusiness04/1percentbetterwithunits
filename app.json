@@ -13,6 +13,7 @@
       "bundleIdentifier": "com.1withunits.app",
       "infoPlist": {
         "CFBundleDisplayName": "1% Better"
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
