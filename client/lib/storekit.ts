@@ -6,8 +6,8 @@
  * This file contains ALL Apple StoreKit / In-App Purchase related code.
  * 
  * PRODUCT IDS (configured in App Store Connect):
- * - units.accessfull.monthly  - $4.99/month subscription
- * - units.accessfull.yearly   - $19.99/year subscription
+ * - units.subscription.monthly  - $4.99/month subscription
+ * - units.subscription.yearly   - $19.99/year subscription
  * 
  * KEY FUNCTIONS:
  * - loadIAPModule()           - Dynamically loads expo-iap (dev builds only)
@@ -35,8 +35,8 @@ import { isDemoUser } from "./demo-account";
 // ============================================================================
 
 export const PRODUCT_IDS = {
-  MONTHLY: "units.accessfull.monthly",
-  YEARLY: "units.accessfull.yearly",
+  MONTHLY: "units.subscription.monthly",
+  YEARLY: "units.subscription.yearly",
 } as const;
 
 export type SubscriptionProduct = {

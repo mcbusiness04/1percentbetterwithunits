@@ -98,3 +98,7 @@ A demo account is available for Apple App Store review and TestFlight testing.
 - No UI exposes demo account existence
 - Normal users still require paid subscription
 - This does NOT bypass the paywall globally
+
+## Product IDs (App Store Connect)
+- `units.subscription.monthly` - $4.99/month subscription
+- `units.subscription.yearly` - $19.99/year subscription

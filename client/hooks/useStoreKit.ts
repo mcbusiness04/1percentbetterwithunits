@@ -19,8 +19,8 @@
  *   } = useStoreKit();
  * 
  * PRODUCT IDS:
- *   - units.accessfull.monthly ($4.99/month)
- *   - units.accessfull.yearly ($19.99/year)
+ *   - units.subscription.monthly ($4.99/month)
+ *   - units.subscription.yearly ($19.99/year)
  * 
  * ============================================================================
  */
