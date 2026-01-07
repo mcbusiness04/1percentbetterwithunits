@@ -12,15 +12,13 @@
       }
     },
     "preview": {
-      "distribution": "internal",
-      "ios": {
-        "simulator": false
-      },
+      "distribution": "store",
       "env": {
         "ALLOW_DEMO_REVIEW_LOGIN": "true"
       }
     },
     "production": {
+      "distribution": "store",
       "env": {
         "ALLOW_DEMO_REVIEW_LOGIN": "false"
       }
@@ -30,3 +28,4 @@
     "production": {}
   }
 }
+
