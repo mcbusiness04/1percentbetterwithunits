@@ -11,6 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.1withunits.app",
+      "buildNumber": "2",
       "infoPlist": {
         "CFBundleDisplayName": "1% Better",
         "ITSAppUsesNonExemptEncryption": false
