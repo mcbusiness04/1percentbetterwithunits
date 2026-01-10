@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet, Alert, Linking, Platform, Pressable } fro
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import Constants from "expo-constants";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { ThemedText } from "@/components/ThemedText";
@@ -255,7 +256,7 @@ export default function SettingsScreen() {
 
       <View style={styles.footer}>
         <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: "center" }}>
-          Units v1.0.0
+          Units v{Constants.expoConfig?.version ?? "1.0.1"}
         </ThemedText>
       </View>
     </ScrollView>
