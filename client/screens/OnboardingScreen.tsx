@@ -337,9 +337,14 @@ export default function OnboardingScreen() {
               <PulsingIcon name="box" color="white" size={72} />
             </View>
 
-            <Animated.Text entering={FadeInUp.delay(400)} style={styles.welcomeTitle}>
-              Units
-            </Animated.Text>
+            <Animated.View entering={FadeInUp.delay(400)} style={styles.welcomeTitleContainer}>
+              <Animated.Text style={styles.welcomeTitle}>
+                1% Better
+              </Animated.Text>
+              <Animated.Text style={styles.welcomeTitleSmall}>
+                with Units
+              </Animated.Text>
+            </Animated.View>
 
             <Animated.Text entering={FadeInUp.delay(500)} style={styles.welcomeSubtitle}>
               Build habits that stick.{"\n"}One tap at a time.
@@ -713,12 +718,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: Spacing.xl,
   },
+  welcomeTitleContainer: {
+    alignItems: "center",
+    marginBottom: Spacing.sm,
+  },
   welcomeTitle: {
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: "800",
     color: "white",
     textAlign: "center",
-    marginBottom: Spacing.sm,
+  },
+  welcomeTitleSmall: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "rgba(255,255,255,0.8)",
+    textAlign: "center",
+    marginTop: 4,
   },
   welcomeSubtitle: {
     fontSize: 20,
