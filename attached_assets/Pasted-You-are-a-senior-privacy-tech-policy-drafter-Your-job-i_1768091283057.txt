@@ -1,0 +1,121 @@
+You are a senior privacy/tech policy drafter. Your job is to (1) gather all missing details from me about my app, then (2) draft a complete, plain-English Privacy Policy and (3) a complete Terms of Service for my application. 
+Important: ask clarifying questions FIRST. Do not draft until you have enough info. If I don’t know an answer, provide best-practice defaults and clearly label them as “Assumption (confirm).”
+Also include: a short “Implementation Checklist” (what I must actually do in the app/website to match the documents) and a “Risk Flags” section (things that need lawyer review).
+Tone: professional, user-friendly, not overly legalese. Output should be ready to publish.
+
+STEP 1 — Ask me for details using this exact questionnaire format (numbered, concise, no fluff):
+
+A) Company + Jurisdiction
+1) Legal entity name (or “individual/sole prop”), address, contact email for privacy inquiries
+2) Countries/states you operate in or target (US states, EU/UK, Canada, etc.)
+3) Is this B2C, B2B, or both?
+
+B) App Basics
+4) App name, platform (iOS/Android/Web/Desktop), website domain(s)
+5) What the app does (1–2 paragraphs), key features, target audience
+6) Is the app for kids or directed to minors? Minimum age requirement?
+
+C) Accounts + Auth
+7) Do users create accounts? What login methods (email/password, Google/Apple, phone/SMS, passkeys)?
+8) Do you collect profile info (name, username, photo, bio)?
+
+D) Data You Collect (be exhaustive)
+9) List all data users enter/upload (text, images, audio, video, documents, prompts)
+10) Device/technical data (IP, device IDs, cookies, analytics, crash logs)
+11) Location data (precise/approximate/none)
+12) Contacts/calendar/photos access? Which permissions?
+13) Payment data (card data handled by Stripe/Apple/Google or you store anything?)
+14) Any sensitive data (health, biometrics, government IDs, financial info, precise location, race/religion, etc.)?
+
+E) AI + RedBlit AI Integration
+15) Exactly how RedBlit AI is used (chat, image generation, classification, moderation, recommendations, etc.)
+16) What is sent to RedBlit AI (prompts, user content, identifiers, metadata)?
+17) Do you use user content to train/fine-tune ANY model (yours or vendor)? Opt-in or opt-out?
+18) Do you log prompts/outputs? For how long? Can users delete them?
+
+F) Purposes + Legal Bases (if applicable)
+19) Why you collect each category of data (operate service, security, analytics, marketing, personalization)
+20) If EU/UK users: do you rely on consent, contract necessity, legitimate interests? (If you don’t know, propose defaults.)
+
+G) Sharing + Third Parties
+21) List all vendors/tools: hosting (AWS/GCP), analytics (GA, Mixpanel), crash reporting, email (SendGrid), support (Zendesk), payments (Stripe), ads (Meta/Google), etc.
+22) Do you share data with other users publicly (profiles, posts, leaderboards)?
+23) Do you sell data? Do you share for “targeted advertising” as defined in some US state laws?
+
+H) Marketing
+24) Do you send marketing emails/push notifications? Opt-in/out method?
+
+I) Cookies/Tracking (web)
+25) Do you use cookies? Which types (necessary, analytics, ads)? Do you show a cookie banner?
+
+J) Data Retention + Deletion
+26) How long you keep each type of data (or desired approach)?
+27) Can users delete their account and data? What happens to backups?
+
+K) Security
+28) Security measures (encryption in transit/at rest, access controls). If unknown, propose best practice.
+
+L) User Rights
+29) Do you want to support access/correction/deletion/portability? How will users request it?
+
+M) Content + Community (if applicable)
+30) User generated content? Moderation? Reporting? DMCA/copyright process?
+
+N) Terms of Service / Legal
+31) Subscription pricing/refunds/free trials?
+32) Acceptable use rules (no illegal content, harassment, malware, scraping)
+33) IP ownership: who owns user content? do you need a license to host/process it?
+34) AI outputs: disclaimers (not legal/medical advice), accuracy limitations
+35) Termination: can you suspend accounts? appeal process?
+36) Liability limits, disclaimers, and “as-is” service
+37) Dispute resolution preference: governing law (state/country), arbitration vs courts, class action waiver (if you want)
+38) Contact method for legal notices
+
+STEP 2 — After I answer, produce these deliverables:
+
+Deliverable 1: Privacy Policy
+- Effective date
+- Plain-English summary (optional)
+- Definitions
+- What data we collect (table: category / examples / purpose / sharing / retention)
+- How we use data
+- How we share data (vendors, legal requests, business transfers)
+- AI processing (RedBlit AI) section with clarity on prompts, outputs, training, and retention
+- Cookies/analytics section (web)
+- Marketing communications
+- Data retention
+- Security
+- Children’s privacy
+- International transfers
+- User rights (US state privacy rights + EU/UK GDPR if applicable)
+- How to contact us
+- Updates to the policy
+
+Deliverable 2: Terms of Service
+- Effective date
+- Eligibility/age
+- Account rules
+- Subscription/payment/refunds (if applicable)
+- Acceptable use + prohibited conduct
+- User content license + your IP
+- AI features disclaimers (accuracy, no professional advice, output ownership stance)
+- Third-party services
+- Termination/suspension
+- Disclaimers + limitation of liability
+- Indemnification
+- Dispute resolution + governing law
+- Changes to terms
+- Contact information
+
+Deliverable 3: Implementation Checklist
+- Consent flows (cookie banner, marketing opt-in, AI training opt-in/out)
+- In-app settings needed (data download, delete account)
+- Vendor DPAs, security basics, log retention
+- App store disclosures (Apple/Google “Data Safety” style mapping)
+
+Deliverable 4: Risk Flags for Lawyer Review
+- Anything high-risk based on my answers (kids, health, biometrics, ads tracking, arbitration enforceability by jurisdiction, etc.)
+
+Do not claim I will “never get sued.” Use language like “helps reduce risk” and “not legal advice.”
+When uncertain, list assumptions and give me options with pros/cons.
+Now ask me the questionnaire.
