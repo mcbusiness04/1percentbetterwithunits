@@ -306,6 +306,10 @@ export default function OnboardingScreen() {
   }, []);
 
   const handleTerms = useCallback(() => {
+    Linking.openURL("https://1betterwithunits.info/terms");
+  }, []);
+
+  const handleEULA = useCallback(() => {
     Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/");
   }, []);
 
@@ -673,11 +677,15 @@ export default function OnboardingScreen() {
 
           <View style={styles.legalRow}>
             <Pressable onPress={handleTerms}>
-              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Terms of Use (EULA)</ThemedText>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Terms</ThemedText>
             </Pressable>
             <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
             <Pressable onPress={handlePrivacy}>
-              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Privacy Policy</ThemedText>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>Privacy</ThemedText>
+            </Pressable>
+            <ThemedText type="small" style={{ color: "rgba(255,255,255,0.5)" }}>{" | "}</ThemedText>
+            <Pressable onPress={handleEULA}>
+              <ThemedText type="small" style={{ color: "rgba(255,255,255,0.7)" }}>EULA</ThemedText>
             </Pressable>
           </View>
 

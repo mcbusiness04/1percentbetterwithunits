@@ -28,6 +28,7 @@ const FEATURES = [
 
 const APPLE_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 const PRIVACY_URL = "https://1betterwithunits.info/";
+const TERMS_URL = "https://1betterwithunits.info/terms";
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
@@ -169,6 +170,10 @@ export default function PaywallScreen() {
   }, []);
 
   const handleTerms = useCallback(() => {
+    Linking.openURL(TERMS_URL);
+  }, []);
+
+  const handleEULA = useCallback(() => {
     Linking.openURL(APPLE_EULA_URL);
   }, []);
 
@@ -327,13 +332,19 @@ export default function PaywallScreen() {
         <View style={styles.legalRow}>
           <Pressable onPress={handleTerms}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Terms of Use (EULA)
+              Terms of Service
             </ThemedText>
           </Pressable>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
           <Pressable onPress={handlePrivacy}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
               Privacy Policy
+            </ThemedText>
+          </Pressable>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
+          <Pressable onPress={handleEULA}>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              EULA
             </ThemedText>
           </Pressable>
         </View>
