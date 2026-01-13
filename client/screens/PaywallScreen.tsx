@@ -26,6 +26,9 @@ const FEATURES = [
   { icon: "shield", text: "Stay accountable daily" },
 ];
 
+const APPLE_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
+const PRIVACY_URL = "https://1betterwithunits.info/";
+
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -33,7 +36,7 @@ export default function PaywallScreen() {
   const route = useRoute<ScreenRouteProp>();
   const { setIsPro } = useUnits();
   const { user, signOut } = useAuth();
-  const { products, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
+  const { products, loading: productsLoading, purchasing, iapAvailable, purchase, restore, getProductByType } = useStoreKit();
   const reason = route.params?.reason ?? "onboarding";
   const isFirstPaywall = route.params?.isFirstPaywall ?? false;
 
@@ -80,9 +83,16 @@ export default function PaywallScreen() {
         // Don't set isPro - validation failed
       }
     } else if (result.error && !result.error.includes("cancelled")) {
-      Alert.alert("Purchase Failed", result.error);
+      Alert.alert(
+        "Purchase Failed",
+        result.error + "\n\nPlease try again or contact support if the issue persists.",
+        [
+          { text: "Try Again", onPress: handleSubscribe },
+          { text: "Cancel", style: "cancel" },
+        ]
+      );
     }
-  }, [selectedPlan, iapAvailable, purchase, setIsPro, user?.id]);
+  }, [selectedPlan, iapAvailable, purchase, setIsPro, user?.id, user?.email]);
 
   const handleRestorePurchases = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -155,11 +165,11 @@ export default function PaywallScreen() {
   }, [signOut]);
 
   const handlePrivacy = useCallback(() => {
-    Linking.openURL("http://1betterwithunits.info/");
+    Linking.openURL(PRIVACY_URL);
   }, []);
 
   const handleTerms = useCallback(() => {
-    Linking.openURL("http://1betterwithunits.info/");
+    Linking.openURL(APPLE_EULA_URL);
   }, []);
 
   const isSubscriptionRequired = reason === "subscription_required";
@@ -280,16 +290,18 @@ export default function PaywallScreen() {
       </Animated.View>
 
       <View style={styles.footer}>
-        <Button onPress={handleSubscribe} disabled={purchasing || restoring || signingOut}>
+        <Button onPress={handleSubscribe} disabled={purchasing || restoring || signingOut || productsLoading}>
           {purchasing 
             ? "Processing..." 
-            : selectedPlan === "annual" 
-              ? `Start for ${yearlyProduct?.price || "$19.99"}/year` 
-              : `Start for ${monthlyProduct?.price || "$4.99"}/month`}
+            : productsLoading
+              ? "Loading..."
+              : selectedPlan === "annual" 
+                ? `Subscribe for ${yearlyProduct?.price || "$19.99"}/year` 
+                : `Subscribe for ${monthlyProduct?.price || "$4.99"}/month`}
         </Button>
 
         <View style={styles.actionRow}>
-          <Pressable onPress={handleRestorePurchases} disabled={restoring || purchasing || signingOut}>
+          <Pressable onPress={handleRestorePurchases} disabled={restoring || purchasing || signingOut || productsLoading}>
             <ThemedText type="body" style={[styles.actionText, { color: restoring ? theme.textSecondary : theme.accent }]}>
               {restoring ? "Restoring..." : "Restore Purchases"}
             </ThemedText>
@@ -315,19 +327,22 @@ export default function PaywallScreen() {
         <View style={styles.legalRow}>
           <Pressable onPress={handleTerms}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Terms
+              Terms of Use (EULA)
             </ThemedText>
           </Pressable>
           <ThemedText type="small" style={{ color: theme.textSecondary }}>{" | "}</ThemedText>
           <Pressable onPress={handlePrivacy}>
             <ThemedText type="small" style={{ color: theme.textSecondary }}>
-              Privacy
+              Privacy Policy
             </ThemedText>
           </Pressable>
         </View>
 
         <ThemedText type="small" style={[styles.disclaimer, { color: theme.textSecondary }]}>
-          A paid subscription is required to create an account and use this app. Subscription auto-renews. Cancel anytime in App Store settings.
+          {selectedPlan === "annual" 
+            ? `${yearlyProduct?.price || "$19.99"} per year. `
+            : `${monthlyProduct?.price || "$4.99"} per month. `}
+          Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage and cancel your subscription in your App Store account settings.
         </ThemedText>
 
       </View>
