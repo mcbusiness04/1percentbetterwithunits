@@ -85,7 +85,7 @@ export default function PaywallScreen() {
     } else if (result.error && !result.error.includes("cancelled")) {
       Alert.alert(
         "Purchase Failed",
-        result.error + "\n\nPlease try again or contact support if the issue persists.",
+        result.error,
         [
           { text: "Try Again", onPress: handleSubscribe },
           { text: "Cancel", style: "cancel" },
