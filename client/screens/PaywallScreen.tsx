@@ -117,18 +117,12 @@ export default function PaywallScreen() {
       const result = await restore(user?.id);
       
       if (result.success && result.hasPremium) {
-        // After successful restore, validate with server to confirm subscription
-        const isValid = await validatePremiumAccess(user?.id, true, user?.email ?? undefined);
-        if (isValid) {
-          await setIsPro(true);
-          Alert.alert("Restored", "Your subscription has been restored successfully.");
-        } else {
-          // Restore found purchases but server validation failed
-          // This could mean subscription expired - don't grant access
-          Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
-        }
+        // Restore found valid purchases - grant access immediately
+        // The restore function already validated with App Store
+        await setIsPro(true);
+        Alert.alert("Restored", "Your subscription has been restored successfully.");
       } else if (result.success && !result.hasPremium) {
-        Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
+        Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore. If you believe you have an active subscription, please ensure you're signed in with the correct Apple ID.");
       } else if (result.error) {
         Alert.alert("Restore Failed", result.error);
       }

@@ -1,0 +1,59 @@
+I need you to fix Apple IAP entitlement logic to be App Store–compliant.
+
+Current problems:
+1. A single Apple subscription purchase is unlocking premium access for multiple user accounts.
+2. After logging out, a different account can log in without being subscribed.
+3. Reinstalling the app and attempting to repurchase causes an error instead of restoring.
+4. Subscription access is not strictly bound to a single authenticated user account.
+
+REQUIRED FIXES (DO NOT SKIP ANY):
+
+A) ACCOUNT-LEVEL ENTITLEMENT BINDING
+- An Apple subscription must be linked to EXACTLY ONE user account.
+- On first successful purchase or restore, bind the Apple receipt / transaction to the currently authenticated user ID.
+- Store this association server-side (e.g., Supabase).
+- If a different user logs in, premium access must be revoked unless that user owns a valid subscription.
+
+B) LOGOUT BEHAVIOR
+- On logout:
+  - Immediately revoke premium UI access
+  - Force re-validation on next login
+- Logging in with a different account must trigger the paywall again.
+
+C) RESTORE PURCHASES FLOW
+- On app launch:
+  - Call StoreKit to check existing active subscriptions.
+- If a subscription exists but no user is logged in:
+  - Prompt the user to log in to the account that owns the subscription.
+- Restore must NOT unlock premium without a user match.
+- If the Apple ID has an active subscription but the logged-in user does not own it:
+  - Show paywall with a message like:
+    "This subscription is already in use. Please sign in with the account that purchased it."
+
+D) PURCHASE FLOW ORDER (VERY IMPORTANT)
+- Enforce this order strictly:
+  1. Onboarding
+  2. Paywall (NO signup allowed yet)
+  3. Purchase or Restore
+  4. THEN allow signup / login
+  5. Bind subscription to that account
+
+E) SANDBOX SAFETY (DO NOT BREAK THIS)
+- Do NOT remove or suppress Apple’s "testing only" sandbox UI.
+- Do NOT change StoreKit product descriptions.
+- Keep sandbox failure messages user-friendly.
+- Keep retry + restore options.
+
+F) NO DEMO BYPASS IN PRODUCTION
+- Ensure demo login bypass remains disabled when ALLOW_DEMO_REVIEW_LOGIN=false.
+- Do not add any fallback, __DEV__, or Expo Go bypasses.
+
+DELIVERABLES:
+- Update subscription validation logic
+- Update logout handling
+- Update restore purchase logic
+- Confirm with comments where entitlement is bound and validated
+- Ensure compliance with Apple Guideline 3.1.2 and 2.1
+
+Do NOT change pricing, product IDs, or Apple IAP configuration.
+Do NOT introduce any test-only logic into production builds.

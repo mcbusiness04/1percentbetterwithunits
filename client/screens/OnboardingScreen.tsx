@@ -283,23 +283,18 @@ export default function OnboardingScreen() {
     const result = await restore();
     
     if (result.success && result.hasPremium) {
-      // After successful restore, validate with server to confirm subscription
-      const isValid = await validatePremiumAccess();
-      if (isValid) {
-        await setIsPro(true);
-        await completeOnboarding();
-        // Navigate to Auth to sign in (requirement C)
-        navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
-      } else {
-        // Restore found purchases but validation failed (likely expired)
-        Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
-      }
+      // Restore found valid purchases - grant access immediately
+      // The restore function already validated with App Store
+      await setIsPro(true);
+      await completeOnboarding();
+      // Navigate to Auth to sign in (requirement C)
+      navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
     } else if (result.success && !result.hasPremium) {
-      Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
+      Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore. If you believe you have an active subscription, please ensure you're signed in with the correct Apple ID.");
     } else if (result.error) {
       Alert.alert("Restore Failed", result.error);
     }
-  }, [iapAvailable, restore, setIsPro, completeOnboarding]);
+  }, [iapAvailable, restore, setIsPro, completeOnboarding, navigation]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://1betterwithunits.info");

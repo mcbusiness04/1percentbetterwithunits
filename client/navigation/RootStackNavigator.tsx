@@ -93,11 +93,11 @@ export default function RootStackNavigator() {
   }, [isAuthenticated, hasCompletedOnboarding, completeOnboarding]);
 
   // Run premium validation
-  const runValidation = useCallback(async (userId: string, userEmail: string | undefined, reason: string) => {
+  const runValidation = useCallback(async (userId: string | undefined, userEmail: string | undefined, reason: string) => {
     if (validating) return;
     
     setValidating(true);
-    console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId);
+    console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId ?? "none");
     
     try {
       const isValid = await validatePremiumAccess(userId, true, userEmail);
