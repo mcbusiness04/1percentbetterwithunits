@@ -132,12 +132,14 @@ export default function PaywallScreen() {
         // Step 2: Subscription found - now verify ownership
         if (!user) {
           // User not logged in - prompt to sign in first
+          // COMPLIANCE: Only allow Sign In (not Sign Up) when restoring
+          // New accounts must purchase; restore is only for existing subscribers
           Alert.alert(
             "Sign In Required",
             "We found your subscription. Please sign in to restore access to your account.",
             [
               { text: "Cancel", style: "cancel" },
-              { text: "Sign In", onPress: () => navigation.navigate("Auth", { fromPaywall: true, signInOnly: false }) },
+              { text: "Sign In", onPress: () => navigation.navigate("Auth", { fromPaywall: true, signInOnly: true }) },
             ]
           );
         } else {
