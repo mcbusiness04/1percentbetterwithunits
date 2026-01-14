@@ -236,6 +236,8 @@ export type PurchaseResult = {
   success: boolean;
   error?: string;
   transactionId?: string;
+  /** True if user already has an active subscription */
+  alreadySubscribed?: boolean;
 };
 
 /**
@@ -316,6 +318,10 @@ export async function purchaseSubscription(
       }
       if (errorMsg.includes("pending") || errorCode === "E_DEFERRED") {
         return { success: false, error: "Your purchase is pending approval. Please check back later." };
+      }
+      // Handle "already purchased" / "already subscribed" errors
+      if (errorMsg.includes("already") || errorMsg.includes("subscribed") || errorMsg.includes("owned") || errorCode === "E_ALREADY_OWNED") {
+        return { success: false, error: "You already have an active subscription. Tap Restore Purchases or manage in App Store settings.", alreadySubscribed: true };
       }
       
       throw purchaseError;

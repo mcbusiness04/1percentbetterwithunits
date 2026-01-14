@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
 import { clearAllData } from "@/lib/storage";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
-import { validatePremiumAccess } from "@/lib/storekit";
+import { validatePremiumAccess, validateAndGrantAccess } from "@/lib/storekit";
 
 const APPLE_SUBSCRIPTION_URL = "https://apps.apple.com/account/subscriptions";
 
@@ -63,17 +63,24 @@ export default function SettingsScreen() {
     try {
       const result = await restore(user?.id);
       
-      if (result.success && result.hasPremium) {
-        // After successful restore, validate with server to confirm subscription
-        const isValid = await validatePremiumAccess(user?.id, true, user?.email ?? undefined);
-        if (isValid) {
+      if (result.success && result.hasSubscription) {
+        // APPLE COMPLIANCE: Use validateAndGrantAccess to verify ownership
+        // This binds subscription to user and checks originalTransactionId
+        const accessResult = await validateAndGrantAccess(user?.id!, user?.email ?? undefined);
+        if (accessResult.granted) {
           await setIsPro(true);
           Alert.alert("Restored", "Your subscription has been restored successfully.");
+        } else if (accessResult.reason === "bound_to_another_user") {
+          // COMPLIANCE: Subscription is bound to different account
+          Alert.alert(
+            "Subscription In Use",
+            "This subscription is already associated with another account. Please sign in with the account that purchased it."
+          );
         } else {
-          // Restore found purchases but server validation failed (likely expired)
-          Alert.alert("Subscription Expired", "Your previous subscription has expired. Please subscribe again to continue.");
+          // Restore found purchases but validation failed
+          Alert.alert("Restore Failed", "Unable to verify subscription ownership. Please try again.");
         }
-      } else if (result.success && !result.hasPremium) {
+      } else if (result.success && !result.hasSubscription) {
         Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore.");
       } else if (result.error) {
         Alert.alert("Restore Failed", result.error);
@@ -83,7 +90,7 @@ export default function SettingsScreen() {
     } finally {
       setRestoring(false);
     }
-  }, [iapAvailable, restore, user?.id, setIsPro]);
+  }, [iapAvailable, restore, user?.id, user?.email, setIsPro]);
 
   const handleCancelMembership = useCallback(() => {
     Alert.alert(

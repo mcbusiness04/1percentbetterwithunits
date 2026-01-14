@@ -280,12 +280,14 @@ export default function OnboardingScreen() {
     // Restore only confirms subscription exists - user must sign in to verify ownership
     if (result.success && result.hasSubscription) {
       // Subscription found - user must sign in to bind it to their account
+      // COMPLIANCE: Only allow Sign In (not Sign Up) when restoring
+      // New accounts must purchase; restore is only for existing subscribers
       await completeOnboarding();
       Alert.alert(
         "Subscription Found",
         "We found your subscription. Please sign in to restore access to your account.",
         [
-          { text: "Sign In", onPress: () => navigation.navigate("Auth", { fromPaywall: true, signInOnly: false }) },
+          { text: "Sign In", onPress: () => navigation.navigate("Auth", { fromPaywall: true, signInOnly: true }) },
         ]
       );
     } else if (result.success && !result.hasSubscription) {
