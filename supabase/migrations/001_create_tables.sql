@@ -88,7 +88,10 @@ ALTER TABLE public.bad_habits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.bad_habit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.subscriptions ENABLE ROW LEVEL SECURITY;
 
--- Policies for profiles
+-- Policies for profiles (drop first to make idempotent)
+DROP POLICY IF EXISTS "Users can view own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
 CREATE POLICY "Users can view own profile" ON public.profiles
   FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "Users can insert own profile" ON public.profiles
@@ -96,7 +99,11 @@ CREATE POLICY "Users can insert own profile" ON public.profiles
 CREATE POLICY "Users can update own profile" ON public.profiles
   FOR UPDATE USING (auth.uid() = id);
 
--- Policies for habits
+-- Policies for habits (drop first to make idempotent)
+DROP POLICY IF EXISTS "Users can view own habits" ON public.habits;
+DROP POLICY IF EXISTS "Users can insert own habits" ON public.habits;
+DROP POLICY IF EXISTS "Users can update own habits" ON public.habits;
+DROP POLICY IF EXISTS "Users can delete own habits" ON public.habits;
 CREATE POLICY "Users can view own habits" ON public.habits
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own habits" ON public.habits
@@ -106,7 +113,11 @@ CREATE POLICY "Users can update own habits" ON public.habits
 CREATE POLICY "Users can delete own habits" ON public.habits
   FOR DELETE USING (auth.uid() = user_id);
 
--- Policies for habit_logs
+-- Policies for habit_logs (drop first to make idempotent)
+DROP POLICY IF EXISTS "Users can view own habit logs" ON public.habit_logs;
+DROP POLICY IF EXISTS "Users can insert own habit logs" ON public.habit_logs;
+DROP POLICY IF EXISTS "Users can update own habit logs" ON public.habit_logs;
+DROP POLICY IF EXISTS "Users can delete own habit logs" ON public.habit_logs;
 CREATE POLICY "Users can view own habit logs" ON public.habit_logs
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own habit logs" ON public.habit_logs
@@ -116,7 +127,11 @@ CREATE POLICY "Users can update own habit logs" ON public.habit_logs
 CREATE POLICY "Users can delete own habit logs" ON public.habit_logs
   FOR DELETE USING (auth.uid() = user_id);
 
--- Policies for bad_habits
+-- Policies for bad_habits (drop first to make idempotent)
+DROP POLICY IF EXISTS "Users can view own bad habits" ON public.bad_habits;
+DROP POLICY IF EXISTS "Users can insert own bad habits" ON public.bad_habits;
+DROP POLICY IF EXISTS "Users can update own bad habits" ON public.bad_habits;
+DROP POLICY IF EXISTS "Users can delete own bad habits" ON public.bad_habits;
 CREATE POLICY "Users can view own bad habits" ON public.bad_habits
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own bad habits" ON public.bad_habits
@@ -126,7 +141,11 @@ CREATE POLICY "Users can update own bad habits" ON public.bad_habits
 CREATE POLICY "Users can delete own bad habits" ON public.bad_habits
   FOR DELETE USING (auth.uid() = user_id);
 
--- Policies for bad_habit_logs
+-- Policies for bad_habit_logs (drop first to make idempotent)
+DROP POLICY IF EXISTS "Users can view own bad habit logs" ON public.bad_habit_logs;
+DROP POLICY IF EXISTS "Users can insert own bad habit logs" ON public.bad_habit_logs;
+DROP POLICY IF EXISTS "Users can update own bad habit logs" ON public.bad_habit_logs;
+DROP POLICY IF EXISTS "Users can delete own bad habit logs" ON public.bad_habit_logs;
 CREATE POLICY "Users can view own bad habit logs" ON public.bad_habit_logs
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own bad habit logs" ON public.bad_habit_logs
@@ -136,7 +155,10 @@ CREATE POLICY "Users can update own bad habit logs" ON public.bad_habit_logs
 CREATE POLICY "Users can delete own bad habit logs" ON public.bad_habit_logs
   FOR DELETE USING (auth.uid() = user_id);
 
--- Policies for subscriptions
+-- Policies for subscriptions (drop first to make idempotent)
+DROP POLICY IF EXISTS "Users can view own subscription" ON public.subscriptions;
+DROP POLICY IF EXISTS "Users can insert own subscription" ON public.subscriptions;
+DROP POLICY IF EXISTS "Users can update own subscription" ON public.subscriptions;
 CREATE POLICY "Users can view own subscription" ON public.subscriptions
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can insert own subscription" ON public.subscriptions
