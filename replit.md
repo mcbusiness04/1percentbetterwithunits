@@ -63,7 +63,37 @@ The application is built with Expo React Native. Data is stored locally using As
 -   **expo-iap**: StoreKit integration for Apple in-app purchases.
 
 ## Database Setup
-Run `supabase/migrations/001_create_tables.sql` in your Supabase SQL Editor to create the required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions).
+Run these SQL migrations in your Supabase SQL Editor:
+1. `supabase/migrations/001_create_tables.sql` - Creates required tables (habits, habit_logs, bad_habits, bad_habit_logs, subscriptions)
+2. `supabase/migrations/002_add_transaction_id.sql` - Adds original_transaction_id binding with UNIQUE constraint (Apple Guideline 3.1.2)
+
+## Apple Guideline 3.1.2 Compliance (Subscription Binding)
+
+**Problem:** Prevent one Apple subscription from unlocking multiple user accounts.
+
+**Solution:** Use `originalTransactionIdentifierIos` from expo-iap which remains STABLE across subscription renewals (unlike `transactionId` which changes on each renewal).
+
+**Database Schema:**
+- `subscriptions.original_transaction_id` - Stable Apple transaction identifier
+- UNIQUE constraint on `original_transaction_id` prevents multi-account binding
+
+**Flow:**
+1. Purchase/Restore → Extract `originalTransactionIdentifierIos`
+2. User authenticates → Call `validateAndGrantAccess(userId, email)`
+3. `bindSubscriptionToUser()` checks if `original_transaction_id` is already bound
+4. If bound to another user → Access denied with error message
+5. If not bound or bound to same user → Grant access
+
+**Critical Functions (client/lib/storekit.ts):**
+- `purchaseSubscription()` - Returns originalTransactionId, does NOT set isPro
+- `restorePurchasesFromStore()` - Returns originalTransactionId, does NOT grant access
+- `bindSubscriptionToUser()` - Binds original_transaction_id to user, fails if bound to another
+- `validateAndGrantAccess()` - Only grants isPro=true after successful binding
+
+**Key Rules:**
+- isPro is NEVER set during purchase/restore - only after validateAndGrantAccess
+- Binding failures (network, database) deny access - no fallback to local state
+- Demo account bypass ONLY works when ALLOW_DEMO_REVIEW_LOGIN=true
 
 ## Supabase Email Configuration
 To disable email confirmation for development:

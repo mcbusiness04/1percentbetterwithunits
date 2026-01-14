@@ -45,7 +45,7 @@ import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
-import { validatePremiumAccess } from "@/lib/storekit";
+import { validateAndGrantAccess } from "@/lib/storekit";
 
 export type RootStackParamList = {
   Auth: { fromPaywall?: boolean; signInOnly?: boolean };
@@ -92,22 +92,29 @@ export default function RootStackNavigator() {
     }
   }, [isAuthenticated, hasCompletedOnboarding, completeOnboarding]);
 
-  // Run premium validation
+  // Run premium validation with ownership check
+  // APPLE COMPLIANCE (Guideline 3.1.2):
+  // Validates subscription AND verifies the current user owns it
   const runValidation = useCallback(async (userId: string | undefined, userEmail: string | undefined, reason: string) => {
     if (validating) return;
+    if (!userId) {
+      console.log("[RootStack] Cannot validate without userId");
+      await setIsPro(false);
+      return;
+    }
     
     setValidating(true);
-    console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId ?? "none");
+    console.log(`[RootStack] Running premium validation (${reason}) for user:`, userId);
     
     try {
-      const isValid = await validatePremiumAccess(userId, true, userEmail);
+      const result = await validateAndGrantAccess(userId, userEmail);
       
-      if (isValid) {
+      if (result.granted) {
         await setIsPro(true);
-        console.log("[RootStack] Premium validated - user has active subscription");
+        console.log("[RootStack] Premium validated - user has active subscription. Reason:", result.reason);
       } else {
         await setIsPro(false);
-        console.log("[RootStack] No valid subscription - will show paywall");
+        console.log("[RootStack] No valid subscription - will show paywall. Reason:", result.reason);
       }
     } catch (error) {
       console.log("[RootStack] Premium validation error:", error);

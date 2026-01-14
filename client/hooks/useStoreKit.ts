@@ -271,22 +271,23 @@ export function useStoreKit(): UseStoreKitReturn {
   /**
    * Restore previous purchases from App Store
    * 
-   * Required by App Store Review Guidelines. Allows users who:
-   * - Reinstalled the app
-   * - Got a new device
-   * - Deleted and re-downloaded
+   * APPLE COMPLIANCE (Guideline 3.1.2):
+   * This function ONLY checks if a subscription exists with Apple.
+   * It does NOT grant premium access - that requires user binding.
    * 
-   * to recover their subscription without repurchasing.
+   * After calling this:
+   * 1. If hasSubscription=true, prompt user to sign in
+   * 2. After sign-in, call validateAndGrantAccess() to verify ownership
+   * 3. Only then is premium access granted
    * 
-   * @param userId - Optional Supabase user ID to sync premium status
+   * Required by App Store Review Guidelines.
    */
-  const restore = useCallback(async (
-    userId?: string
-  ): Promise<RestoreResult> => {
+  const restore = useCallback(async (): Promise<RestoreResult> => {
     // Platform check
     if (Platform.OS === "web") {
       return { 
         success: false, 
+        hasSubscription: false,
         hasPremium: false, 
         error: "Restore is not available on web." 
       };
@@ -296,6 +297,7 @@ export function useStoreKit(): UseStoreKitReturn {
     if (!iapAvailable) {
       return { 
         success: false, 
+        hasSubscription: false,
         hasPremium: false, 
         error: "Restore requires a development build." 
       };
@@ -305,13 +307,13 @@ export function useStoreKit(): UseStoreKitReturn {
     setPurchasing(true);
 
     try {
-      // Delegate to storekit.ts for actual restore
-      const result = await restorePurchasesFromStore(userId);
+      // Delegate to storekit.ts - this only checks App Store, does NOT grant access
+      const result = await restorePurchasesFromStore();
       
       if (result.success) {
-        console.log("[useStoreKit] Restore completed. Has premium:", result.hasPremium);
+        console.log("[useStoreKit] Restore check completed. Has subscription:", result.hasSubscription);
       } else if (result.error) {
-        console.log("[useStoreKit] Restore failed:", result.error);
+        console.log("[useStoreKit] Restore check failed:", result.error);
       }
       
       return result;
@@ -319,6 +321,7 @@ export function useStoreKit(): UseStoreKitReturn {
       console.error("[useStoreKit] Unexpected restore error:", err);
       return {
         success: false,
+        hasSubscription: false,
         hasPremium: false,
         error: err instanceof Error ? err.message : "Restore failed unexpectedly"
       };

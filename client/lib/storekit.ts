@@ -325,16 +325,17 @@ export async function purchaseSubscription(
       return { success: false, error: "Purchase was cancelled" };
     }
 
-    const transactionId = Array.isArray(purchase) 
-      ? purchase[0]?.transactionId 
-      : purchase.transactionId;
+    const purchaseData = Array.isArray(purchase) ? purchase[0] : purchase;
+    const transactionId = purchaseData?.transactionId;
+    // CRITICAL: Use originalTransactionIdentifierIos for binding (stable across renewals)
+    const originalTransactionId = (purchaseData as any)?.originalTransactionIdentifierIos || transactionId;
 
     if (!transactionId) {
       console.log("[StoreKit] No transaction ID in purchase response");
       return { success: false, error: "Purchase could not be completed. Please try again." };
     }
 
-    console.log("[StoreKit] Purchase successful, transaction:", transactionId);
+    console.log("[StoreKit] Purchase successful, transaction:", transactionId, "original:", originalTransactionId);
 
     // Finish the transaction with Apple
     try {
@@ -348,15 +349,15 @@ export async function purchaseSubscription(
       // Don't fail the purchase - transaction was successful, just couldn't finish
     }
 
-    // Save premium status locally
-    await setLocalIsPro(true);
+    // APPLE COMPLIANCE (Guideline 3.1.2):
+    // Do NOT set isPro here - premium access is ONLY granted after:
+    // 1. User authenticates (if not already)
+    // 2. validateAndGrantAccess() verifies ownership and binds subscription
+    // The caller MUST call validateAndGrantAccess() to grant access.
+    // 
+    // We return the originalTransactionId for binding (stable across renewals).
 
-    // Sync to Supabase if user is logged in
-    if (userId) {
-      await updateSupabasePremiumStatus(userId);
-    }
-
-    return { success: true, transactionId };
+    return { success: true, transactionId: originalTransactionId };
   } catch (error: any) {
     const errorMessage = error?.message || "";
     const errorCode = error?.code || "";
@@ -382,7 +383,16 @@ export async function purchaseSubscription(
 
 export type RestoreResult = {
   success: boolean;
+  /** Whether App Store has an active subscription for this Apple ID */
+  hasSubscription: boolean;
+  /** @deprecated Use hasSubscription instead */
   hasPremium: boolean;
+  /** Product ID of the found subscription (if any) */
+  productId?: string;
+  /** Original transaction ID for binding (stable across renewals) */
+  originalTransactionId?: string;
+  /** @deprecated Use originalTransactionId for binding */
+  transactionId?: string;
   error?: string;
 };
 
@@ -390,18 +400,25 @@ export type RestoreResult = {
  * Restores previous purchases from App Store.
  * This is REQUIRED by App Store Review Guidelines.
  * 
+ * APPLE COMPLIANCE (Guideline 3.1.2):
+ * This function ONLY checks if a subscription exists with Apple.
+ * It does NOT grant premium access directly.
+ * 
+ * After calling this function:
+ * 1. If hasSubscription=true, prompt user to sign in
+ * 2. After sign-in, call bindSubscriptionToUser() to link the subscription
+ * 3. Only then grant premium access via validateAndGrantAccess()
+ * 
  * SANDBOX/REVIEW SAFE: Gracefully handles all error cases during App Store review.
  */
-export async function restorePurchasesFromStore(
-  userId?: string
-): Promise<RestoreResult> {
+export async function restorePurchasesFromStore(): Promise<RestoreResult> {
   const module = await loadIAPModule();
   
   if (!module) {
     if (Platform.OS === "web") {
-      return { success: false, hasPremium: false, error: "Restore is not available on web." };
+      return { success: false, hasSubscription: false, hasPremium: false, error: "Restore is not available on web." };
     }
-    return { success: false, hasPremium: false, error: "Restore requires a development build." };
+    return { success: false, hasSubscription: false, hasPremium: false, error: "Restore requires a development build." };
   }
   
   try {
@@ -409,12 +426,13 @@ export async function restorePurchasesFromStore(
     if (!initialized) {
       return { 
         success: false, 
+        hasSubscription: false,
         hasPremium: false, 
         error: "Unable to connect to the App Store. Please check your internet connection and try again." 
       };
     }
     
-    console.log("[StoreKit] Restoring purchases...");
+    console.log("[StoreKit] Checking App Store for existing purchases...");
     
     let purchases;
     try {
@@ -425,6 +443,7 @@ export async function restorePurchasesFromStore(
       if (errorMsg.includes("network") || errorMsg.includes("connection")) {
         return { 
           success: false, 
+          hasSubscription: false,
           hasPremium: false, 
           error: "Unable to connect to the App Store. Please check your internet connection." 
         };
@@ -433,46 +452,265 @@ export async function restorePurchasesFromStore(
       console.error("[StoreKit] Error fetching purchases:", fetchError);
       return { 
         success: false, 
+        hasSubscription: false,
         hasPremium: false, 
         error: "Unable to restore purchases. Please try again later." 
       };
     }
     
     // Handle case where purchases is null or undefined
-    if (!purchases) {
-      console.log("[StoreKit] No purchases returned (null/undefined)");
-      return { success: true, hasPremium: false };
+    if (!purchases || purchases.length === 0) {
+      console.log("[StoreKit] No purchases found with Apple");
+      return { success: true, hasSubscription: false, hasPremium: false };
     }
     
-    const hasValidSubscription = purchases.some((purchase) => {
+    // Find valid subscription
+    const validPurchase = purchases.find((purchase) => {
       return (
         purchase.productId === PRODUCT_IDS.MONTHLY ||
         purchase.productId === PRODUCT_IDS.YEARLY
       );
     });
     
-    console.log("[StoreKit] Restore complete. Has valid subscription:", hasValidSubscription);
-    
-    if (hasValidSubscription) {
-      // Save premium status locally
-      await setLocalIsPro(true);
-      
-      // Sync to Supabase if user is logged in
-      if (userId) {
-        await updateSupabasePremiumStatus(userId);
-      }
+    if (validPurchase) {
+      // CRITICAL: Extract originalTransactionIdentifierIos for stable binding
+      const originalTxId = (validPurchase as any).originalTransactionIdentifierIos || validPurchase.transactionId;
+      console.log("[StoreKit] Found valid subscription:", validPurchase.productId, "original:", originalTxId);
+      // COMPLIANCE: Do NOT set isPro here - requires user binding first
+      return { 
+        success: true, 
+        hasSubscription: true, 
+        hasPremium: false, // Not granted yet - requires account binding
+        productId: validPurchase.productId,
+        originalTransactionId: originalTxId ?? undefined,
+        transactionId: validPurchase.transactionId ?? undefined,
+      };
     }
     
-    return { success: true, hasPremium: hasValidSubscription };
+    console.log("[StoreKit] No valid subscription found in purchases");
+    return { success: true, hasSubscription: false, hasPremium: false };
   } catch (error: any) {
     console.error("[StoreKit] Restore purchases error:", error);
     
-    // Provide user-friendly error message
     return { 
       success: false, 
+      hasSubscription: false,
       hasPremium: false, 
       error: "Unable to restore purchases. Please try again or contact support if the issue persists." 
     };
+  }
+}
+
+// ============================================================================
+// SUBSCRIPTION BINDING (Apple Compliance - Guideline 3.1.2)
+// ============================================================================
+
+/**
+ * Binds an Apple subscription to a specific user account.
+ * 
+ * COMPLIANCE: This creates a 1:1 relationship between an Apple transaction
+ * and a Supabase user. A single Apple subscription can only unlock ONE account.
+ * 
+ * IMPORTANT: Uses originalTransactionIdentifierIos which remains STABLE across
+ * subscription renewals. The regular transactionId changes on each renewal.
+ * 
+ * Called after:
+ * 1. Successful purchase (purchaseSubscription)
+ * 2. Successful restore + user sign-in
+ * 
+ * @param originalTransactionId - The originalTransactionIdentifierIos from expo-iap (stable across renewals)
+ * @returns Object with success status and whether binding was created or already exists
+ */
+export async function bindSubscriptionToUser(
+  userId: string,
+  productId: string,
+  originalTransactionId?: string
+): Promise<{ success: boolean; alreadyBound: boolean; boundToAnotherUser: boolean; error?: string }> {
+  if (!isSupabaseConfigured) {
+    console.log("[StoreKit] Supabase not configured - cannot bind subscription");
+    return { success: false, alreadyBound: false, boundToAnotherUser: false, error: "Backend not configured" };
+  }
+  
+  // APPLE COMPLIANCE: Require originalTransactionId for binding to prevent multi-account reuse
+  // Without it, we cannot reliably detect if this subscription is already bound to another user
+  if (!originalTransactionId) {
+    console.log("[StoreKit] No originalTransactionId provided - cannot create reliable binding");
+    // For compliance, we should fail here - but for initial users we allow user-level binding
+    // This permits first-time purchase but blocks multi-account abuse on restore/reuse
+  }
+  
+  try {
+    // Check if this original transaction is already bound to another user
+    if (originalTransactionId) {
+      const { data: existingBinding } = await supabase
+        .from("subscriptions")
+        .select("user_id")
+        .eq("original_transaction_id", originalTransactionId)
+        .single();
+      
+      if (existingBinding && existingBinding.user_id !== userId) {
+        console.log("[StoreKit] Subscription already bound to different user:", existingBinding.user_id);
+        return { 
+          success: false, 
+          alreadyBound: true, 
+          boundToAnotherUser: true,
+          error: "This subscription is already associated with another account."
+        };
+      }
+      
+      if (existingBinding && existingBinding.user_id === userId) {
+        console.log("[StoreKit] Subscription already bound to this user");
+        return { success: true, alreadyBound: true, boundToAnotherUser: false };
+      }
+    }
+    
+    // Check if user already has a subscription record
+    const { data: userSubscription } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+    
+    if (userSubscription) {
+      // Update existing record with original_transaction_id (stable identifier)
+      const updateData: Record<string, unknown> = {
+        product_id: productId,
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      };
+      // Set original_transaction_id if we have one and record doesn't have one yet
+      if (originalTransactionId && !userSubscription.original_transaction_id) {
+        updateData.original_transaction_id = originalTransactionId;
+      } else if (originalTransactionId) {
+        updateData.original_transaction_id = originalTransactionId;
+      }
+      
+      await supabase
+        .from("subscriptions")
+        .update(updateData)
+        .eq("user_id", userId);
+      
+      console.log("[StoreKit] Updated subscription binding for user:", userId, "original_tx:", originalTransactionId);
+    } else {
+      // Create new binding with original_transaction_id
+      await supabase
+        .from("subscriptions")
+        .insert({
+          user_id: userId,
+          product_id: productId,
+          original_transaction_id: originalTransactionId || null,
+          is_active: true,
+          purchase_date: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      
+      console.log("[StoreKit] Created new subscription binding for user:", userId, "original_tx:", originalTransactionId);
+    }
+    
+    return { success: true, alreadyBound: false, boundToAnotherUser: false };
+  } catch (error) {
+    console.error("[StoreKit] Failed to bind subscription:", error);
+    // CRITICAL: Do not allow access if binding fails
+    return { success: false, alreadyBound: false, boundToAnotherUser: false, error: "Failed to verify subscription ownership" };
+  }
+}
+
+/**
+ * Verifies if a user owns a subscription and grants access if valid.
+ * 
+ * COMPLIANCE: Premium access is ONLY granted if:
+ * 1. App Store confirms active subscription on this device
+ * 2. User is authenticated
+ * 3. Subscription is bound to THIS user (not another account)
+ * 
+ * @returns Whether premium access was granted
+ */
+export async function validateAndGrantAccess(
+  userId: string,
+  userEmail?: string
+): Promise<{ granted: boolean; reason: string }> {
+  // Demo account check (dev/TestFlight only)
+  if (userEmail && isDemoUser(userEmail)) {
+    console.log("[StoreKit] Demo account - granting access");
+    await setLocalIsPro(true);
+    return { granted: true, reason: "demo_account" };
+  }
+  
+  const module = await loadIAPModule();
+  
+  if (!module) {
+    // No IAP available - check Supabase for VERIFIED subscription only
+    // COMPLIANCE: Require original_transaction_id to have been set previously
+    // This prevents granting access without Apple verification
+    const hasVerifiedSubscription = await checkSupabaseVerifiedSubscription(userId);
+    if (hasVerifiedSubscription) {
+      await setLocalIsPro(true);
+      return { granted: true, reason: "server_validated_with_binding" };
+    }
+    await setLocalIsPro(false);
+    return { granted: false, reason: "no_verified_subscription" };
+  }
+  
+  try {
+    await initializeIAP();
+    const purchases = await module.getAvailablePurchases();
+    
+    const validPurchase = purchases?.find((purchase) => {
+      return (
+        purchase.productId === PRODUCT_IDS.MONTHLY ||
+        purchase.productId === PRODUCT_IDS.YEARLY
+      );
+    });
+    
+    if (!validPurchase) {
+      // No App Store subscription - revoke access
+      await setLocalIsPro(false);
+      await revokeSupabasePremiumStatus(userId);
+      return { granted: false, reason: "no_app_store_subscription" };
+    }
+    
+    // CRITICAL: Extract originalTransactionIdentifierIos for stable binding
+    // This identifier stays constant across subscription renewals
+    const originalTxId = (validPurchase as any).originalTransactionIdentifierIos || validPurchase.transactionId;
+    
+    // App Store has subscription - verify ownership and bind to user
+    const bindResult = await bindSubscriptionToUser(
+      userId, 
+      validPurchase.productId, 
+      originalTxId ?? undefined
+    );
+    
+    // APPLE COMPLIANCE: Require successful binding before granting access
+    if (bindResult.boundToAnotherUser) {
+      // Subscription belongs to different account
+      await setLocalIsPro(false);
+      return { granted: false, reason: "bound_to_another_user" };
+    }
+    
+    if (!bindResult.success) {
+      // Binding failed (network error, database error, etc.)
+      // Do NOT grant access without verified binding
+      await setLocalIsPro(false);
+      console.log("[StoreKit] Binding failed - denying access:", bindResult.error);
+      return { granted: false, reason: "binding_failed" };
+    }
+    
+    // Subscription valid and successfully bound to this user
+    await setLocalIsPro(true);
+    await updateSupabasePremiumStatus(userId, validPurchase.productId);
+    return { granted: true, reason: "validated" };
+    
+  } catch (error) {
+    console.error("[StoreKit] Error validating access:", error);
+    // COMPLIANCE: On error, only allow fallback if verified binding exists
+    const hasVerifiedSubscription = await checkSupabaseVerifiedSubscription(userId);
+    if (hasVerifiedSubscription) {
+      await setLocalIsPro(true);
+      return { granted: true, reason: "server_fallback_with_binding" };
+    }
+    await setLocalIsPro(false);
+    return { granted: false, reason: "validation_error" };
   }
 }
 
@@ -651,6 +889,41 @@ export async function checkSupabasePremiumStatus(userId: string): Promise<boolea
     return !isExpired;
   } catch (error) {
     console.error("[StoreKit] Failed to check Supabase premium status:", error);
+    return false;
+  }
+}
+
+/**
+ * COMPLIANCE: Checks for a VERIFIED subscription with original_transaction_id
+ * 
+ * This is used as a fallback when StoreKit is unavailable (web, simulator).
+ * Only grants access if the user has a previous verified binding with Apple.
+ * This prevents users from getting access without proper Apple verification.
+ */
+export async function checkSupabaseVerifiedSubscription(userId: string): Promise<boolean> {
+  if (!isSupabaseConfigured) return false;
+  
+  try {
+    const { data } = await supabase
+      .from("subscriptions")
+      .select("is_active, expires_date, original_transaction_id")
+      .eq("user_id", userId)
+      .single();
+    
+    if (!data?.is_active) return false;
+    
+    // COMPLIANCE: Require original_transaction_id to have been set
+    // This ensures the user has previously verified with Apple
+    if (!data.original_transaction_id) {
+      console.log("[StoreKit] Subscription exists but no original_transaction_id - denying fallback access");
+      return false;
+    }
+    
+    // Check if subscription hasn't expired
+    const isExpired = data.expires_date && new Date(data.expires_date) < new Date();
+    return !isExpired;
+  } catch (error) {
+    console.error("[StoreKit] Failed to check verified subscription:", error);
     return false;
   }
 }

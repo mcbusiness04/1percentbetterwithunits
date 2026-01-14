@@ -13,7 +13,7 @@ import { useUnits } from "@/lib/UnitsContext";
 import { useAuth } from "@/lib/AuthContext";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 import { useStoreKit } from "@/hooks/useStoreKit";
-import { PRODUCT_IDS, validatePremiumAccess } from "@/lib/storekit";
+import { PRODUCT_IDS, validateAndGrantAccess } from "@/lib/storekit";
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -70,18 +70,28 @@ export default function PaywallScreen() {
     const result = await purchase(productId, user?.id);
     
     if (result.success) {
-      // After successful purchase, validate with server to confirm subscription
-      const isValid = await validatePremiumAccess(user?.id, true, user?.email ?? undefined);
-      if (isValid) {
-        await setIsPro(true);
+      // APPLE COMPLIANCE (Guideline 3.1.2):
+      // Purchase succeeded - now bind subscription to user account
+      if (user) {
+        // User is logged in - validate and bind subscription to their account
+        const accessResult = await validateAndGrantAccess(user.id, user.email ?? undefined);
+        if (accessResult.granted) {
+          await setIsPro(true);
+        } else if (accessResult.reason === "bound_to_another_user") {
+          Alert.alert(
+            "Subscription In Use",
+            "This subscription is already associated with another account. Please sign in with the account that purchased it."
+          );
+        } else {
+          Alert.alert(
+            "Verification Issue",
+            "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases'."
+          );
+        }
       } else {
-        // Purchase succeeded but server validation failed
-        // Show error - user should try restore or contact support
-        Alert.alert(
-          "Verification Issue",
-          "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases' or contact support if the issue persists."
-        );
-        // Don't set isPro - validation failed
+        // No user logged in - navigate to auth
+        // RootStackNavigator will validate subscription after auth
+        navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
       }
     } else if (result.error && !result.error.includes("cancelled")) {
       Alert.alert(
@@ -93,7 +103,7 @@ export default function PaywallScreen() {
         ]
       );
     }
-  }, [selectedPlan, iapAvailable, purchase, setIsPro, user?.id, user?.email]);
+  }, [selectedPlan, iapAvailable, purchase, setIsPro, user, navigation]);
 
   const handleRestorePurchases = useCallback(async () => {
     if (Platform.OS === "web") {
@@ -114,14 +124,40 @@ export default function PaywallScreen() {
 
     setRestoring(true);
     try {
-      const result = await restore(user?.id);
+      // APPLE COMPLIANCE (Guideline 3.1.2):
+      // Step 1: Check if Apple has an active subscription for this device
+      const result = await restore();
       
-      if (result.success && result.hasPremium) {
-        // Restore found valid purchases - grant access immediately
-        // The restore function already validated with App Store
-        await setIsPro(true);
-        Alert.alert("Restored", "Your subscription has been restored successfully.");
-      } else if (result.success && !result.hasPremium) {
+      if (result.success && result.hasSubscription) {
+        // Step 2: Subscription found - now verify ownership
+        if (!user) {
+          // User not logged in - prompt to sign in first
+          Alert.alert(
+            "Sign In Required",
+            "We found your subscription. Please sign in to restore access to your account.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Sign In", onPress: () => navigation.navigate("Auth", { fromPaywall: true, signInOnly: false }) },
+            ]
+          );
+        } else {
+          // User is logged in - verify they own this subscription
+          const accessResult = await validateAndGrantAccess(user.id, user.email ?? undefined);
+          
+          if (accessResult.granted) {
+            await setIsPro(true);
+            Alert.alert("Restored", "Your subscription has been restored successfully.");
+          } else if (accessResult.reason === "bound_to_another_user") {
+            // COMPLIANCE: Subscription belongs to different account
+            Alert.alert(
+              "Subscription In Use",
+              "This subscription is already associated with another account. Please sign in with the account that purchased it."
+            );
+          } else {
+            Alert.alert("Restore Failed", "Unable to verify subscription ownership. Please try again.");
+          }
+        }
+      } else if (result.success && !result.hasSubscription) {
         Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore. If you believe you have an active subscription, please ensure you're signed in with the correct Apple ID.");
       } else if (result.error) {
         Alert.alert("Restore Failed", result.error);
@@ -131,7 +167,7 @@ export default function PaywallScreen() {
     } finally {
       setRestoring(false);
     }
-  }, [iapAvailable, restore, setIsPro, user?.id]);
+  }, [iapAvailable, restore, setIsPro, user, navigation]);
 
   const handleSignIn = useCallback(() => {
     navigation.navigate("Auth", { fromPaywall: true, signInOnly: isFirstPaywall });

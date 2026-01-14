@@ -28,7 +28,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useUnits } from "@/lib/UnitsContext";
 import { useStoreKit } from "@/hooks/useStoreKit";
-import { PRODUCT_IDS, validatePremiumAccess } from "@/lib/storekit";
+import { PRODUCT_IDS, validateAndGrantAccess } from "@/lib/storekit";
 import { RootStackParamList } from "@/navigation/RootStackNavigator";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -235,20 +235,14 @@ export default function OnboardingScreen() {
     const result = await purchase(productId);
     
     if (result.success) {
-      // After successful purchase, validate with server to confirm subscription
-      const isValid = await validatePremiumAccess();
-      if (isValid) {
-        await setIsPro(true);
-        await completeOnboarding();
-        // Navigate to Auth to create account or sign in (requirement C)
-        navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
-      } else {
-        // Purchase succeeded but server validation failed
-        Alert.alert(
-          "Verification Issue",
-          "Your purchase was successful but we couldn't verify it. Please try 'Restore Purchases' or contact support."
-        );
-      }
+      // APPLE COMPLIANCE (Guideline 3.1.2):
+      // Purchase succeeded but we do NOT set isPro here.
+      // User must sign in/create account, then RootStackNavigator will:
+      // 1. Validate subscription with App Store
+      // 2. Bind subscription to user account
+      // 3. Only then grant premium access
+      await completeOnboarding();
+      navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
     } else if (result.error && !result.error.includes("cancelled")) {
       Alert.alert(
         "Purchase Failed",
@@ -282,19 +276,24 @@ export default function OnboardingScreen() {
 
     const result = await restore();
     
-    if (result.success && result.hasPremium) {
-      // Restore found valid purchases - grant access immediately
-      // The restore function already validated with App Store
-      await setIsPro(true);
+    // APPLE COMPLIANCE (Guideline 3.1.2):
+    // Restore only confirms subscription exists - user must sign in to verify ownership
+    if (result.success && result.hasSubscription) {
+      // Subscription found - user must sign in to bind it to their account
       await completeOnboarding();
-      // Navigate to Auth to sign in (requirement C)
-      navigation.navigate("Auth", { fromPaywall: true, signInOnly: false });
-    } else if (result.success && !result.hasPremium) {
+      Alert.alert(
+        "Subscription Found",
+        "We found your subscription. Please sign in to restore access to your account.",
+        [
+          { text: "Sign In", onPress: () => navigation.navigate("Auth", { fromPaywall: true, signInOnly: false }) },
+        ]
+      );
+    } else if (result.success && !result.hasSubscription) {
       Alert.alert("No Purchases Found", "We couldn't find any previous purchases to restore. If you believe you have an active subscription, please ensure you're signed in with the correct Apple ID.");
     } else if (result.error) {
       Alert.alert("Restore Failed", result.error);
     }
-  }, [iapAvailable, restore, setIsPro, completeOnboarding, navigation]);
+  }, [iapAvailable, restore, completeOnboarding, navigation]);
 
   const handlePrivacy = useCallback(() => {
     Linking.openURL("https://1betterwithunits.info");
