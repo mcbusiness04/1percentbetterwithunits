@@ -256,7 +256,7 @@ export default function SettingsScreen() {
 
       <View style={styles.footer}>
         <ThemedText type="small" style={{ color: theme.textSecondary, textAlign: "center" }}>
-          Units v{Constants.expoConfig?.version ?? "1.0.7"}
+          Units v{Constants.expoConfig?.version ?? "1.0.8"}
         </ThemedText>
       </View>
     </ScrollView>

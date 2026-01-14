@@ -28,7 +28,7 @@ const FEATURES = [
 
 const APPLE_EULA_URL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/";
 const PRIVACY_URL = "https://1betterwithunits.info/";
-const TERMS_URL = "https://1betterwithunits.info/terms";
+const TERMS_URL = "https://1betterwithunits.info/";
 
 export default function PaywallScreen() {
   const insets = useSafeAreaInsets();

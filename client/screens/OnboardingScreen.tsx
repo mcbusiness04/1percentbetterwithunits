@@ -306,7 +306,7 @@ export default function OnboardingScreen() {
   }, []);
 
   const handleTerms = useCallback(() => {
-    Linking.openURL("https://1betterwithunits.info/terms");
+    Linking.openURL("https://1betterwithunits.info/");
   }, []);
 
   const handleEULA = useCallback(() => {
