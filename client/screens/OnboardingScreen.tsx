@@ -302,11 +302,11 @@ export default function OnboardingScreen() {
   }, [iapAvailable, restore, setIsPro, completeOnboarding]);
 
   const handlePrivacy = useCallback(() => {
-    Linking.openURL("https://1betterwithunits.info/");
+    Linking.openURL("https://1betterwithunits.info");
   }, []);
 
   const handleTerms = useCallback(() => {
-    Linking.openURL("https://1betterwithunits.info/");
+    Linking.openURL("https://1betterwithunits.info");
   }, []);
 
   const handleEULA = useCallback(() => {
