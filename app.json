@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.1withunits.app",
+      "bundleIdentifier": "com.1betterwithunits.app",
       "buildNumber": "1",
       "infoPlist": {
         "CFBundleDisplayName": "1% Better",
