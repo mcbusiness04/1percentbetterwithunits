@@ -160,5 +160,5 @@ ALLOW_DEMO_REVIEW_LOGIN=true npm run all:dev
 - There are NO fallback paths - the env var is the ONLY gate
 
 ## Product IDs (App Store Connect)
-- `units.subscription.monthly` - $4.99/month subscription
-- `units.subscription.yearly` - $19.99/year subscription
+- `1better.subscription.monthly` - $4.99/month subscription
+- `1better.subscription.yearly` - $19.99/year subscription

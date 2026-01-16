@@ -19,8 +19,8 @@
  *   } = useStoreKit();
  * 
  * PRODUCT IDS:
- *   - units.subscription.monthly ($4.99/month)
- *   - units.subscription.yearly ($19.99/year)
+ *   - 1better.subscription.monthly ($4.99/month)
+ *   - 1better.subscription.yearly ($19.99/year)
  * 
  * ============================================================================
  */
