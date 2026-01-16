@@ -1,0 +1,59 @@
+I need a TestFlight / App Store Connect install-blocker audit.
+
+My app uploads successfully to App Store Connect, shows “Ready to Test” in TestFlight, but fails to install on iPhone with:
+“The requested app is not available or doesn’t exist.”
+
+Please do NOT change any code yet.
+
+Instead, OUTPUT a clear report with the following EXACT sections:
+
+1. APP IDENTITY
+- iOS bundle identifier actually used at build time
+- CFBundleIdentifier
+- CFBundleVersion (build number)
+- CFBundleShortVersionString (app version)
+- App display name
+- Any recent changes to bundle ID, app name, or slug
+
+2. EXPO / EAS CONFIG
+- app.json / app.config.js values related to:
+  - ios.bundleIdentifier
+  - name
+  - slug
+  - owner
+- eas.json build profiles used (development / preview / production)
+- Which profile is used for TestFlight
+- appVersionSource (remote vs local)
+
+3. APP STORE CONNECT–CRITICAL FLAGS
+- Whether this build is marked as:
+  - Internal testing eligible
+  - Uses encryption (ATS / export compliance)
+  - Requires test information
+- Any required App Store Connect metadata that is missing but NOT shown as an error
+
+4. TESTFLIGHT INSTALL BLOCKERS
+Check for and report if ANY of the following exist:
+- Mismatch between bundleIdentifier and App Store Connect app record
+- App renamed after initial upload
+- Multiple app records using similar bundle IDs
+- Build uploaded under the wrong App Store Connect app
+- Unsupported device or iOS deployment target
+- Entitlements mismatch
+- Invalid provisioning profile for TestFlight
+- build not associated with an internal tester group
+
+5. SIGNING & PROVISIONING
+- Team ID used
+- Provisioning profile type (App Store / Ad Hoc / Development)
+- Whether this profile is valid for TestFlight installs
+- Whether a new profile was generated recently
+
+6. SUMMARY
+- A short list of ANY findings that could cause TestFlight to show the app but refuse installation
+- Explicitly state if NOTHING in code/config would block TestFlight install
+
+Important:
+- Do NOT say “everything looks fine” unless you verify every section.
+- Do NOT fix anything yet.
+- This output is for manual review.
